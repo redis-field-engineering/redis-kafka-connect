@@ -1,0 +1,146 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.github.jcustenborder.kafka.connect</groupId>
+        <artifactId>kafka-connect-parent</artifactId>
+        <version>2.2.1-cp1</version>
+    </parent>
+
+    <groupId>com.redislabs</groupId>
+    <artifactId>redis-enterprise-kafka</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+    <packaging>jar</packaging>
+    <name>redis-enterprise-kafka</name>
+    <description>Kafka Connect source and sink connectors for Redis Enterprise</description>
+    <inceptionYear>2021</inceptionYear>
+
+    <licenses>
+        <license>
+            <name>Apache License, Version 2.0</name>
+            <url>https://www.apache.org/licenses/LICENSE-2.0</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+
+    <scm>
+        <connection>scm:git:https://github.com/RedisLabs-Field-Engineering/redis-enterprise-kafka.git</connection>
+        <developerConnection>scm:git:git@github.com/RedisLabs-Field-Engineering/redis-enterprise-kafka.git
+        </developerConnection>
+        <url>https://github.com/RedisLabs-Field-Engineering/redis-enterprise-kafka</url>
+    </scm>
+
+    <issueManagement>
+        <system>GitHub</system>
+        <url>${project.url}/issues</url>
+    </issueManagement>
+
+    <developers>
+        <developer>
+            <id>jruaux</id>
+            <name>Julien Ruaux</name>
+            <url>https://github.com/jruaux</url>
+            <roles>
+                <role>Committer</role>
+            </roles>
+        </developer>
+    </developers>
+
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <java.version>8</java.version>
+    </properties>
+
+    <dependencies>
+
+        <dependency>
+            <groupId>io.lettuce</groupId>
+            <artifactId>lettuce-core</artifactId>
+            <version>6.0.2.RELEASE</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <version>1.18.18</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-nop</artifactId>
+            <version>1.7.30</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>5.7.1</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>testcontainers</artifactId>
+            <version>1.15.2</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>1.15.2</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>io.projectreactor</groupId>
+            <artifactId>reactor-test</artifactId>
+            <version>3.4.2</version>
+            <scope>test</scope>
+        </dependency>
+
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>io.confluent</groupId>
+                <artifactId>kafka-connect-maven-plugin</artifactId>
+                <version>0.11.3</version>
+                <executions>
+                    <execution>
+                        <id>hub</id>
+                        <goals>
+                            <goal>kafka-connect</goal>
+                        </goals>
+                        <configuration>
+                            <ownerName>Redis Labs</ownerName>
+                            <ownerUsername>redislabs</ownerUsername>
+                            <dockerNamespace>redislabs</dockerNamespace>
+                            <dockerName>redis-enterprise-kafka-docker</dockerName>
+                            <confluentControlCenterIntegration>true</confluentControlCenterIntegration>
+                            <documentationUrl>https://redislabs.com/redis-enterprise-kafka</documentationUrl>
+                            <componentTypes>
+                                <componentType>sink</componentType>
+                                <componentType>source</componentType>
+                            </componentTypes>
+                            <tags>
+                                <tag>redis enterprise</tag>
+                            </tags>
+                            <title>Redis Enterprise Kafka</title>
+                            <supportProviderName>Redis Labs</supportProviderName>
+                            <supportSummary>
+                                <![CDATA[This connector is <a href="https://redislabs.com/company/support/">supported by Redis Labs</a> as part of a
+                                <a href="https://redislabs.com/redis-enterprise">Redis Enterprise</a> license.]]>
+                            </supportSummary>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>
