@@ -17,7 +17,7 @@
 @Title("Redis Enterprise Kafka Connect")
 @PluginOwner("jruaux")
 @PluginName("redis-enterprise-kafka")
-package com.redislabs.kafka.connect;
+package com.redislabs.kafkaconnect;
 
 import com.github.jcustenborder.kafka.connect.utils.config.Introduction;
 import com.github.jcustenborder.kafka.connect.utils.config.PluginName;

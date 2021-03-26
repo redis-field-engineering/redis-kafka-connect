@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.redislabs.kafka.connect;
+package com.redislabs.kafkaconnect.common;
 
 import lombok.Getter;
 import org.apache.kafka.common.config.ConfigException;
