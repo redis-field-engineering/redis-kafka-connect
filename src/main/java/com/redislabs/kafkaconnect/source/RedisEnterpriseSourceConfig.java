@@ -34,28 +34,28 @@ public class RedisEnterpriseSourceConfig extends AbstractConfig {
     public static final String REDIS_URI_DOC = "URI of the Redis Enterprise database to connect to, e.g. redis://redis-12000.redislabs.com:12000";
 
     public static final String STREAM_NAME = "stream";
-    private static final String STREAM_NAME_DISPLAY = "Stream name";
-    private static final String STREAM_NAME_DOC = "Name of the Redis stream to read from";
+    public static final String STREAM_NAME_DISPLAY = "Stream name";
+    public static final String STREAM_NAME_DOC = "Name of the Redis stream to read from";
 
     public static final String STREAM_OFFSET = "stream.offset";
-    private static final String STREAM_OFFSET_DEFAULT = "0-0";
-    private static final String STREAM_OFFSET_DISPLAY = "Stream offset";
-    private static final String STREAM_OFFSET_DOC = "Stream offset to start reading from";
+    public static final String STREAM_OFFSET_DEFAULT = "0-0";
+    public static final String STREAM_OFFSET_DISPLAY = "Stream offset";
+    public static final String STREAM_OFFSET_DOC = "Stream offset to start reading from";
 
     public static final String STREAM_COUNT = "stream.count";
-    private static final int STREAM_COUNT_DEFAULT = 50;
-    private static final String STREAM_COUNT_DISPLAY = "The maximum batch size";
-    private static final String STREAM_COUNT_DOC = "Maximum number of stream messages to include in a single read when polling for new data (XREAD [COUNT count]). This setting can be used to limit the amount of data buffered internally in the connector.";
+    public static final long STREAM_COUNT_DEFAULT = 50;
+    public static final String STREAM_COUNT_DISPLAY = "The maximum batch size";
+    public static final String STREAM_COUNT_DOC = "Maximum number of stream messages to include in a single read when polling for new data (XREAD [COUNT count]). This setting can be used to limit the amount of data buffered internally in the connector.";
 
     public static final String STREAM_BLOCK = "stream.block";
-    private static final long STREAM_BLOCK_DEFAULT = 100;
-    private static final String STREAM_BLOCK_DISPLAY = "Max poll duration";
-    private static final String STREAM_BLOCK_DOC = "The max amount of time in milliseconds to wait while polling for stream messages (XREAD [BLOCK milliseconds])";
+    public static final long STREAM_BLOCK_DEFAULT = 100;
+    public static final String STREAM_BLOCK_DISPLAY = "Max poll duration";
+    public static final String STREAM_BLOCK_DOC = "The max amount of time in milliseconds to wait while polling for stream messages (XREAD [BLOCK milliseconds])";
 
     public static final String TOPIC_NAME_FORMAT = "topic.name.format";
-    private static final String TOPIC_NAME_FORMAT_DEFAULT = "${stream}";
-    private static final String TOPIC_NAME_FORMAT_DOC = "A format string for the destination topic name, which may contain '${stream}' as a " + "placeholder for the originating topic name.\n" + "For example, ``redis_${stream}`` for the stream 'orders' will map to the topic name " + "'redis_orders'.";
-    private static final String TOPIC_NAME_FORMAT_DISPLAY = "Topic Name Format";
+    public static final String TOPIC_NAME_FORMAT_DEFAULT = "${stream}";
+    public static final String TOPIC_NAME_FORMAT_DOC = "A format string for the destination topic name, which may contain '${stream}' as a " + "placeholder for the originating topic name.\n" + "For example, ``redis_${stream}`` for the stream 'orders' will map to the topic name " + "'redis_orders'.";
+    public static final String TOPIC_NAME_FORMAT_DISPLAY = "Topic Name Format";
 
 
     @Getter
@@ -74,8 +74,8 @@ public class RedisEnterpriseSourceConfig extends AbstractConfig {
         return getString(STREAM_OFFSET);
     }
 
-    public int getStreamCount() {
-        return getInt(STREAM_COUNT);
+    public long getStreamCount() {
+        return getLong(STREAM_COUNT);
     }
 
     public long getStreamBlock() {
@@ -86,14 +86,14 @@ public class RedisEnterpriseSourceConfig extends AbstractConfig {
         return getString(TOPIC_NAME_FORMAT);
     }
 
-    private void validateStream() {
+    public void validateStream() {
         String stream = getString(STREAM_NAME);
         if (stream == null || stream.isEmpty()) {
             throw new RedisEnterpriseConfigException(STREAM_NAME, stream, String.format("Missing stream configuration: '%s'", STREAM_NAME));
         }
     }
 
-    private static class RedisEnterpriseSourceConfigDef extends ConfigDef {
+    public static class RedisEnterpriseSourceConfigDef extends ConfigDef {
 
         public RedisEnterpriseSourceConfigDef() {
             String group = "Redis Enterprise";
@@ -101,11 +101,11 @@ public class RedisEnterpriseSourceConfig extends AbstractConfig {
             define(REDIS_URI, Type.STRING, REDIS_URI_DEFAULT, Importance.HIGH, REDIS_URI_DOC, group, ++index, Width.MEDIUM, REDIS_URI_DISPLAY);
             define(STREAM_NAME, Type.STRING, null, Importance.HIGH, STREAM_NAME_DOC, group, ++index, Width.SHORT, STREAM_NAME_DISPLAY);
             define(STREAM_OFFSET, Type.STRING, STREAM_OFFSET_DEFAULT, Importance.MEDIUM, STREAM_OFFSET_DOC, group, ++index, Width.SHORT, STREAM_OFFSET_DISPLAY);
-            define(STREAM_COUNT, Type.INT, STREAM_COUNT_DEFAULT, ConfigDef.Range.atLeast(1), Importance.LOW, STREAM_COUNT_DOC, group, ++index, Width.MEDIUM, STREAM_COUNT_DISPLAY);
-            define(STREAM_BLOCK, Type.LONG, STREAM_BLOCK_DEFAULT, ConfigDef.Range.atLeast(1), Importance.LOW, STREAM_BLOCK_DOC, group, ++index, Width.MEDIUM, STREAM_BLOCK_DISPLAY);
+            define(STREAM_COUNT, Type.LONG, STREAM_COUNT_DEFAULT, Range.atLeast(1), Importance.LOW, STREAM_COUNT_DOC, group, ++index, Width.MEDIUM, STREAM_COUNT_DISPLAY);
+            define(STREAM_BLOCK, Type.LONG, STREAM_BLOCK_DEFAULT, Range.atLeast(1), Importance.LOW, STREAM_BLOCK_DOC, group, ++index, Width.MEDIUM, STREAM_BLOCK_DISPLAY);
             group = "Connector";
             index = 0;
-            define(TOPIC_NAME_FORMAT, ConfigDef.Type.STRING, TOPIC_NAME_FORMAT_DEFAULT, Importance.MEDIUM, TOPIC_NAME_FORMAT_DOC, group, ++index, ConfigDef.Width.LONG, TOPIC_NAME_FORMAT_DISPLAY);
+            define(TOPIC_NAME_FORMAT, Type.STRING, TOPIC_NAME_FORMAT_DEFAULT, Importance.MEDIUM, TOPIC_NAME_FORMAT_DOC, group, ++index, Width.LONG, TOPIC_NAME_FORMAT_DISPLAY);
         }
 
         @Override
@@ -124,5 +124,4 @@ public class RedisEnterpriseSourceConfig extends AbstractConfig {
             return results;
         }
     }
-
 }

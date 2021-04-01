@@ -20,13 +20,14 @@ import io.lettuce.core.RedisClient;
 import io.lettuce.core.StreamMessage;
 import io.lettuce.core.XReadArgs;
 import io.lettuce.core.api.StatefulRedisConnection;
-import io.lettuce.core.api.sync.RedisCommands;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.SchemaBuilder;
 import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.source.SourceRecord;
 import org.apache.kafka.connect.source.SourceTask;
+import org.springframework.batch.item.ExecutionContext;
+import org.springframework.batch.item.redis.RedisStreamItemReader;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -46,11 +47,9 @@ public class RedisEnterpriseSourceTask extends SourceTask {
 
     private RedisClient client;
     private StatefulRedisConnection<String, String> connection;
-    private RedisCommands<String, String> commands;
     private RedisEnterpriseSourceConfig sourceConfig;
-    private String stream;
+    private RedisStreamItemReader<String, String> reader;
     private Map<String, String> offsetKey;
-    private String offset;
 
     @Override
     public String version() {
@@ -62,32 +61,31 @@ public class RedisEnterpriseSourceTask extends SourceTask {
         this.sourceConfig = new RedisEnterpriseSourceConfig(props);
         this.client = RedisClient.create(sourceConfig.getRedisUri());
         this.connection = client.connect();
-        this.commands = connection.sync();
-        this.stream = sourceConfig.getStreamName();
-        this.offsetKey = Collections.singletonMap(STREAM_FIELD, stream);
-        this.offset = currentOffset();
-    }
-
-    private String currentOffset() {
-        if (context == null) {
-            return null;
-        }
-        Map<String, Object> offset = context.offsetStorageReader().offset(offsetKey);
-        if (offset != null) {
-            Object lastRecordedOffset = offset.get(OFFSET_FIELD);
-            if (lastRecordedOffset != null) {
-                if (lastRecordedOffset instanceof String) {
-                    log.info("Found previous offset: {}", lastRecordedOffset);
-                    return (String) lastRecordedOffset;
+        this.offsetKey = Collections.singletonMap(STREAM_FIELD, sourceConfig.getStreamName());
+        String offset = sourceConfig.getStreamOffset();
+        if (context != null) {
+            Map<String, Object> storedOffset = context.offsetStorageReader().offset(offsetKey);
+            if (storedOffset != null) {
+                Object lastRecordedOffset = storedOffset.get(OFFSET_FIELD);
+                if (lastRecordedOffset != null) {
+                    if (lastRecordedOffset instanceof String) {
+                        log.info("Found previous offset: {}", lastRecordedOffset);
+                        offset = (String) lastRecordedOffset;
+                    } else {
+                        throw new ConnectException("Offset position is the incorrect type");
+                    }
                 }
-                throw new ConnectException("Offset position is the incorrect type");
             }
         }
-        return sourceConfig.getStreamOffset();
+        this.reader = RedisStreamItemReader.builder(connection).block(sourceConfig.getStreamBlock()).count(sourceConfig.getStreamCount()).offset(XReadArgs.StreamOffset.from(sourceConfig.getStreamName(), offset)).build();
+        this.reader.open(new ExecutionContext());
     }
 
     @Override
     public void stop() {
+        if (reader != null) {
+            reader.close();
+        }
         if (connection != null) {
             connection.close();
         }
@@ -98,14 +96,12 @@ public class RedisEnterpriseSourceTask extends SourceTask {
 
     @Override
     public List<SourceRecord> poll() {
-        XReadArgs args = XReadArgs.Builder.block(sourceConfig.getStreamBlock()).count(sourceConfig.getStreamCount());
-        List<StreamMessage<String, String>> messages = commands.xread(args, XReadArgs.StreamOffset.from(stream, offset));
+        log.debug("Reading from stream {} at offset {}", reader.getOffset().getName(), reader.getOffset().getOffset());
         List<SourceRecord> records = new ArrayList<>();
-        for (StreamMessage<String, String> message : messages) {
+        for (StreamMessage<String, String> message : reader.readMessages()) {
             Map<String, String> offsetValue = Collections.singletonMap(OFFSET_FIELD, message.getId());
             String topic = sourceConfig.getTopicNameFormat().replace("${stream}", message.getStream());
             records.add(new SourceRecord(offsetKey, offsetValue, topic, null, KEY_SCHEMA, message.getId(), VALUE_SCHEMA, message.getBody(), Instant.now().getEpochSecond()));
-            this.offset = message.getId();
         }
         if (records.isEmpty()) {
             //TODO return heartbeat

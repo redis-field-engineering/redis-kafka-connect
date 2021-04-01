@@ -27,18 +27,21 @@ public class RedisEnterpriseSinkConfig extends AbstractConfig {
     public static final ConfigDef CONFIG_DEF = new RedisEnterpriseSinkConfigDef();
 
     public static final String STREAM_NAME_FORMAT = "stream.name.format";
-    private static final String STREAM_NAME_FORMAT_DEFAULT = "${topic}";
-    private static final String STREAM_NAME_FORMAT_DOC =
-            "A format string for the destination stream name, which may contain '${topic}' as a "
-                    + "placeholder for the originating topic name.\n"
-                    + "For example, ``kafka_${topic}`` for the topic 'orders' will map to the stream name "
-                    + "'kafka_orders'.";
-    private static final String STREAM_NAME_FORMAT_DISPLAY = "Stream Name Format";
+    public static final String STREAM_NAME_FORMAT_DEFAULT = "${topic}";
+    public static final String STREAM_NAME_FORMAT_DOC = "A format string for the destination stream name, which may contain '${topic}' as a " + "placeholder for the originating topic name.\n" + "For example, ``kafka_${topic}`` for the topic 'orders' will map to the stream name " + "'kafka_orders'.";
+    public static final String STREAM_NAME_FORMAT_DISPLAY = "Stream Name Format";
+
+    public static final String TRANSACTIONAL = "transactional";
+    public static final String TRANSACTIONAL_DEFAULT = "false";
+    public static final String TRANSACTIONAL_DOC = "Whether to execute Redis commands in multi/exec transactions.";
+    public static final String TRANSACTIONAL_DISPLAY = "Use Transactions";
 
     @Getter
     private final String redisUri;
     @Getter
     private final String streamNameFormat;
+    @Getter
+    private final Boolean transactional;
 
     public RedisEnterpriseSinkConfig(final Map<?, ?> originals) {
         this(originals, true);
@@ -48,16 +51,19 @@ public class RedisEnterpriseSinkConfig extends AbstractConfig {
         super(CONFIG_DEF, originals, false);
         redisUri = getString(RedisEnterpriseSourceConfig.REDIS_URI);
         streamNameFormat = getString(STREAM_NAME_FORMAT).trim();
+        transactional = getBoolean(TRANSACTIONAL);
     }
 
-    private static class RedisEnterpriseSinkConfigDef extends ConfigDef {
+
+    public static class RedisEnterpriseSinkConfigDef extends ConfigDef {
 
         public RedisEnterpriseSinkConfigDef() {
             String group = "Redis Enterprise";
-            define(RedisEnterpriseSourceConfig.REDIS_URI, Type.STRING, RedisEnterpriseSourceConfig.REDIS_URI_DEFAULT, Importance.HIGH, RedisEnterpriseSourceConfig.REDIS_URI_DOC, group, 0, Width.MEDIUM, RedisEnterpriseSourceConfig.REDIS_URI_DISPLAY);
-            define(STREAM_NAME_FORMAT, Type.STRING, STREAM_NAME_FORMAT_DEFAULT, Importance.MEDIUM, STREAM_NAME_FORMAT_DOC, group, 1, Width.MEDIUM, STREAM_NAME_FORMAT_DISPLAY);
+            int order = 0;
+            define(RedisEnterpriseSourceConfig.REDIS_URI, Type.STRING, RedisEnterpriseSourceConfig.REDIS_URI_DEFAULT, Importance.HIGH, RedisEnterpriseSourceConfig.REDIS_URI_DOC, group, ++order, Width.MEDIUM, RedisEnterpriseSourceConfig.REDIS_URI_DISPLAY);
+            define(STREAM_NAME_FORMAT, Type.STRING, STREAM_NAME_FORMAT_DEFAULT, Importance.MEDIUM, STREAM_NAME_FORMAT_DOC, group, ++order, Width.MEDIUM, STREAM_NAME_FORMAT_DISPLAY);
+            define(TRANSACTIONAL, Type.BOOLEAN, TRANSACTIONAL_DEFAULT, Importance.MEDIUM, TRANSACTIONAL_DOC, group, ++order, Width.SHORT, TRANSACTIONAL_DISPLAY);
         }
 
     }
-
 }

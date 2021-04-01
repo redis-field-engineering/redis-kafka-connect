@@ -2,30 +2,37 @@ package com.redislabs.kafkaconnect.sink;
 
 import com.redislabs.kafkaconnect.RedisEnterpriseSinkConnector;
 import io.lettuce.core.RedisClient;
-import io.lettuce.core.RedisFuture;
+import io.lettuce.core.XAddArgs;
 import io.lettuce.core.api.StatefulRedisConnection;
-import io.lettuce.core.api.async.RedisAsyncCommands;
+import io.lettuce.core.support.ConnectionPoolSupport;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.pool2.impl.GenericObjectPool;
+import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
 import org.apache.kafka.connect.data.Field;
 import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.sink.SinkRecord;
 import org.apache.kafka.connect.sink.SinkTask;
+import org.springframework.batch.item.ExecutionContext;
+import org.springframework.batch.item.ItemStreamSupport;
+import org.springframework.batch.item.ItemWriter;
+import org.springframework.batch.item.redis.RedisOperationItemWriter;
+import org.springframework.batch.item.redis.RedisTransactionItemWriter;
+import org.springframework.batch.item.redis.support.RedisOperation;
+import org.springframework.batch.item.redis.support.RedisOperationBuilder;
 
+import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 
 @Slf4j
 public class RedisEnterpriseSinkTask extends SinkTask {
 
     private RedisClient client;
-    private StatefulRedisConnection<String, String> connection;
-    private RedisAsyncCommands<String, String> commands;
     private RedisEnterpriseSinkConfig sinkConfig;
-    private long timeout;
+    private ItemWriter<SinkRecord> writer;
+    private GenericObjectPool<StatefulRedisConnection<String, String>> pool;
 
     @Override
     public String version() {
@@ -34,44 +41,28 @@ public class RedisEnterpriseSinkTask extends SinkTask {
 
     @Override
     public void start(final Map<String, String> props) {
-        this.sinkConfig = new RedisEnterpriseSinkConfig(props);
-        this.client = RedisClient.create(sinkConfig.getRedisUri());
-        this.connection = client.connect();
-        this.commands = connection.async();
-        this.commands.setAutoFlushCommands(false);
-        this.timeout = connection.getTimeout().toMillis();
-    }
-
-    @Override
-    public void stop() {
-        commands = null;
-        if (connection != null) {
-            connection.close();
-        }
-        if (client != null) {
-            client.shutdown();
+        sinkConfig = new RedisEnterpriseSinkConfig(props);
+        client = RedisClient.create(sinkConfig.getRedisUri());
+        GenericObjectPoolConfig<StatefulRedisConnection<String, String>> poolConfig = new GenericObjectPoolConfig<>();
+        poolConfig.setMaxTotal(1);
+        pool = ConnectionPoolSupport.createGenericObjectPool(client::connect, poolConfig);
+        writer = writer(pool, Boolean.TRUE.equals(sinkConfig.getTransactional()));
+        if (writer instanceof ItemStreamSupport) {
+            ((ItemStreamSupport) writer).open(new ExecutionContext());
         }
     }
 
-    @Override
-    public void put(final Collection<SinkRecord> records) {
-        if (records.isEmpty()) {
-            return;
+    private ItemWriter<SinkRecord> writer(GenericObjectPool<StatefulRedisConnection<String, String>> pool, boolean transactional) {
+        XAddArgs args = new XAddArgs();
+        RedisOperation<String, String, SinkRecord> xadd = RedisOperationBuilder.<String, String, SinkRecord>xadd().keyConverter(this::key).argsConverter(i -> args).bodyConverter(this::body).build();
+        if (Boolean.TRUE.equals(transactional)) {
+            return new RedisTransactionItemWriter<>(pool, xadd);
         }
-        Map<SinkRecord, RedisFuture<?>> futures = new HashMap<>();
-        for (SinkRecord record : records) {
-            String stream = sinkConfig.getStreamNameFormat().replace("${topic}", record.topic());
-            futures.put(record, commands.xadd(stream, body(record)));
-        }
-        commands.flushCommands();
-        for (Map.Entry<SinkRecord, RedisFuture<?>> entry : futures.entrySet()) {
-            try {
-                entry.getValue().get(timeout, TimeUnit.MILLISECONDS);
-            } catch (Exception e) {
-                log.warn("Could not write record at offset {}", entry.getKey().kafkaOffset());
-            }
-        }
-        log.info("Wrote {} messages to Redis", records.size());
+        return new RedisOperationItemWriter<>(pool, xadd);
+    }
+
+    private String key(SinkRecord record) {
+        return sinkConfig.getStreamNameFormat().replace("${topic}", record.topic());
     }
 
     private Map<String, String> body(SinkRecord record) {
@@ -96,5 +87,32 @@ public class RedisEnterpriseSinkTask extends SinkTask {
         }
         throw new ConnectException("Unsupported source value type: " + record.valueSchema().type().name());
     }
+
+    @Override
+    public void stop() {
+        if (writer != null && writer instanceof ItemStreamSupport) {
+            ((ItemStreamSupport) writer).close();
+        }
+        if (pool != null) {
+            pool.close();
+        }
+        if (client != null) {
+            client.shutdown();
+        }
+    }
+
+    @Override
+    public void put(final Collection<SinkRecord> records) {
+        if (records.isEmpty()) {
+            return;
+        }
+        try {
+            writer.write(new ArrayList<>(records));
+            log.info("Wrote {} records", records.size());
+        } catch (Exception e) {
+            log.warn("Could not write {} records", records.size(), e);
+        }
+    }
+
 
 }
