@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.redislabs.kafkaconnect.source;
+package com.redislabs.kafkaconnect;
 
 import com.redislabs.kafkaconnect.common.RedisEnterpriseConfigException;
 import lombok.Getter;
@@ -33,21 +33,21 @@ public class RedisEnterpriseSourceConfig extends AbstractConfig {
     public static final String REDIS_URI_DISPLAY = "Connection URI";
     public static final String REDIS_URI_DOC = "URI of the Redis Enterprise database to connect to, e.g. redis://redis-12000.redislabs.com:12000";
 
-    public static final String STREAM_NAME = "stream";
+    public static final String STREAM_NAME = "redis.stream.name";
     public static final String STREAM_NAME_DISPLAY = "Stream name";
     public static final String STREAM_NAME_DOC = "Name of the Redis stream to read from";
 
-    public static final String STREAM_OFFSET = "stream.offset";
+    public static final String STREAM_OFFSET = "redis.stream.offset";
     public static final String STREAM_OFFSET_DEFAULT = "0-0";
     public static final String STREAM_OFFSET_DISPLAY = "Stream offset";
     public static final String STREAM_OFFSET_DOC = "Stream offset to start reading from";
 
-    public static final String STREAM_COUNT = "stream.count";
+    public static final String STREAM_COUNT = "redis.stream.count";
     public static final long STREAM_COUNT_DEFAULT = 50;
     public static final String STREAM_COUNT_DISPLAY = "The maximum batch size";
     public static final String STREAM_COUNT_DOC = "Maximum number of stream messages to include in a single read when polling for new data (XREAD [COUNT count]). This setting can be used to limit the amount of data buffered internally in the connector.";
 
-    public static final String STREAM_BLOCK = "stream.block";
+    public static final String STREAM_BLOCK = "redis.stream.block";
     public static final long STREAM_BLOCK_DEFAULT = 100;
     public static final String STREAM_BLOCK_DISPLAY = "Max poll duration";
     public static final String STREAM_BLOCK_DOC = "The max amount of time in milliseconds to wait while polling for stream messages (XREAD [BLOCK milliseconds])";

@@ -46,7 +46,7 @@ public class RedisEnterpriseSinkTask extends SinkTask {
         GenericObjectPoolConfig<StatefulRedisConnection<String, String>> poolConfig = new GenericObjectPoolConfig<>();
         poolConfig.setMaxTotal(1);
         pool = ConnectionPoolSupport.createGenericObjectPool(client::connect, poolConfig);
-        writer = writer(pool, Boolean.TRUE.equals(sinkConfig.getTransactional()));
+        writer = writer(pool, Boolean.TRUE.equals(sinkConfig.isMultiexec()));
         if (writer instanceof ItemStreamSupport) {
             ((ItemStreamSupport) writer).open(new ExecutionContext());
         }
@@ -80,7 +80,7 @@ public class RedisEnterpriseSinkTask extends SinkTask {
             return body;
         }
         if (value instanceof Map) {
-            Map map = (Map) value;
+            Map<?, ?> map = (Map<?, ?>) value;
             Map<String, String> body = new LinkedHashMap<>();
             map.forEach((k, v) -> body.put(String.valueOf(k), String.valueOf(v)));
             return body;
