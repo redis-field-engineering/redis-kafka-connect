@@ -52,7 +52,6 @@ public class RedisEnterpriseSinkConfig extends AbstractConfig {
         multiexec = Boolean.TRUE.equals(getBoolean(MULTIEXEC));
     }
 
-
     public static class RedisEnterpriseSinkConfigDef extends ConfigDef {
 
         public RedisEnterpriseSinkConfigDef() {
