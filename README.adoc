@@ -12,8 +12,6 @@ endif::[]
 
 // Badges
 ifdef::badges[]
-image:https://img.shields.io/github/license/RedisLabs-Field-Engineering/redis-enterprise-kafka.svg["License", link="https://github.com/RedisLabs-Field-Engineering/redis-enterprise-kafka"]
-image:https://img.shields.io/github/release/RedisLabs-Field-Engineering/redis-enterprise-kafka.svg["Latest", link="https://github.com/RedisLabs-Field-Engineering/redis-enterprise-kafka/releases/latest"]
 image:https://github.com/RedisLabs-Field-Engineering/redis-enterprise-kafka/actions/workflows/gradle.yml/badge.svg["Build", link="https://github.com/RedisLabs-Field-Engineering/redis-enterprise-kafka/actions/workflows/gradle.yml"]
 image:https://codecov.io/gh/RedisLabs-Field-Engineering/redis-enterprise-kafka/branch/master/graph/badge.svg?token=MTMRRGEWBD["Coverage", link="https://codecov.io/gh/RedisLabs-Field-Engineering/redis-enterprise-kafka"]
 endif::[]
