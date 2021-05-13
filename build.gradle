@@ -1,0 +1,140 @@
+plugins {
+    id 'org.springframework.boot' version '2.4.5'
+    id 'io.spring.dependency-management' version '1.0.11.RELEASE'
+    id 'io.freefair.lombok' version '6.0.0-m2'
+    id 'java-library'
+    id 'maven-publish'
+    id 'signing'
+    id 'io.github.gradle-nexus.publish-plugin' version '1.1.0'
+    id 'net.researchgate.release' version '2.8.1'
+    id 'com.github.ben-manes.versions' version '0.38.0'
+    id 'com.github.breadmoirai.github-release' version '2.2.12'
+    id 'jacoco'
+}
+
+group = 'com.redislabs'
+description = 'Kafka Connect source and sink connectors for Redis Enterprise'
+sourceCompatibility = '1.8'
+targetCompatibility = '1.8'
+
+java {
+    withJavadocJar()
+    withSourcesJar()
+}
+
+repositories {
+    mavenCentral()
+    mavenLocal()
+}
+
+bootJar {
+    enabled = false
+}
+
+jar {
+    enabled = true
+}
+
+dependencies {
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+    implementation 'org.apache.kafka:connect-api:2.8.0'
+    implementation 'com.redislabs:spring-batch-redis:2.12.3'
+    testImplementation 'com.redislabs:testcontainers-redis:1.1.3'
+    testImplementation 'org.testcontainers:junit-jupiter:1.15.3'
+    testImplementation 'io.projectreactor:reactor-test:3.4.6'
+}
+
+test {
+    useJUnitPlatform()
+}
+
+ext.isReleaseVersion = !version.endsWith("SNAPSHOT")
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            from(components.java)
+            versionMapping {
+                usage('java-api') {
+                    fromResolutionOf('runtimeClasspath')
+                }
+                usage('java-runtime') {
+                    fromResolutionResult()
+                }
+            }
+            pom {
+                name = 'Redis Enterprise Kafka Connector'
+                description = 'Kafka Connect source and sink connectors for Redis Enterprise'
+                url = 'https://github.com/RedisLabs-Field-Engineering/redis-enterprise-kafka'
+                licenses {
+                    license {
+                        name = 'The Apache License, Version 2.0'
+                        url = 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+                    }
+                }
+                developers {
+                    developer {
+                        id = 'jruaux'
+                        name = 'Julien Ruaux'
+                    }
+                }
+                scm {
+                    connection = 'scm:git:git://github.com/RedisLabs-Field-Engineering/redis-enterprise-kafka'
+                    developerConnection = 'scm:git:git@github.com:RedisLabs-Field-Engineering/redis-enterprise-kafka'
+                    url = 'https://github.com/RedisLabs-Field-Engineering/redis-enterprise-kafka'
+                }
+            }
+        }
+    }
+}
+
+signing {
+    sign publishing.publications.mavenJava
+}
+
+tasks.withType(Sign) {
+    onlyIf { isReleaseVersion }
+}
+
+nexusPublishing {
+    repositories {
+        sonatype()
+    }
+}
+
+githubRelease {
+    token = project.hasProperty('github.token') ? project.property('github.token') : ''
+    owner "RedisLabs-Field-Engineering"
+    repo "redis-enterprise-kafka"
+    body changelog()
+}
+
+def isNonStable = { String version ->
+    def nonStableKeyword = ['PREVIEW'].any { it -> version.toUpperCase().contains(it) }
+    def stableKeyword = ['RELEASE', 'FINAL', 'GA', 'JRE8'].any { it -> version.toUpperCase().contains(it) }
+    def regex = /^[0-9,.v-]+([.-]r)?$/
+    return nonStableKeyword || (!stableKeyword && !(version ==~ regex))
+}
+
+tasks.named("dependencyUpdates").configure {
+
+    rejectVersionIf {
+        isNonStable(it.candidate.version) && !isNonStable(it.currentVersion)
+    }
+
+}
+
+jacocoTestReport {
+    reports {
+        xml.enabled true
+        html.enabled false
+    }
+}
+
+check.dependsOn jacocoTestReport
+
+afterReleaseBuild.dependsOn ":githubRelease"
+afterReleaseBuild.dependsOn ":publishToSonatype"
+afterReleaseBuild.dependsOn ":closeAndReleaseSonatypeStagingRepository"
+afterReleaseBuild.dependsOn ":publishToMavenLocal"
