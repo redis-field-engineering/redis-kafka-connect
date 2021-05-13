@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright © 2021 Redis Labs
  * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.redislabs.kafkaconnect;
+package com.redislabs.kafkaconnect.source;
 
 import com.redislabs.kafkaconnect.common.RedisEnterpriseConfigException;
 import lombok.Getter;
@@ -27,6 +27,8 @@ import java.util.Map;
 public class RedisEnterpriseSourceConfig extends AbstractConfig {
 
     public static final ConfigDef CONFIG_DEF = new RedisEnterpriseSourceConfigDef();
+
+    public static final String TOKEN_STREAM = "${stream}";
 
     public static final String REDIS_URI = "redis.uri";
     public static final String REDIS_URI_DEFAULT = "redis://localhost:6379";
@@ -53,7 +55,7 @@ public class RedisEnterpriseSourceConfig extends AbstractConfig {
     public static final String STREAM_BLOCK_DOC = "The max amount of time in milliseconds to wait while polling for stream messages (XREAD [BLOCK milliseconds])";
 
     public static final String TOPIC_NAME_FORMAT = "topic.name.format";
-    public static final String TOPIC_NAME_FORMAT_DEFAULT = "${stream}";
+    public static final String TOPIC_NAME_FORMAT_DEFAULT = TOKEN_STREAM;
     public static final String TOPIC_NAME_FORMAT_DOC = "A format string for the destination topic name, which may contain '${stream}' as a " + "placeholder for the originating topic name.\n" + "For example, ``redis_${stream}`` for the stream 'orders' will map to the topic name " + "'redis_orders'.";
     public static final String TOPIC_NAME_FORMAT_DISPLAY = "Topic Name Format";
 

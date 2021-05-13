@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright © 2021 Redis Labs
  * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,12 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.redislabs.kafkaconnect;
+package com.redislabs.kafkaconnect.source;
 
+import com.redislabs.kafkaconnect.RedisEnterpriseSourceConnector;
 import io.lettuce.core.RedisClient;
 import io.lettuce.core.StreamMessage;
 import io.lettuce.core.XReadArgs;
-import io.lettuce.core.api.StatefulRedisConnection;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.SchemaBuilder;
@@ -26,8 +26,9 @@ import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.source.SourceRecord;
 import org.apache.kafka.connect.source.SourceTask;
 import org.springframework.batch.item.ExecutionContext;
-import org.springframework.batch.item.redis.RedisStreamItemReader;
+import org.springframework.batch.item.redis.StreamItemReader;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -45,9 +46,8 @@ public class RedisEnterpriseSourceTask extends SourceTask {
     private static final Schema VALUE_SCHEMA = SchemaBuilder.map(Schema.STRING_SCHEMA, Schema.STRING_SCHEMA).name(VALUE_SCHEMA_NAME);
 
     private RedisClient client;
-    private StatefulRedisConnection<String, String> connection;
     private RedisEnterpriseSourceConfig sourceConfig;
-    private RedisStreamItemReader<String, String> reader;
+    private StreamItemReader<String, String> reader;
     private Map<String, String> offsetKey;
 
     @Override
@@ -59,7 +59,6 @@ public class RedisEnterpriseSourceTask extends SourceTask {
     public void start(Map<String, String> props) {
         this.sourceConfig = new RedisEnterpriseSourceConfig(props);
         this.client = RedisClient.create(sourceConfig.getRedisUri());
-        this.connection = client.connect();
         this.offsetKey = Collections.singletonMap(STREAM_FIELD, sourceConfig.getStreamName());
         String offset = sourceConfig.getStreamOffset();
         if (context != null) {
@@ -76,7 +75,8 @@ public class RedisEnterpriseSourceTask extends SourceTask {
                 }
             }
         }
-        this.reader = RedisStreamItemReader.builder(connection).block(sourceConfig.getStreamBlock()).count(sourceConfig.getStreamCount()).offset(XReadArgs.StreamOffset.from(sourceConfig.getStreamName(), offset)).build();
+        XReadArgs.StreamOffset<String> streamOffset = XReadArgs.StreamOffset.from(sourceConfig.getStreamName(), offset);
+        this.reader = StreamItemReader.client(client).offset(streamOffset).block(Duration.ofMillis(sourceConfig.getStreamBlock())).count(sourceConfig.getStreamCount()).build();
         this.reader.open(new ExecutionContext());
     }
 
@@ -85,21 +85,19 @@ public class RedisEnterpriseSourceTask extends SourceTask {
         if (reader != null) {
             reader.close();
         }
-        if (connection != null) {
-            connection.close();
-        }
         if (client != null) {
             client.shutdown();
+            client.getResources().shutdown();
         }
     }
 
     @Override
     public List<SourceRecord> poll() {
-        log.debug("Reading from stream {} at offset {}", reader.getOffset().getName(), reader.getOffset().getOffset());
+        log.debug("Reading from offset {}", reader.getOffset().getOffset());
         List<SourceRecord> records = new ArrayList<>();
         for (StreamMessage<String, String> message : reader.readMessages()) {
             Map<String, String> offsetValue = Collections.singletonMap(OFFSET_FIELD, message.getId());
-            String topic = sourceConfig.getTopicNameFormat().replace("${stream}", message.getStream());
+            String topic = sourceConfig.getTopicNameFormat().replace(RedisEnterpriseSourceConfig.TOKEN_STREAM, message.getStream());
             records.add(new SourceRecord(offsetKey, offsetValue, topic, null, KEY_SCHEMA, message.getId(), VALUE_SCHEMA, message.getBody(), Instant.now().getEpochSecond()));
         }
         if (records.isEmpty()) {

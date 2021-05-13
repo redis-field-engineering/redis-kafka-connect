@@ -1,25 +1,32 @@
+/*
+ * Copyright © 2021 Redis Labs
+ * <p>
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.redislabs.kafkaconnect.sink;
 
 import com.redislabs.kafkaconnect.RedisEnterpriseSinkConnector;
 import io.lettuce.core.RedisClient;
 import io.lettuce.core.XAddArgs;
-import io.lettuce.core.api.StatefulRedisConnection;
-import io.lettuce.core.support.ConnectionPoolSupport;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.pool2.impl.GenericObjectPool;
-import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
 import org.apache.kafka.connect.data.Field;
 import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.sink.SinkRecord;
 import org.apache.kafka.connect.sink.SinkTask;
 import org.springframework.batch.item.ExecutionContext;
-import org.springframework.batch.item.ItemStreamSupport;
-import org.springframework.batch.item.ItemWriter;
-import org.springframework.batch.item.redis.RedisOperationItemWriter;
-import org.springframework.batch.item.redis.RedisTransactionItemWriter;
-import org.springframework.batch.item.redis.support.RedisOperation;
-import org.springframework.batch.item.redis.support.RedisOperationBuilder;
+import org.springframework.batch.item.redis.OperationItemWriter;
+import org.springframework.batch.item.redis.RedisOperation;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -31,8 +38,7 @@ public class RedisEnterpriseSinkTask extends SinkTask {
 
     private RedisClient client;
     private RedisEnterpriseSinkConfig sinkConfig;
-    private ItemWriter<SinkRecord> writer;
-    private GenericObjectPool<StatefulRedisConnection<String, String>> pool;
+    private OperationItemWriter<String, String, SinkRecord> writer;
 
     @Override
     public String version() {
@@ -43,26 +49,13 @@ public class RedisEnterpriseSinkTask extends SinkTask {
     public void start(final Map<String, String> props) {
         sinkConfig = new RedisEnterpriseSinkConfig(props);
         client = RedisClient.create(sinkConfig.getRedisUri());
-        GenericObjectPoolConfig<StatefulRedisConnection<String, String>> poolConfig = new GenericObjectPoolConfig<>();
-        poolConfig.setMaxTotal(1);
-        pool = ConnectionPoolSupport.createGenericObjectPool(client::connect, poolConfig);
-        writer = writer(pool, Boolean.TRUE.equals(sinkConfig.isMultiexec()));
-        if (writer instanceof ItemStreamSupport) {
-            ((ItemStreamSupport) writer).open(new ExecutionContext());
-        }
-    }
-
-    private ItemWriter<SinkRecord> writer(GenericObjectPool<StatefulRedisConnection<String, String>> pool, boolean transactional) {
         XAddArgs args = new XAddArgs();
-        RedisOperation<String, String, SinkRecord> xadd = RedisOperationBuilder.<String, String, SinkRecord>xadd().keyConverter(this::key).argsConverter(i -> args).bodyConverter(this::body).build();
-        if (Boolean.TRUE.equals(transactional)) {
-            return new RedisTransactionItemWriter<>(pool, xadd);
-        }
-        return new RedisOperationItemWriter<>(pool, xadd);
+        writer = OperationItemWriter.operation(RedisOperation.<SinkRecord>xadd().key(this::key).args(i -> args).body(this::body).build()).client(client).transactional(Boolean.TRUE.equals(sinkConfig.isMultiexec())).build();
+        writer.open(new ExecutionContext());
     }
 
     private String key(SinkRecord record) {
-        return sinkConfig.getStreamNameFormat().replace("${topic}", record.topic());
+        return sinkConfig.getStreamNameFormat().replace(RedisEnterpriseSinkConfig.TOKEN_TOPIC, record.topic());
     }
 
     private Map<String, String> body(SinkRecord record) {
@@ -90,14 +83,12 @@ public class RedisEnterpriseSinkTask extends SinkTask {
 
     @Override
     public void stop() {
-        if (writer != null && writer instanceof ItemStreamSupport) {
-            ((ItemStreamSupport) writer).close();
-        }
-        if (pool != null) {
-            pool.close();
+        if (writer != null) {
+            writer.close();
         }
         if (client != null) {
             client.shutdown();
+            client.getResources().shutdown();
         }
     }
 

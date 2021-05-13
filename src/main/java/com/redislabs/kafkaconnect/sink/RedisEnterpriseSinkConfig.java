@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright © 2021 Redis Labs
  * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,7 +15,7 @@
  */
 package com.redislabs.kafkaconnect.sink;
 
-import com.redislabs.kafkaconnect.RedisEnterpriseSourceConfig;
+import com.redislabs.kafkaconnect.source.RedisEnterpriseSourceConfig;
 import lombok.Getter;
 import org.apache.kafka.common.config.AbstractConfig;
 import org.apache.kafka.common.config.ConfigDef;
@@ -26,8 +26,10 @@ public class RedisEnterpriseSinkConfig extends AbstractConfig {
 
     public static final ConfigDef CONFIG_DEF = new RedisEnterpriseSinkConfigDef();
 
+    public static final String TOKEN_TOPIC = "${topic}";
+
     public static final String STREAM_NAME = "redis.stream.name";
-    public static final String STREAM_NAME_DEFAULT = "${topic}";
+    public static final String STREAM_NAME_DEFAULT = TOKEN_TOPIC;
     public static final String STREAM_NAME_DOC = "A format string for the destination stream name, which may contain '${topic}' as a " + "placeholder for the originating topic name.\n" + "For example, ``kafka_${topic}`` for the topic 'orders' will map to the stream name " + "'kafka_orders'.";
     public static final String STREAM_NAME_DISPLAY = "Stream Name Format";
 
