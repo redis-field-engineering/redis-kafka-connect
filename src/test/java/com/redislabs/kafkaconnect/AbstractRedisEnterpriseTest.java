@@ -1,13 +1,10 @@
 package com.redislabs.kafkaconnect;
 
-import com.redislabs.testcontainers.RedisContainer;
 import com.redislabs.testcontainers.RedisStandaloneContainer;
 import io.lettuce.core.RedisClient;
 import io.lettuce.core.api.StatefulRedisConnection;
 import io.lettuce.core.api.sync.RedisCommands;
-import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.util.Assert;
 import org.testcontainers.junit.jupiter.Container;

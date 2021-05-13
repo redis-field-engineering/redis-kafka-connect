@@ -26,7 +26,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
-public class  RedisEnterpriseSinkConnector extends SinkConnector {
+public class RedisEnterpriseSinkConnector extends SinkConnector {
 
     private Map<String, String> props;
 
