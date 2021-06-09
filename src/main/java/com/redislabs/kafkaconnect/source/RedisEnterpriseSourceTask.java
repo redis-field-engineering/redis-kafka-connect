@@ -47,7 +47,7 @@ public class RedisEnterpriseSourceTask extends SourceTask {
 
     private RedisClient client;
     private RedisEnterpriseSourceConfig sourceConfig;
-    private StreamItemReader<String, String> reader;
+    private StreamItemReader reader;
     private Map<String, String> offsetKey;
 
     @Override

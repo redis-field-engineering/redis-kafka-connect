@@ -17,7 +17,6 @@ public class RedisEnterpriseSourceConnectorTest {
     public void testConfig() {
         ConfigDef config = new RedisEnterpriseSourceConnector().config();
         Assertions.assertNotNull(config);
-        Assertions.assertTrue(config instanceof RedisEnterpriseSourceConfig.RedisEnterpriseSourceConfigDef);
         Map<String, ConfigValue> results = config.validateAll(new HashMap<>());
         ConfigValue value = results.get(RedisEnterpriseSourceConfig.STREAM_NAME);
         Assertions.assertEquals(RedisEnterpriseSourceConfig.STREAM_NAME, value.name());

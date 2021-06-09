@@ -18,7 +18,7 @@ package com.redislabs.kafkaconnect.common;
 import lombok.Getter;
 import org.apache.kafka.common.config.ConfigException;
 
-public class RedisEnterpriseConfigException extends ConfigException {
+public class RedisEnterpriseConnectorConfigException extends ConfigException {
 
     @Getter
     private final String name;
@@ -27,7 +27,15 @@ public class RedisEnterpriseConfigException extends ConfigException {
     @Getter
     private final String originalMessage;
 
-    public RedisEnterpriseConfigException(String name, Object value, String message) {
+    public RedisEnterpriseConnectorConfigException(String message) {
+        this(message, null, null);
+    }
+
+    public RedisEnterpriseConnectorConfigException(String name, Object value) {
+        this(name, value, null);
+    }
+
+    public RedisEnterpriseConnectorConfigException(String name, Object value, String message) {
         super(name, value, message);
         this.name = name;
         this.value = value;

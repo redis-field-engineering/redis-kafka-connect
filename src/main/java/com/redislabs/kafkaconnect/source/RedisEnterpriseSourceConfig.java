@@ -15,115 +15,63 @@
  */
 package com.redislabs.kafkaconnect.source;
 
-import com.redislabs.kafkaconnect.common.RedisEnterpriseConfigException;
+import com.github.jcustenborder.kafka.connect.utils.config.ConfigKeyBuilder;
+import com.redislabs.kafkaconnect.common.RedisEnterpriseConnectorConfig;
 import lombok.Getter;
-import org.apache.kafka.common.config.AbstractConfig;
 import org.apache.kafka.common.config.ConfigDef;
-import org.apache.kafka.common.config.ConfigValue;
 
-import java.util.Collections;
 import java.util.Map;
 
-public class RedisEnterpriseSourceConfig extends AbstractConfig {
-
-    public static final ConfigDef CONFIG_DEF = new RedisEnterpriseSourceConfigDef();
+public class RedisEnterpriseSourceConfig extends RedisEnterpriseConnectorConfig {
 
     public static final String TOKEN_STREAM = "${stream}";
 
-    public static final String REDIS_URI = "redis.uri";
-    public static final String REDIS_URI_DEFAULT = "redis://localhost:6379";
-    public static final String REDIS_URI_DISPLAY = "Connection URI";
-    public static final String REDIS_URI_DOC = "URI of the Redis Enterprise database to connect to, e.g. redis://redis-12000.redislabs.com:12000";
-
     public static final String STREAM_NAME = "redis.stream.name";
-    public static final String STREAM_NAME_DISPLAY = "Stream name";
     public static final String STREAM_NAME_DOC = "Name of the Redis stream to read from";
 
     public static final String STREAM_OFFSET = "redis.stream.offset";
     public static final String STREAM_OFFSET_DEFAULT = "0-0";
-    public static final String STREAM_OFFSET_DISPLAY = "Stream offset";
     public static final String STREAM_OFFSET_DOC = "Stream offset to start reading from";
 
     public static final String STREAM_COUNT = "redis.stream.count";
     public static final long STREAM_COUNT_DEFAULT = 50;
-    public static final String STREAM_COUNT_DISPLAY = "The maximum batch size";
     public static final String STREAM_COUNT_DOC = "Maximum number of stream messages to include in a single read when polling for new data (XREAD [COUNT count]). This setting can be used to limit the amount of data buffered internally in the connector.";
 
     public static final String STREAM_BLOCK = "redis.stream.block";
     public static final long STREAM_BLOCK_DEFAULT = 100;
-    public static final String STREAM_BLOCK_DISPLAY = "Max poll duration";
     public static final String STREAM_BLOCK_DOC = "The max amount of time in milliseconds to wait while polling for stream messages (XREAD [BLOCK milliseconds])";
 
     public static final String TOPIC_NAME_FORMAT = "topic.name.format";
     public static final String TOPIC_NAME_FORMAT_DEFAULT = TOKEN_STREAM;
     public static final String TOPIC_NAME_FORMAT_DOC = "A format string for the destination topic name, which may contain '${stream}' as a " + "placeholder for the originating topic name.\n" + "For example, ``redis_${stream}`` for the stream 'orders' will map to the topic name " + "'redis_orders'.";
-    public static final String TOPIC_NAME_FORMAT_DISPLAY = "Topic Name Format";
-
 
     @Getter
-    private final String redisUri;
+    private final String streamName;
+    @Getter
+    private final String streamOffset;
+    @Getter
+    private final Long streamCount;
+    @Getter
+    private final Long streamBlock;
+    @Getter
+    private final String topicNameFormat;
 
-    public RedisEnterpriseSourceConfig(final Map<?, ?> originals) {
-        super(CONFIG_DEF, originals, false);
-        redisUri = getString(REDIS_URI);
+    public RedisEnterpriseSourceConfig(Map<?, ?> originals) {
+        super(config(), originals);
+        this.streamName = getString(STREAM_NAME);
+        this.streamOffset = getString(STREAM_OFFSET);
+        this.streamCount = getLong(STREAM_COUNT);
+        this.streamBlock = getLong(STREAM_BLOCK);
+        this.topicNameFormat = getString(TOPIC_NAME_FORMAT);
     }
 
-    public String getStreamName() {
-        return getString(STREAM_NAME);
+    public static ConfigDef config() {
+        return RedisEnterpriseConnectorConfig.config()
+        .define(ConfigKeyBuilder.of(STREAM_NAME, ConfigDef.Type.STRING).documentation(STREAM_NAME_DOC).importance(ConfigDef.Importance.HIGH).validator(ConfigDef.CompositeValidator.of(new ConfigDef.NonNullValidator(), new ConfigDef.NonEmptyString())).build())
+        .define(ConfigKeyBuilder.of(STREAM_OFFSET, ConfigDef.Type.STRING).documentation(STREAM_OFFSET_DOC).defaultValue(STREAM_OFFSET_DEFAULT).importance(ConfigDef.Importance.MEDIUM).build())
+        .define(ConfigKeyBuilder.of(STREAM_COUNT, ConfigDef.Type.LONG).defaultValue(STREAM_COUNT_DEFAULT).importance(ConfigDef.Importance.LOW).documentation(STREAM_COUNT_DOC).validator(ConfigDef.Range.atLeast(1L)).build())
+        .define(ConfigKeyBuilder.of(STREAM_BLOCK, ConfigDef.Type.LONG).defaultValue(STREAM_BLOCK_DEFAULT).importance(ConfigDef.Importance.LOW).documentation(STREAM_BLOCK_DOC).validator(ConfigDef.Range.atLeast(1L)).build())
+        .define(ConfigKeyBuilder.of(TOPIC_NAME_FORMAT, ConfigDef.Type.STRING).defaultValue(TOPIC_NAME_FORMAT_DEFAULT).importance(ConfigDef.Importance.MEDIUM).documentation(TOPIC_NAME_FORMAT_DOC).build());
     }
 
-    public String getStreamOffset() {
-        return getString(STREAM_OFFSET);
-    }
-
-    public long getStreamCount() {
-        return getLong(STREAM_COUNT);
-    }
-
-    public long getStreamBlock() {
-        return getLong(STREAM_BLOCK);
-    }
-
-    public String getTopicNameFormat() {
-        return getString(TOPIC_NAME_FORMAT);
-    }
-
-    public void validateStream() {
-        String stream = getString(STREAM_NAME);
-        if (stream == null || stream.isEmpty()) {
-            throw new RedisEnterpriseConfigException(STREAM_NAME, stream, String.format("Missing stream configuration: '%s'", STREAM_NAME));
-        }
-    }
-
-    public static class RedisEnterpriseSourceConfigDef extends ConfigDef {
-
-        public RedisEnterpriseSourceConfigDef() {
-            String group = "Redis Enterprise";
-            int index = 0;
-            define(REDIS_URI, Type.STRING, REDIS_URI_DEFAULT, Importance.HIGH, REDIS_URI_DOC, group, ++index, Width.MEDIUM, REDIS_URI_DISPLAY);
-            define(STREAM_NAME, Type.STRING, null, Importance.HIGH, STREAM_NAME_DOC, group, ++index, Width.SHORT, STREAM_NAME_DISPLAY);
-            define(STREAM_OFFSET, Type.STRING, STREAM_OFFSET_DEFAULT, Importance.MEDIUM, STREAM_OFFSET_DOC, group, ++index, Width.SHORT, STREAM_OFFSET_DISPLAY);
-            define(STREAM_COUNT, Type.LONG, STREAM_COUNT_DEFAULT, Range.atLeast(1), Importance.LOW, STREAM_COUNT_DOC, group, ++index, Width.MEDIUM, STREAM_COUNT_DISPLAY);
-            define(STREAM_BLOCK, Type.LONG, STREAM_BLOCK_DEFAULT, Range.atLeast(1), Importance.LOW, STREAM_BLOCK_DOC, group, ++index, Width.MEDIUM, STREAM_BLOCK_DISPLAY);
-            group = "Connector";
-            index = 0;
-            define(TOPIC_NAME_FORMAT, Type.STRING, TOPIC_NAME_FORMAT_DEFAULT, Importance.MEDIUM, TOPIC_NAME_FORMAT_DOC, group, ++index, Width.LONG, TOPIC_NAME_FORMAT_DISPLAY);
-        }
-
-        @Override
-        public Map<String, ConfigValue> validateAll(final Map<String, String> props) {
-            Map<String, ConfigValue> results = super.validateAll(props);
-            if (results.values().stream().anyMatch((c) -> !c.errorMessages().isEmpty())) {
-                return results;
-            }
-
-            RedisEnterpriseSourceConfig config = new RedisEnterpriseSourceConfig(props);
-            try {
-                config.validateStream();
-            } catch (RedisEnterpriseConfigException e) {
-                results.put(e.getName(), new ConfigValue(e.getName(), e.getValue(), Collections.emptyList(), Collections.singletonList(e.getMessage())));
-            }
-            return results;
-        }
-    }
 }

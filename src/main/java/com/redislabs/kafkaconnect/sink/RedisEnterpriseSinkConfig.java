@@ -15,52 +15,66 @@
  */
 package com.redislabs.kafkaconnect.sink;
 
-import com.redislabs.kafkaconnect.source.RedisEnterpriseSourceConfig;
+import com.github.jcustenborder.kafka.connect.utils.config.ConfigKeyBuilder;
+import com.github.jcustenborder.kafka.connect.utils.config.ConfigUtils;
+import com.github.jcustenborder.kafka.connect.utils.config.validators.Validators;
+import com.redislabs.kafkaconnect.common.RedisEnterpriseConnectorConfig;
 import lombok.Getter;
-import org.apache.kafka.common.config.AbstractConfig;
 import org.apache.kafka.common.config.ConfigDef;
 
+import java.util.Arrays;
 import java.util.Map;
 
-public class RedisEnterpriseSinkConfig extends AbstractConfig {
-
-    public static final ConfigDef CONFIG_DEF = new RedisEnterpriseSinkConfigDef();
+public class RedisEnterpriseSinkConfig extends RedisEnterpriseConnectorConfig {
 
     public static final String TOKEN_TOPIC = "${topic}";
 
-    public static final String STREAM_NAME = "redis.stream.name";
-    public static final String STREAM_NAME_DEFAULT = TOKEN_TOPIC;
-    public static final String STREAM_NAME_DOC = "A format string for the destination stream name, which may contain '${topic}' as a " + "placeholder for the originating topic name.\n" + "For example, ``kafka_${topic}`` for the topic 'orders' will map to the stream name " + "'kafka_orders'.";
-    public static final String STREAM_NAME_DISPLAY = "Stream Name Format";
+    public static final String KEY = "redis.key";
+    public static final String KEY_DEFAULT = TOKEN_TOPIC;
+    public static final String KEY_DOC = "A format string for the destination stream/set/list key, which may contain '" + TOKEN_TOPIC + "' as a placeholder for the originating topic name.\nFor example, ``kafka_" + TOKEN_TOPIC + "`` for the topic 'orders' will map to the Redis key " + "'kafka_orders'.";
 
     public static final String MULTIEXEC = "redis.multiexec";
     public static final String MULTIEXEC_DEFAULT = "false";
     public static final String MULTIEXEC_DOC = "Whether to execute Redis commands in multi/exec transactions.";
-    public static final String MULTIEXEC_DISPLAY = "Use Transactions";
+
+    public static final String TYPE = "redis.type";
+    public static final String TYPE_DEFAULT = DataType.STREAM.name();
+    public static final String TYPE_DOC = "Destination data structure: " + String.join(", ", Arrays.stream(DataType.values()).map(DataType::name).toArray(String[]::new));
+
+    public static final String PUSH_DIRECTION = "redis.push.direction";
+    public static final String PUSH_DIRECTION_DEFAULT = PushDirection.LEFT.name();
+    public static final String PUSH_DIRECTION_DOC = "List push direction: " + PushDirection.LEFT + " (LPUSH) or " + PushDirection.RIGHT + " (RPUSH)";
 
     @Getter
-    private final String redisUri;
+    private final DataType type;
     @Getter
-    private final String streamNameFormat;
+    private final String keyFormat;
+    @Getter
+    private final PushDirection pushDirection;
     @Getter
     private final boolean multiexec;
 
-    public RedisEnterpriseSinkConfig(final Map<?, ?> originals) {
-        super(CONFIG_DEF, originals, false);
-        redisUri = getString(RedisEnterpriseSourceConfig.REDIS_URI);
-        streamNameFormat = getString(STREAM_NAME).trim();
+    public RedisEnterpriseSinkConfig(Map<?, ?> originals) {
+        super(config(), originals);
+        type = ConfigUtils.getEnum(DataType.class, this, TYPE);
+        keyFormat = getString(KEY).trim();
+        pushDirection = ConfigUtils.getEnum(PushDirection.class, this, PUSH_DIRECTION);
         multiexec = Boolean.TRUE.equals(getBoolean(MULTIEXEC));
     }
 
-    public static class RedisEnterpriseSinkConfigDef extends ConfigDef {
+    public static ConfigDef config() {
+        return RedisEnterpriseConnectorConfig.config()
+                .define(ConfigKeyBuilder.of(TYPE, ConfigDef.Type.STRING).documentation(TYPE_DOC).defaultValue(TYPE_DEFAULT).validator(Validators.validEnum(DataType.class)).importance(ConfigDef.Importance.HIGH).build())
+                .define(ConfigKeyBuilder.of(KEY, ConfigDef.Type.STRING).documentation(KEY_DOC).defaultValue(KEY_DEFAULT).importance(ConfigDef.Importance.MEDIUM).build())
+                .define(ConfigKeyBuilder.of(PUSH_DIRECTION, ConfigDef.Type.STRING).documentation(PUSH_DIRECTION_DOC).defaultValue(PUSH_DIRECTION_DEFAULT).importance(ConfigDef.Importance.MEDIUM).build())
+                .define(ConfigKeyBuilder.of(MULTIEXEC, ConfigDef.Type.BOOLEAN).documentation(MULTIEXEC_DOC).defaultValue(MULTIEXEC_DEFAULT).importance(ConfigDef.Importance.MEDIUM).build());
+    }
 
-        public RedisEnterpriseSinkConfigDef() {
-            String group = "Redis Enterprise";
-            int order = 0;
-            define(RedisEnterpriseSourceConfig.REDIS_URI, Type.STRING, RedisEnterpriseSourceConfig.REDIS_URI_DEFAULT, Importance.HIGH, RedisEnterpriseSourceConfig.REDIS_URI_DOC, group, ++order, Width.MEDIUM, RedisEnterpriseSourceConfig.REDIS_URI_DISPLAY);
-            define(STREAM_NAME, Type.STRING, STREAM_NAME_DEFAULT, Importance.MEDIUM, STREAM_NAME_DOC, group, ++order, Width.MEDIUM, STREAM_NAME_DISPLAY);
-            define(MULTIEXEC, Type.BOOLEAN, MULTIEXEC_DEFAULT, Importance.MEDIUM, MULTIEXEC_DOC, group, ++order, Width.SHORT, MULTIEXEC_DISPLAY);
-        }
+    public enum DataType {
+        HASH, STRING, STREAM, LIST, SET, ZSET
+    }
 
+    public enum PushDirection {
+        LEFT, RIGHT
     }
 }
