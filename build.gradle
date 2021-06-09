@@ -48,7 +48,7 @@ dependencies {
     annotationProcessor 'org.projectlombok:lombok'
     implementation 'org.apache.kafka:connect-api:2.8.0'
     implementation 'com.github.jcustenborder.kafka.connect:connect-utils:0.4.164'
-    implementation 'com.redislabs:spring-batch-redis:2.12.4-SNAPSHOT'
+    implementation 'com.redislabs:spring-batch-redis:2.13.0'
     testImplementation 'com.redislabs:testcontainers-redis:1.1.4'
     testImplementation 'org.testcontainers:junit-jupiter:1.15.3-REDISLABS'
     testImplementation 'io.projectreactor:reactor-test:3.4.6'
