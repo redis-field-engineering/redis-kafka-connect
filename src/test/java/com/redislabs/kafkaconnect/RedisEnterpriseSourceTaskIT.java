@@ -29,7 +29,7 @@ public class RedisEnterpriseSourceTaskIT extends AbstractRedisEnterpriseIT {
     private void startTask(RedisServer redis) {
         final Map<String, String> config = new HashMap<>();
         config.put("redis.uri", redis.getRedisURI());
-        config.put("redis.key", STREAM);
+        config.put("redis.stream.name", STREAM);
         task.start(config);
     }
 
