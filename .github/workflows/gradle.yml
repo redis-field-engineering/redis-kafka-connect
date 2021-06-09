@@ -27,6 +27,7 @@ jobs:
       run: ./gradlew build
       env:
         GITHUB_USERNAME: jruaux
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v1
       with:
