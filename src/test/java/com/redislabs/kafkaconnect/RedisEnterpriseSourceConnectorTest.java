@@ -21,7 +21,8 @@ public class RedisEnterpriseSourceConnectorTest {
         ConfigValue value = results.get(RedisEnterpriseSourceConfig.STREAM_NAME);
         Assertions.assertEquals(RedisEnterpriseSourceConfig.STREAM_NAME, value.name());
         Assertions.assertNull(value.value());
-        Assertions.assertEquals("Invalid value null for configuration redis.stream.name: Missing stream configuration: '" + RedisEnterpriseSourceConfig.STREAM_NAME + "'", value.errorMessages().get(0));
+        String expected = "Missing required configuration \"redis.stream.name\" which has no default value.";
+        Assertions.assertEquals(expected, value.errorMessages().get(0));
     }
 
     @Test
