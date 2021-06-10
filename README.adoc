@@ -1,19 +1,13 @@
 = Redis Enterprise Kafka Connector
-ifdef::env-github[]
-:badges:
-:tag: master
-:!toc-title:
-:tip-caption: :bulb:
-:note-caption: :paperclip:
-:important-caption: :heavy_exclamation_mark:
-:caution-caption: :fire:
-:warning-caption: :warning:
-endif::[]
+:linkattrs:
+:project-owner:   RedisLabs-Field-Engineering
+:project-name:    redis-enterprise-kafka
+:project-group:   com.redislabs
+:project-version: 0.1.0
 
-// Badges
-ifdef::badges[]
-image:https://github.com/RedisLabs-Field-Engineering/redis-enterprise-kafka/actions/workflows/gradle.yml/badge.svg["Build", link="https://github.com/RedisLabs-Field-Engineering/redis-enterprise-kafka/actions/workflows/gradle.yml"]
-image:https://codecov.io/gh/RedisLabs-Field-Engineering/redis-enterprise-kafka/branch/master/graph/badge.svg?token=MTMRRGEWBD["Coverage", link="https://codecov.io/gh/RedisLabs-Field-Engineering/redis-enterprise-kafka"]
-endif::[]
+image:https://img.shields.io/github/workflow/status/{project-owner}/{project-name}/Build?logo=github["Build Status", link="https://github.com/{project-owner}/{project-name}/actions"]
+image:https://codecov.io/gh/{project-owner}/{project-name}/branch/master/graph/badge.svg?token=MTMRRGEWBD["Coverage", link="https://codecov.io/gh/{project-owner}/{project-name}"]
+
+---
 
 Kafka Connect source and sink connectors for https://redislabs.com/redis-enterprise-software/overview/[Redis Enterprise]
