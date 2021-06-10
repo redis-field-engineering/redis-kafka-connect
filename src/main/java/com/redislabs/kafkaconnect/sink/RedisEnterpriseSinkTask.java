@@ -20,12 +20,12 @@ import com.github.jcustenborder.kafka.connect.utils.data.SinkOffsetState;
 import com.github.jcustenborder.kafka.connect.utils.data.TopicPartitionCounter;
 import com.github.jcustenborder.kafka.connect.utils.jackson.ObjectMapperFactory;
 import com.redislabs.kafkaconnect.RedisEnterpriseSinkConnector;
-import com.redislabs.kafkaconnect.common.RedisEnterpriseConnectorConfigException;
 import io.lettuce.core.KeyValue;
 import io.lettuce.core.RedisClient;
 import io.lettuce.core.api.StatefulRedisConnection;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.config.ConfigException;
 import org.apache.kafka.connect.data.Field;
 import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.errors.ConnectException;
@@ -123,7 +123,7 @@ public class RedisEnterpriseSinkTask extends SinkTask {
             case ZSET:
                 return new Zadd<>(this::collectionKey, this::key, new ConstantPredicate<>(false), new NullValuePredicate<>(this::score), this::score);
             default:
-                throw new RedisEnterpriseConnectorConfigException("Data structure not supported: " + config.getType());
+                throw new ConfigException(RedisEnterpriseSinkConfig.TYPE, config.getType());
         }
     }
 
