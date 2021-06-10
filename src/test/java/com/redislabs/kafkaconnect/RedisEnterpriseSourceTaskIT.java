@@ -38,6 +38,7 @@ public class RedisEnterpriseSourceTaskIT extends AbstractRedisEnterpriseIT {
         task.stop();
     }
 
+    @SuppressWarnings("unchecked")
     @ParameterizedTest
     @MethodSource("redisServers")
     public void pollRetrievesStreamMessages(RedisServer redis) throws InterruptedException {

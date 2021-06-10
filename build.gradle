@@ -1,32 +1,21 @@
 plugins {
-    id 'org.springframework.boot' version '2.4.5'
-    id 'io.spring.dependency-management' version '1.0.11.RELEASE'
-    id 'io.freefair.lombok' version '6.0.0-m2'
     id 'java-library'
     id 'maven-publish'
     id 'signing'
-    id 'io.github.gradle-nexus.publish-plugin' version '1.1.0'
-    id 'net.researchgate.release' version '2.8.1'
-    id 'com.github.ben-manes.versions' version '0.38.0'
-    id 'com.github.breadmoirai.github-release' version '2.2.12'
     id 'jacoco'
+    id 'org.jreleaser' version '0.4.0'
+    id 'io.github.gradle-nexus.publish-plugin' version '1.1.0'
+    id 'com.github.ben-manes.versions' version '0.38.0'
 }
 
 group = 'com.redislabs'
 description = 'Kafka Connect source and sink connectors for Redis Enterprise'
-sourceCompatibility = '1.8'
-targetCompatibility = '1.8'
-
-java {
-    withJavadocJar()
-    withSourcesJar()
-}
 
 repositories {
     mavenCentral()
     maven {
         name = "GitHubPackages"
-        url = uri("https://maven.pkg.github.com/redis-developer/testcontainers-redis")
+        url = uri("https://maven.pkg.github.com/redis-developer/registry")
         credentials {
             username = project.findProperty("github.username") ?: System.getenv("GITHUB_USERNAME")
             password = project.findProperty("github.token") ?: System.getenv("GITHUB_TOKEN")
@@ -34,27 +23,21 @@ repositories {
     }
 }
 
-bootJar {
-    enabled = false
-}
-
-jar {
-    enabled = true
-}
-
 dependencies {
-    compileOnly 'org.projectlombok:lombok'
-    annotationProcessor 'org.projectlombok:lombok'
+    compileOnly 'org.projectlombok:lombok:1.18.20'
+    annotationProcessor 'org.projectlombok:lombok:1.18.20'
     implementation 'org.apache.kafka:connect-api:2.8.0'
     implementation 'com.github.jcustenborder.kafka.connect:connect-utils:0.4.164'
     implementation 'com.redislabs:spring-batch-redis:2.13.0'
-    testImplementation 'com.redislabs:testcontainers-redis:1.1.4'
+    testImplementation 'com.redislabs:testcontainers-redis:1.1.6'
     testImplementation 'org.testcontainers:junit-jupiter:1.15.3-REDISLABS'
     testImplementation 'io.projectreactor:reactor-test:3.4.6'
     testImplementation 'org.mockito:mockito-core:2.21.0'
-    testImplementation 'org.junit.jupiter:junit-jupiter-api'
-    testImplementation 'org.junit.jupiter:junit-jupiter-engine'
-    testImplementation 'org.junit.jupiter:junit-jupiter-params'
+    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.7.2'
+    testImplementation 'org.junit.jupiter:junit-jupiter-engine:5.7.2'
+    testImplementation 'org.junit.jupiter:junit-jupiter-params:5.7.2'
+    testImplementation 'org.projectlombok:lombok:1.18.20'
+    testAnnotationProcessor 'org.projectlombok:lombok:1.18.20'
     testImplementation 'com.github.jcustenborder.kafka.connect:connect-utils-testing:0.4.164'
 }
 
@@ -110,19 +93,6 @@ tasks.withType(Sign) {
     onlyIf { isReleaseVersion }
 }
 
-nexusPublishing {
-    repositories {
-        sonatype()
-    }
-}
-
-githubRelease {
-    token = project.hasProperty('github.token') ? project.property('github.token') : ''
-    owner "RedisLabs-Field-Engineering"
-    repo "redis-enterprise-kafka"
-    body changelog()
-}
-
 def isNonStable = { String version ->
     def nonStableKeyword = ['PREVIEW'].any { it -> version.toUpperCase().contains(it) }
     def stableKeyword = ['RELEASE', 'FINAL', 'GA', 'JRE8'].any { it -> version.toUpperCase().contains(it) }
@@ -147,7 +117,29 @@ jacocoTestReport {
 
 check.dependsOn jacocoTestReport
 
-afterReleaseBuild.dependsOn ":githubRelease"
-afterReleaseBuild.dependsOn ":publishToSonatype"
-afterReleaseBuild.dependsOn ":closeAndReleaseSonatypeStagingRepository"
-afterReleaseBuild.dependsOn ":publishToMavenLocal"
+
+nexusPublishing {
+    repositories {
+        sonatype()
+    }
+}
+
+
+jreleaser {
+    project {
+        name = 'redis-enterprise-kafka'
+        description = 'Redis Enterprise Kafka Connector'
+        longDescription = 'Kafka Connect source and sink connectors for Redis Enterprise'
+        website = 'https://github.com/RedisLabs-Field-Engineering/redis-enterprise-kafka'
+        authors = ['Julien Ruaux']
+        tags = ['redis', 'enterprise', 'kafka']
+        license = 'Apache-2.0'
+    }
+    release {
+        github {
+            username = 'jruaux'
+            owner = 'RedisLabs-Field-Engineering'
+            overwrite = true
+        }
+    }
+}
