@@ -5,7 +5,7 @@
 :project-group:   com.redislabs
 :project-version: 0.1.0
 
-image:https://github.com/{project-owner}/{project-name}/actions/workflows/gradle.yml/badge.svg["Build Status", link="https://github.com/{project-owner}/{project-name}/actions"]
+image:https://github.com/{project-owner}/{project-name}/actions/workflows/maven.yml/badge.svg["Build Status", link="https://github.com/{project-owner}/{project-name}/actions"]
 image:https://codecov.io/gh/{project-owner}/{project-name}/branch/master/graph/badge.svg?token=MTMRRGEWBD["Coverage", link="https://codecov.io/gh/{project-owner}/{project-name}"]
 
 ---
