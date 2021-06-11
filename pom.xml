@@ -44,6 +44,10 @@
     </issueManagement>
     <repositories>
         <repository>
+            <id>confluent</id>
+            <url>http://packages.confluent.io/maven/</url>
+        </repository>
+        <repository>
             <id>github</id>
             <name>GitHub Packages</name>
             <url>https://maven.pkg.github.com/redis-developer/registry</url>
