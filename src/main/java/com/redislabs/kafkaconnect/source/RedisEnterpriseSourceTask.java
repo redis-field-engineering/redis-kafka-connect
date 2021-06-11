@@ -19,12 +19,13 @@ import com.redislabs.kafkaconnect.RedisEnterpriseSourceConnector;
 import io.lettuce.core.RedisClient;
 import io.lettuce.core.StreamMessage;
 import io.lettuce.core.XReadArgs;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.SchemaBuilder;
 import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.source.SourceRecord;
 import org.apache.kafka.connect.source.SourceTask;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.batch.item.ExecutionContext;
 import org.springframework.batch.item.redis.StreamItemReader;
 
@@ -35,8 +36,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
-@Slf4j
 public class RedisEnterpriseSourceTask extends SourceTask {
+
+    private static final Logger log = LoggerFactory.getLogger(RedisEnterpriseSourceTask.class);
 
     public static final String STREAM_FIELD = "stream";
     public static final String OFFSET_FIELD = "offset";

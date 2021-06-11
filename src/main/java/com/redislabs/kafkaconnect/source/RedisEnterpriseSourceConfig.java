@@ -17,7 +17,6 @@ package com.redislabs.kafkaconnect.source;
 
 import com.github.jcustenborder.kafka.connect.utils.config.ConfigKeyBuilder;
 import com.redislabs.kafkaconnect.common.RedisEnterpriseConnectorConfig;
-import lombok.Getter;
 import org.apache.kafka.common.config.ConfigDef;
 
 import java.util.Map;
@@ -45,15 +44,10 @@ public class RedisEnterpriseSourceConfig extends RedisEnterpriseConnectorConfig 
     public static final String TOPIC_NAME_FORMAT_DEFAULT = TOKEN_STREAM;
     public static final String TOPIC_NAME_FORMAT_DOC = "A format string for the destination topic name, which may contain '${stream}' as a " + "placeholder for the originating topic name.\n" + "For example, ``redis_${stream}`` for the stream 'orders' will map to the topic name " + "'redis_orders'.";
 
-    @Getter
     private final String streamName;
-    @Getter
     private final String streamOffset;
-    @Getter
     private final Long streamCount;
-    @Getter
     private final Long streamBlock;
-    @Getter
     private final String topicNameFormat;
 
     public RedisEnterpriseSourceConfig(Map<?, ?> originals) {
@@ -63,6 +57,26 @@ public class RedisEnterpriseSourceConfig extends RedisEnterpriseConnectorConfig 
         this.streamCount = getLong(STREAM_COUNT);
         this.streamBlock = getLong(STREAM_BLOCK);
         this.topicNameFormat = getString(TOPIC_NAME_FORMAT);
+    }
+
+    public Long getStreamBlock() {
+        return streamBlock;
+    }
+
+    public Long getStreamCount() {
+        return streamCount;
+    }
+
+    public String getStreamName() {
+        return streamName;
+    }
+
+    public String getStreamOffset() {
+        return streamOffset;
+    }
+
+    public String getTopicNameFormat() {
+        return topicNameFormat;
     }
 
     public static ConfigDef config() {

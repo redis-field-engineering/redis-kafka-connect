@@ -19,7 +19,6 @@ import com.github.jcustenborder.kafka.connect.utils.config.ConfigKeyBuilder;
 import com.github.jcustenborder.kafka.connect.utils.config.ConfigUtils;
 import com.github.jcustenborder.kafka.connect.utils.config.validators.Validators;
 import com.redislabs.kafkaconnect.common.RedisEnterpriseConnectorConfig;
-import lombok.Getter;
 import org.apache.kafka.common.config.ConfigDef;
 
 import java.util.Arrays;
@@ -45,13 +44,9 @@ public class RedisEnterpriseSinkConfig extends RedisEnterpriseConnectorConfig {
     public static final String PUSH_DIRECTION_DEFAULT = PushDirection.LEFT.name();
     public static final String PUSH_DIRECTION_DOC = "List push direction: " + PushDirection.LEFT + " (LPUSH) or " + PushDirection.RIGHT + " (RPUSH)";
 
-    @Getter
     private final DataType type;
-    @Getter
     private final String keyFormat;
-    @Getter
     private final PushDirection pushDirection;
-    @Getter
     private final boolean multiexec;
 
     public RedisEnterpriseSinkConfig(Map<?, ?> originals) {
@@ -60,6 +55,22 @@ public class RedisEnterpriseSinkConfig extends RedisEnterpriseConnectorConfig {
         keyFormat = getString(KEY).trim();
         pushDirection = ConfigUtils.getEnum(PushDirection.class, this, PUSH_DIRECTION);
         multiexec = Boolean.TRUE.equals(getBoolean(MULTIEXEC));
+    }
+
+    public DataType getType() {
+        return type;
+    }
+
+    public String getKeyFormat() {
+        return keyFormat;
+    }
+
+    public PushDirection getPushDirection() {
+        return pushDirection;
+    }
+
+    public boolean isMultiexec() {
+        return multiexec;
     }
 
     public static ConfigDef config() {

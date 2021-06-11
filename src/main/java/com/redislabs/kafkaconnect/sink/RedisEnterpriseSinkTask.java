@@ -20,10 +20,11 @@ import com.github.jcustenborder.kafka.connect.utils.data.SinkOffsetState;
 import com.github.jcustenborder.kafka.connect.utils.data.TopicPartitionCounter;
 import com.github.jcustenborder.kafka.connect.utils.jackson.ObjectMapperFactory;
 import com.redislabs.kafkaconnect.RedisEnterpriseSinkConnector;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import io.lettuce.core.KeyValue;
 import io.lettuce.core.RedisClient;
 import io.lettuce.core.api.StatefulRedisConnection;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.config.ConfigException;
 import org.apache.kafka.connect.data.Field;
@@ -52,8 +53,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-@Slf4j
 public class RedisEnterpriseSinkTask extends SinkTask {
+
+    private static final Logger log = LoggerFactory.getLogger(RedisEnterpriseSinkTask.class);
 
     private RedisClient client;
     private RedisEnterpriseSinkConfig config;

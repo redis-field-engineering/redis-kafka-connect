@@ -17,7 +17,6 @@ package com.redislabs.kafkaconnect.common;
 
 import com.github.jcustenborder.kafka.connect.utils.config.ConfigKeyBuilder;
 import com.github.jcustenborder.kafka.connect.utils.config.validators.Validators;
-import lombok.Getter;
 import org.apache.kafka.common.config.AbstractConfig;
 import org.apache.kafka.common.config.ConfigDef;
 
@@ -29,12 +28,15 @@ public class RedisEnterpriseConnectorConfig extends AbstractConfig {
     private static final String REDIS_URI_DEFAULT = "redis://localhost:6379";
     private static final String REDIS_URI_DOC = "URI of the Redis Enterprise database to connect to, e.g. redis://redis-12000.redislabs.com:12000";
 
-    @Getter
     private final String redisUri;
 
     public RedisEnterpriseConnectorConfig(ConfigDef config, Map<?, ?> originals) {
         super(config, originals);
         redisUri = getString(REDIS_URI);
+    }
+
+    public String getRedisUri() {
+        return redisUri;
     }
 
     protected static ConfigDef config() {
