@@ -13,10 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.redislabs.kafkaconnect;
+package com.redislabs.kafka.connect;
 
-import com.redislabs.kafkaconnect.sink.RedisEnterpriseSinkConfig;
-import com.redislabs.kafkaconnect.sink.RedisEnterpriseSinkTask;
+import com.redislabs.kafka.connect.sink.RedisEnterpriseSinkConfig;
+import com.redislabs.kafka.connect.sink.RedisEnterpriseSinkTask;
 import org.apache.kafka.common.config.ConfigDef;
 import org.apache.kafka.common.utils.AppInfoParser;
 import org.apache.kafka.connect.connector.Task;

@@ -1,8 +1,8 @@
-package com.redislabs.kafkaconnect;
+package com.redislabs.kafka.connect;
 
 import com.github.jcustenborder.kafka.connect.utils.SinkRecordHelper;
-import com.redislabs.kafkaconnect.sink.RedisEnterpriseSinkConfig;
-import com.redislabs.kafkaconnect.sink.RedisEnterpriseSinkTask;
+import com.redislabs.kafka.connect.sink.RedisEnterpriseSinkConfig;
+import com.redislabs.kafka.connect.sink.RedisEnterpriseSinkTask;
 import com.redislabs.testcontainers.RedisServer;
 import io.lettuce.core.KeyValue;
 import io.lettuce.core.Range;

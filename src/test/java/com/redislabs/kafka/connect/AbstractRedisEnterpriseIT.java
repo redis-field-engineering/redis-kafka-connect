@@ -1,4 +1,4 @@
-package com.redislabs.kafkaconnect;
+package com.redislabs.kafka.connect;
 
 import com.redislabs.testcontainers.RedisEnterpriseContainer;
 import com.redislabs.testcontainers.RedisServer;
@@ -9,7 +9,6 @@ import io.lettuce.core.api.StatefulRedisConnection;
 import io.lettuce.core.api.async.BaseRedisAsyncCommands;
 import io.lettuce.core.api.reactive.BaseRedisReactiveCommands;
 import io.lettuce.core.api.sync.BaseRedisCommands;
-import io.lettuce.core.api.sync.RedisCommands;
 import io.lettuce.core.api.sync.RedisHashCommands;
 import io.lettuce.core.api.sync.RedisKeyCommands;
 import io.lettuce.core.api.sync.RedisListCommands;

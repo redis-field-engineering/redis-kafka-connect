@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.redislabs.kafkaconnect.common;
+package com.redislabs.kafka.connect.common;
 
 import com.github.jcustenborder.kafka.connect.utils.config.ConfigKeyBuilder;
 import com.github.jcustenborder.kafka.connect.utils.config.validators.Validators;
@@ -43,4 +43,5 @@ public class RedisEnterpriseConnectorConfig extends AbstractConfig {
         return new ConfigDef()
                 .define(ConfigKeyBuilder.of(REDIS_URI, ConfigDef.Type.STRING).documentation(REDIS_URI_DOC).defaultValue(REDIS_URI_DEFAULT).importance(ConfigDef.Importance.HIGH).validator(Validators.validURI("redis", "rediss")).build());
     }
+
 }

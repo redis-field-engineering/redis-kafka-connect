@@ -1,0 +1,14 @@
+<project>
+    <body>
+        <menu ref="reports" inherit="top"/>
+        <menu ref="modules"/> 
+        <menu name="Documentation">
+            <item href="quickstart.html" name="Quick start" />
+        </menu>
+    </body>
+    <skin>
+        <groupId>org.apache.maven.skins</groupId>
+        <artifactId>maven-fluido-skin</artifactId>
+        <version>1.7</version>
+    </skin>
+</project>

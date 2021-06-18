@@ -13,9 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.redislabs.kafkaconnect.source;
+package com.redislabs.kafka.connect.source;
 
-import com.redislabs.kafkaconnect.RedisEnterpriseSourceConnector;
+import com.redislabs.kafka.connect.RedisEnterpriseSourceConnector;
 import io.lettuce.core.RedisClient;
 import io.lettuce.core.StreamMessage;
 import io.lettuce.core.XReadArgs;
@@ -44,7 +44,7 @@ public class RedisEnterpriseSourceTask extends SourceTask {
     public static final String OFFSET_FIELD = "offset";
 
     private static final Schema KEY_SCHEMA = Schema.STRING_SCHEMA;
-    private static final String VALUE_SCHEMA_NAME = "com.redislabs.kafkaconnect.EventValue";
+    private static final String VALUE_SCHEMA_NAME = "com.redislabs.kafka.connect.EventValue";
     private static final Schema VALUE_SCHEMA = SchemaBuilder.map(Schema.STRING_SCHEMA, Schema.STRING_SCHEMA).name(VALUE_SCHEMA_NAME);
 
     private RedisClient client;

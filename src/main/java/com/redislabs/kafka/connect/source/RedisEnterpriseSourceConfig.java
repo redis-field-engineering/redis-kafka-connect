@@ -13,10 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.redislabs.kafkaconnect.source;
+package com.redislabs.kafka.connect.source;
 
 import com.github.jcustenborder.kafka.connect.utils.config.ConfigKeyBuilder;
-import com.redislabs.kafkaconnect.common.RedisEnterpriseConnectorConfig;
+import com.redislabs.kafka.connect.common.RedisEnterpriseConnectorConfig;
 import org.apache.kafka.common.config.ConfigDef;
 
 import java.util.Map;

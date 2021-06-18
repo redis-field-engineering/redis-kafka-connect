@@ -1,0 +1,57 @@
+= Quick Start
+Julien Ruaux <julien@redislabs.com>
+v1.0, 2021-06-16
+//:toc:
+:icons: font
+:source-highlighter: coderay
+:sectanchors:
+//:compat-mode:
+
+This guide provides a hands-on look at the functionality of the Redis Enterprise Kafka Source and Sink Connectors:
+
+* The *redis-enterprise-sink* connector reads data from a Kafka topic and writes it to a Redis stream
+* The *redis-enterprise-source* connector reads data from a Redis stream and writes it to a Kafka topic
+
+== Requirements
+
+https://docs.docker.com/get-docker/[Docker]
+
+== Run the example
+
+Clone the https://github.com/RedisLabs-Field-Engineering/redis-enterprise-kafka.git[redis-enterprise-kafka] repository:
+
+[source,bash]
+----
+git clone https://github.com/RedisLabs-Field-Engineering/redis-enterprise-kafka.git
+----
+
+
+[TIP]
+Use http://asciidoctor.org[Asciidoctor] for the best AsciiDoc experience.footnote:[Not to mention the best looking output!]
+Then icon:twitter[role=aqua] about it!
+
+toc::[]
+
+== Sample Section
+
+[square]
+* item 1
+* item 2
+
+[source,ruby]
+----
+puts "Hello, World!"
+----
+
+[caption=]
+.Ruby platforms
+|===
+|Name |Language
+
+|MRI |C
+|JRuby |Java
+|Opal |JavaScript
+|Rubinius |Ruby
+|===
+
+include::_attributes.adoc[]

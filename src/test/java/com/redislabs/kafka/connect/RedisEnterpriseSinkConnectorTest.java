@@ -1,6 +1,6 @@
-package com.redislabs.kafkaconnect;
+package com.redislabs.kafka.connect;
 
-import com.redislabs.kafkaconnect.sink.RedisEnterpriseSinkTask;
+import com.redislabs.kafka.connect.sink.RedisEnterpriseSinkTask;
 import org.apache.kafka.common.config.ConfigDef;
 import org.apache.kafka.common.utils.AppInfoParser;
 import org.junit.jupiter.api.Assertions;

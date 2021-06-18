@@ -1,6 +1,6 @@
-package com.redislabs.kafkaconnect;
+package com.redislabs.kafka.connect;
 
-import com.redislabs.kafkaconnect.source.RedisEnterpriseSourceTask;
+import com.redislabs.kafka.connect.source.RedisEnterpriseSourceTask;
 import com.redislabs.testcontainers.RedisServer;
 import org.apache.kafka.connect.source.SourceRecord;
 import org.junit.jupiter.api.AfterEach;

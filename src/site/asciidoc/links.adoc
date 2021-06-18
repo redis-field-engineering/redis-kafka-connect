@@ -1,0 +1,5 @@
+= Links
+
+. https://www.confluent.io/blog/put-several-event-types-kafka-topic/[Should You Put Several Event Types in the Same Kafka Topic?]
+. https://kafka.apache.org/quickstart[Kafka Quickstart]
+. https://kafka-tutorials.confluent.io/kafka-console-consumer-producer-basics/kafka.html[Console Producer and Consumer Basics]

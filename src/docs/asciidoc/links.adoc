@@ -1,3 +1,0 @@
-= Links
-
-. https://www.confluent.io/blog/put-several-event-types-kafka-topic/[Should You Put Several Event Types in the Same Kafka Topic?]

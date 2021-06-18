@@ -13,15 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.redislabs.kafkaconnect.sink;
+package com.redislabs.kafka.connect.sink;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.github.jcustenborder.kafka.connect.utils.data.SinkOffsetState;
 import com.github.jcustenborder.kafka.connect.utils.data.TopicPartitionCounter;
 import com.github.jcustenborder.kafka.connect.utils.jackson.ObjectMapperFactory;
-import com.redislabs.kafkaconnect.RedisEnterpriseSinkConnector;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.redislabs.kafka.connect.RedisEnterpriseSinkConnector;
 import io.lettuce.core.KeyValue;
 import io.lettuce.core.RedisClient;
 import io.lettuce.core.api.StatefulRedisConnection;
@@ -33,6 +31,8 @@ import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.errors.DataException;
 import org.apache.kafka.connect.sink.SinkRecord;
 import org.apache.kafka.connect.sink.SinkTask;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.batch.item.ExecutionContext;
 import org.springframework.batch.item.redis.OperationItemWriter;
 import org.springframework.batch.item.redis.support.operation.ConstantPredicate;

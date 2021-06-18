@@ -13,12 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.redislabs.kafkaconnect.sink;
+package com.redislabs.kafka.connect.sink;
 
 import com.github.jcustenborder.kafka.connect.utils.config.ConfigKeyBuilder;
 import com.github.jcustenborder.kafka.connect.utils.config.ConfigUtils;
 import com.github.jcustenborder.kafka.connect.utils.config.validators.Validators;
-import com.redislabs.kafkaconnect.common.RedisEnterpriseConnectorConfig;
+import com.redislabs.kafka.connect.common.RedisEnterpriseConnectorConfig;
 import org.apache.kafka.common.config.ConfigDef;
 
 import java.util.Arrays;
@@ -30,7 +30,7 @@ public class RedisEnterpriseSinkConfig extends RedisEnterpriseConnectorConfig {
 
     public static final String KEY = "redis.key";
     public static final String KEY_DEFAULT = TOKEN_TOPIC;
-    public static final String KEY_DOC = "A format string for the destination stream/set/list key, which may contain '" + TOKEN_TOPIC + "' as a placeholder for the originating topic name.\nFor example, ``kafka_" + TOKEN_TOPIC + "`` for the topic 'orders' will map to the Redis key " + "'kafka_orders'.";
+    public static final String KEY_DOC = "A format string for the destination stream/set/zset/list key, which may contain '" + TOKEN_TOPIC + "' as a placeholder for the originating topic name.\nFor example, ``kafka_" + TOKEN_TOPIC + "`` for the topic 'orders' will map to the Redis key " + "'kafka_orders'.";
 
     public static final String MULTIEXEC = "redis.multiexec";
     public static final String MULTIEXEC_DEFAULT = "false";
