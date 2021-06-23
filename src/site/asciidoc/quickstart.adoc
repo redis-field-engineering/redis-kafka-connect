@@ -18,40 +18,42 @@ https://docs.docker.com/get-docker/[Docker]
 
 == Run the example
 
-Clone the https://github.com/RedisLabs-Field-Engineering/redis-enterprise-kafka.git[redis-enterprise-kafka] repository:
+Clone the https://github.com/RedisLabs-Field-Engineering/redis-enterprise-kafka.git[redis-enterprise-kafka] repository and execute `run.sh` in `docker` directory:
 
 [source,bash]
 ----
 git clone https://github.com/RedisLabs-Field-Engineering/redis-enterprise-kafka.git
+cd redis-enterprise-kafka/docker
+./run.sh
 ----
 
+This will:
 
-[TIP]
-Use http://asciidoctor.org[Asciidoctor] for the best AsciiDoc experience.footnote:[Not to mention the best looking output!]
-Then icon:twitter[role=aqua] about it!
+* Run `docker-compose up`
+* Wait for Redis, Kafka, and Kafka Connect to be ready
+* Register the Confluent Datagen Connector
+* Register the Redis Enterprise Kafka Sink Connector
+* Register the Redis Enterprise Kafka Source Connector
+* Publish some events to Kafka via the Datagen connector
+* Write the events to Redis
+* Send messages to a Redis stream
+* Write the Redis stream messages back into Kafka
 
-toc::[]
+Once running, examine the topics in the Kafka control center: http://localhost:9021/
 
-== Sample Section
-
-[square]
-* item 1
-* item 2
-
-[source,ruby]
+* The `pageviews` topic should contain the 10 simple documents added. Each similar to:
+[source,json]
 ----
-puts "Hello, World!"
+{"viewtime": {"$numberLong": "81"}, "pageid": "Page_1", "userid": "User_8"}
 ----
 
-[caption=]
-.Ruby platforms
-|===
-|Name |Language
+* The `pageviews` stream should contain the 10 change events.
 
-|MRI |C
-|JRuby |Java
-|Opal |JavaScript
-|Rubinius |Ruby
-|===
+Examine the stream in Redis:
+[source,bash]
+----
+docker-compose exec redis /usr/local/bin/redis-cli
+xread COUNT 10 STREAMS pageviews 0
+----
 
-include::_attributes.adoc[]
+Messages added to the `mystream` stream will show up in the `mystream` topic

@@ -96,36 +96,40 @@ curl -X POST -H "Content-Type: application/json" --data '
      "value.converter.schemas.enable": "false"
 }}' http://localhost:8083/connectors -w "\n"
 
-#sleep 2
-#echo -e "\nAdding MongoDB Kafka Source Connector for the 'test.pageviews' collection:"
-#curl -X POST -H "Content-Type: application/json" --data '
-#  {"name": "mongo-source",
-#   "config": {
-#     "tasks.max":"1",
-#     "connector.class":"com.mongodb.kafka.connect.MongoSourceConnector",
-#     "connection.uri":"mongodb://mongo1:27017,mongo2:27017,mongo3:27017",
-#     "topic.prefix":"mongo",
-#     "database":"test",
-#     "collection":"pageviews"
-#}}' http://localhost:8083/connectors -w "\n"
+sleep 2
+echo -e "\nAdding Redis Enterprise Kafka Source Connector for the 'mystream' stream:"
+curl -X POST -H "Content-Type: application/json" --data '
+  {"name": "redis-enterprise-source",
+   "config": {
+     "tasks.max":"1",
+     "connector.class":"com.redislabs.kafka.connect.RedisEnterpriseSourceConnector",
+     "redis.uri":"redis://redis:6379",
+     "redis.stream.name":"mystream"
+}}' http://localhost:8083/connectors -w "\n"
 
 sleep 2
 echo -e "\nKafka Connectors: \n"
 curl -X GET "http://localhost:8083/connectors/" -w "\n"
 
-echo "Looking at data in 'pageviews':"
+echo "Number of messages in 'pageviews' stream:"
 docker-compose exec redis /usr/local/bin/redis-cli xlen pageviews
 
+sleep 2
+echo -e "\nAdding messages to Redis stream 'mystream':"
+docker-compose exec redis /usr/local/bin/redis-cli "xadd" "mystream" "*" "field1" "message1: value1" "field2" "message1: value2"
+docker-compose exec redis /usr/local/bin/redis-cli "xadd" "mystream" "*" "field1" "message2: value1" "field2" "message2: value2"
+
 echo -e '''
+
 
 ==============================================================================================================
 Examine the topics in the Kafka UI: http://localhost:9021 or http://localhost:8000/
   - The `pageviews` topic should have the generated page views.
-  - The `mongo.test.pageviews` topic should contain the change events.
-  - The `test.pageviews` collection in MongoDB should contain the sinked page views.
+  - The `mystream` topic should contain the Redis stream messages.
+  - The `pageviews` stream in Redis should contain the sunk page views.
 
 Examine the collections:
-  - In your shell run: docker-compose exec mongo1 /usr/bin/mongo
+  - In your shell run: docker-compose exec redis /usr/local/bin/redis-cli
 ==============================================================================================================
 
 Use <ctrl>-c to quit'''
