@@ -4,6 +4,7 @@
 :project-name:    redis-enterprise-kafka
 :project-group:   com.redislabs
 :project-version: 0.1.0
+:site-url:        https://redislabs-field-engineering.github.io/redis-enterprise-kafka
 
 image:https://github.com/{project-owner}/{project-name}/actions/workflows/maven.yml/badge.svg["Build Status", link="https://github.com/{project-owner}/{project-name}/actions"]
 image:https://codecov.io/gh/RedisLabs-Field-Engineering/redis-enterprise-kafka/branch/master/graph/badge.svg?token=MTMRRGEWBD["Coverage", link="https://codecov.io/gh/{project-owner}/{project-name}"]
@@ -11,3 +12,7 @@ image:https://codecov.io/gh/RedisLabs-Field-Engineering/redis-enterprise-kafka/b
 ---
 
 Kafka Connect source and sink connectors for https://redislabs.com/redis-enterprise-software/overview/[Redis Enterprise]
+
+== Documentation
+
+link:{site-url}/quickstart.html[Quick Start]
