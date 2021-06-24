@@ -13,6 +13,4 @@ image:https://codecov.io/gh/RedisLabs-Field-Engineering/redis-enterprise-kafka/b
 
 Kafka Connect source and sink connectors for https://redislabs.com/redis-enterprise-software/overview/[Redis Enterprise]
 
-== Documentation
-
-link:{site-url}/quickstart.html[Quick Start]
+Refer to the link:{site-url}[documentation] for configuration and usage information.
