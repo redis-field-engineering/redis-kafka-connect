@@ -5,7 +5,7 @@
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="generator" content="Asciidoctor 2.0.10">
-<title>Links</title>
+<title>Source Connector Guide</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Open+Sans:300,300italic,400,400italic,600,600italic%7CNoto+Serif:400,400italic,700,700italic%7CDroid+Sans+Mono:400,700">
 <style>
 /* Asciidoctor default stylesheet | MIT License | https://asciidoctor.org */
@@ -437,23 +437,86 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 </style>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
 </head>
-<body class="article">
+<body class="article toc2 toc-left">
 <div id="header">
-<h1>Links</h1>
+<h1>Source Connector Guide</h1>
+<div id="toc" class="toc2">
+<div id="toctitle">Table of Contents</div>
+<ul class="sectlevel1">
+<li><a href="#features">Features</a></li>
+</ul>
+</div>
 </div>
 <div id="content">
-<div class="olist arabic">
-<ol class="arabic">
+<div id="preamble">
+<div class="sectionbody">
+<div class="paragraph">
+<p>The Redis Enterprise Kafka Source Connector reads data from a Redis Enterprise database and publishes messages to a Kafka topic.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="features"><a class="anchor" href="#features"></a>Features</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>The Redis Enterprise Kafka Source Connector includes the following features:</p>
+</div>
+<div class="ulist">
+<ul>
 <li>
-<p><a href="https://www.confluent.io/blog/put-several-event-types-kafka-topic/">Should You Put Several Event Types in the Same Kafka Topic?</a></p>
+<p><a href="#at-least-once-delivery">At least once delivery</a></p>
 </li>
 <li>
-<p><a href="https://kafka.apache.org/quickstart">Kafka Quickstart</a></p>
+<p><a href="#stream-reader">Stream Reader</a></p>
 </li>
-<li>
-<p><a href="https://kafka-tutorials.confluent.io/kafka-console-consumer-producer-basics/kafka.html">Console Producer and Consumer Basics</a></p>
-</li>
-</ol>
+</ul>
+</div>
+<div class="sect2">
+<h3 id="at-least-once-delivery"><a class="anchor" href="#at-least-once-delivery"></a>At least once delivery</h3>
+<div class="paragraph">
+<p>The Redis Enterprise Kafka Source Connector guarantees that records from the Kafka topic are delivered at least once.</p>
+</div>
+</div>
+<div class="sect2">
+<h3 id="stream-reader"><a class="anchor" href="#stream-reader"></a>Stream Reader</h3>
+<div class="paragraph">
+<p>In stream reader mode, the Redis Enterprise Kafka Source Connector reads messages from a Redis stream and publishes to a Kafka topic.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code data-lang="properties" class="language-properties hljs">redis.stream.name=&lt;stream name&gt; <i class="conum" data-value="1"></i><b>(1)</b>
+redis.stream.offset=&lt;stream offset&gt; <i class="conum" data-value="2"></i><b>(2)</b>
+redis.stream.count=&lt;count&gt; <i class="conum" data-value="3"></i><b>(3)</b>
+redis.stream.block=&lt;millis&gt; <i class="conum" data-value="4"></i><b>(4)</b>
+topic.name=&lt;topic&gt; <i class="conum" data-value="5"></i><b>(5)</b></code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>Name of the stream to read from</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td><a href="https://redis.io/commands/xread#incomplete-ids">Message ID</a> to start reading from (default: <code>0-0</code>)</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="3"></i><b>3</b></td>
+<td>Maximum number of stream messages to include in a single <a href="https://redis.io/commands/xread">XREAD</a> when polling for new data (default: <code>50</code>). This setting can be used to limit the amount of data buffered internally in the connector</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="4"></i><b>4</b></td>
+<td>Maximum duration in milliseconds to wait while <a href="https://redis.io/commands/xread">reading</a> from the stream (default: 100)</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="5"></i><b>5</b></td>
+<td>A format string for the destination topic name (default: <code>${stream}</code>), which may contain <code>${stream}</code> as a placeholder for the originating stream name. For example, <code>redis_${stream}</code> for the stream 'orders' will map to the topic name <code>redis_orders</code>.</td>
+</tr>
+</table>
+</div>
+</div>
+</div>
 </div>
 </div>
 <div id="footer">

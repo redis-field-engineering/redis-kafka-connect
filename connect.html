@@ -5,7 +5,7 @@
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="generator" content="Asciidoctor 2.0.10">
-<title>Links</title>
+<title>Connect to Redis Enterprise</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Open+Sans:300,300italic,400,400italic,600,600italic%7CNoto+Serif:400,400italic,700,700italic%7CDroid+Sans+Mono:400,700">
 <style>
 /* Asciidoctor default stylesheet | MIT License | https://asciidoctor.org */
@@ -437,23 +437,58 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 </style>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
 </head>
-<body class="article">
+<body class="article toc2 toc-left">
 <div id="header">
-<h1>Links</h1>
+<h1>Connect to Redis Enterprise</h1>
+<div id="toc" class="toc2">
+<div id="toctitle">Table of Contents</div>
+<ul class="sectlevel1">
+<li><a href="#redis-uri">Redis URI</a></li>
+<li><a href="#configuring-the-connection-uri">Configuring the Connection URI</a></li>
+</ul>
+</div>
 </div>
 <div id="content">
-<div class="olist arabic">
-<ol class="arabic">
+<div id="preamble">
+<div class="sectionbody">
+<div class="paragraph">
+<p>This section provides information on configuring the Redis Enterprise Kafka Source or Sink Connector to connect to Redis Enterprise.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="redis-uri"><a class="anchor" href="#redis-uri"></a>Redis URI</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>The Redis Enterprise Kafka Connector relies on <a href="https://lettuce.io">Lettuce</a> to connect to Redis Enterprise. The Redis URI connection format is described <a href="https://github.com/lettuce-io/lettuce-core/wiki/Redis-URI-and-connection-details#uri-syntax">here</a>.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="configuring-the-connection-uri"><a class="anchor" href="#configuring-the-connection-uri"></a>Configuring the Connection URI</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Specify the Redis URI in the <code>redis.uri</code> property, for example:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>redis.uri=redis://redis-12000.redislabs.com:12000</pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Refer to the configuration guides for more detail:</p>
+</div>
+<div class="ulist">
+<ul>
 <li>
-<p><a href="https://www.confluent.io/blog/put-several-event-types-kafka-topic/">Should You Put Several Event Types in the Same Kafka Topic?</a></p>
+<p><a href="#sink">Sink Connector Guide</a></p>
 </li>
 <li>
-<p><a href="https://kafka.apache.org/quickstart">Kafka Quickstart</a></p>
+<p><a href="#source">Source Connector Guide</a></p>
 </li>
-<li>
-<p><a href="https://kafka-tutorials.confluent.io/kafka-console-consumer-producer-basics/kafka.html">Console Producer and Consumer Basics</a></p>
-</li>
-</ol>
+</ul>
+</div>
+</div>
 </div>
 </div>
 <div id="footer">

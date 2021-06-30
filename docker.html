@@ -5,7 +5,7 @@
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="generator" content="Asciidoctor 2.0.10">
-<title>Links</title>
+<title>Quick Start with Docker</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Open+Sans:300,300italic,400,400italic,600,600italic%7CNoto+Serif:400,400italic,700,700italic%7CDroid+Sans+Mono:400,700">
 <style>
 /* Asciidoctor default stylesheet | MIT License | https://asciidoctor.org */
@@ -437,23 +437,131 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 </style>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
 </head>
-<body class="article">
+<body class="article toc2 toc-left">
 <div id="header">
-<h1>Links</h1>
+<h1>Quick Start with Docker</h1>
+<div id="toc" class="toc2">
+<div id="toctitle">Table of Contents</div>
+<ul class="sectlevel1">
+<li><a href="#requirements">Requirements</a></li>
+<li><a href="#run-the-example">Run the example</a></li>
+</ul>
+</div>
 </div>
 <div id="content">
-<div class="olist arabic">
-<ol class="arabic">
+<div id="preamble">
+<div class="sectionbody">
+<div class="paragraph">
+<p>This guide provides a hands-on look at the functionality of the Redis Enterprise Kafka Source and Sink Connectors:</p>
+</div>
+<div class="ulist">
+<ul>
 <li>
-<p><a href="https://www.confluent.io/blog/put-several-event-types-kafka-topic/">Should You Put Several Event Types in the Same Kafka Topic?</a></p>
+<p>The <strong>redis-enterprise-sink</strong> connector reads data from a Kafka topic and writes it to a Redis stream</p>
 </li>
 <li>
-<p><a href="https://kafka.apache.org/quickstart">Kafka Quickstart</a></p>
+<p>The <strong>redis-enterprise-source</strong> connector reads data from a Redis stream and writes it to a Kafka topic</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="requirements"><a class="anchor" href="#requirements"></a>Requirements</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p><a href="https://docs.docker.com/get-docker/">Docker</a></p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="run-the-example"><a class="anchor" href="#run-the-example"></a>Run the example</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Clone the <a href="https://github.com/RedisLabs-Field-Engineering/redis-enterprise-kafka.git">redis-enterprise-kafka</a> repository and execute <code>run.sh</code> in <code>docker</code> directory:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code data-lang="bash" class="language-bash hljs">git clone https://github.com/RedisLabs-Field-Engineering/redis-enterprise-kafka.git
+cd redis-enterprise-kafka/docker
+./run.sh</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>This will:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>Run <code>docker-compose up</code></p>
 </li>
 <li>
-<p><a href="https://kafka-tutorials.confluent.io/kafka-console-consumer-producer-basics/kafka.html">Console Producer and Consumer Basics</a></p>
+<p>Wait for Redis, Kafka, and Kafka Connect to be ready</p>
 </li>
-</ol>
+<li>
+<p>Register the Confluent Datagen Connector</p>
+</li>
+<li>
+<p>Register the Redis Enterprise Kafka Sink Connector</p>
+</li>
+<li>
+<p>Register the Redis Enterprise Kafka Source Connector</p>
+</li>
+<li>
+<p>Publish some events to Kafka via the Datagen connector</p>
+</li>
+<li>
+<p>Write the events to Redis</p>
+</li>
+<li>
+<p>Send messages to a Redis stream</p>
+</li>
+<li>
+<p>Write the Redis stream messages back into Kafka</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>Once running, examine the topics in the Kafka control center: <a href="http://localhost:9021/" class="bare">http://localhost:9021/</a></p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>The <code>pageviews</code> topic should contain the 10 simple documents added, each similar to:</p>
+</li>
+</ul>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code data-lang="json" class="language-json hljs">{
+  "viewtime": {
+    "$numberLong": "81"
+  },
+  "pageid": "Page_1",
+  "userid": "User_8"
+}</code></pre>
+</div>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>The <code>pageviews</code> stream should contain the 10 change events.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>Examine the stream in Redis:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code data-lang="bash" class="language-bash hljs">docker-compose exec redis /usr/local/bin/redis-cli
+xread COUNT 10 STREAMS pageviews 0</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Messages added to the <code>mystream</code> stream will show up in the <code>mystream</code> topic</p>
+</div>
+</div>
 </div>
 </div>
 <div id="footer">
