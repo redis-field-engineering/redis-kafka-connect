@@ -5,7 +5,11 @@ Julien Ruaux <julien@redislabs.com>
 
 == Introduction
 
-The {project-name} is used to import and export data between Apache Kafka and Redis Enterprise. This guide provides documentation and usage information across the following topics:
+The {project-name} is used to import and export data between Apache Kafka and Redis Enterprise.
+
+image:images/redis-enterprise-kafka-connector.svg[]
+
+This guide provides documentation and usage information across the following topics:
 
 * <<install,Install>>
 * <<connect,Connect to Redis Enterprise>>
