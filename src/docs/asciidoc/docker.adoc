@@ -38,7 +38,7 @@ Once running, examine the topics in the Kafka control center: http://localhost:9
 
 [source,json]
 ----
-include::docker-pageviews.json[]
+include::resources/pageviews.json[]
 ----
 
 * The `pageviews` stream should contain the 10 change events.

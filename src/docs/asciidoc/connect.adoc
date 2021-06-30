@@ -9,6 +9,8 @@ The {project-name} relies on https://lettuce.io[Lettuce] to connect to Redis Ent
 == Configuring the Connection URI
 
 Specify the Redis URI in the `redis.uri` property, for example:
+
+[source,properties]
 ----
 redis.uri=redis://redis-12000.redislabs.com:12000
 ----
