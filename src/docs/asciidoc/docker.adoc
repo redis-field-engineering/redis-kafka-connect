@@ -1,11 +1,4 @@
-= Quick Start
-Julien Ruaux <julien@redislabs.com>
-v1.0, 2021-06-16
-//:toc:
-:icons: font
-:source-highlighter: coderay
-:sectanchors:
-//:compat-mode:
+= Quick Start with Docker
 
 This guide provides a hands-on look at the functionality of the Redis Enterprise Kafka Source and Sink Connectors:
 
@@ -41,10 +34,11 @@ This will:
 
 Once running, examine the topics in the Kafka control center: http://localhost:9021/
 
-* The `pageviews` topic should contain the 10 simple documents added. Each similar to:
+* The `pageviews` topic should contain the 10 simple documents added, each similar to:
+
 [source,json]
 ----
-{"viewtime": {"$numberLong": "81"}, "pageid": "Page_1", "userid": "User_8"}
+include::docker-pageviews.json[]
 ----
 
 * The `pageviews` stream should contain the 10 change events.

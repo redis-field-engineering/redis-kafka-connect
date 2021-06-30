@@ -1,5 +1,6 @@
 package com.redislabs.kafka.connect;
 
+import com.redislabs.kafka.connect.source.RedisEnterpriseSourceConfig;
 import com.redislabs.kafka.connect.source.RedisEnterpriseSourceTask;
 import com.redislabs.testcontainers.RedisServer;
 import org.apache.kafka.connect.source.SourceRecord;
@@ -28,8 +29,8 @@ public class RedisEnterpriseSourceTaskIT extends AbstractRedisEnterpriseIT {
 
     private void startTask(RedisServer redis) {
         final Map<String, String> config = new HashMap<>();
-        config.put("redis.uri", redis.getRedisURI());
-        config.put("redis.stream.name", STREAM);
+        config.put(RedisEnterpriseSourceConfig.REDIS_URI, redis.getRedisURI());
+        config.put(RedisEnterpriseSourceConfig.STREAM_NAME, STREAM);
         task.start(config);
     }
 

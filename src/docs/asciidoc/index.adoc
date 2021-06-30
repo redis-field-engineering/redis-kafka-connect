@@ -1,0 +1,25 @@
+= {project-name}
+Julien Ruaux <julien@redislabs.com>
+2021-06-24
+:revnumber: {project-version}
+
+== Introduction
+
+The {project-name} is used to import and export data between Apache Kafka and Redis Enterprise. This guide provides documentation and usage information across the following topics:
+
+* <<install,Install>>
+* <<connect,Connect to Redis Enterprise>>
+* <<sink,Sink Connector Guide>>
+* <<source,Source Connector Guide>>
+* <<docker,Docker Example>>
+
+[[install]]
+include::install.adoc[leveloffset=+1]
+[[connect]]
+include::connect.adoc[leveloffset=+1]
+[[sink]]
+include::sink.adoc[leveloffset=+1]
+[[source]]
+include::source.adoc[leveloffset=+1]
+[[docker]]
+include::docker.adoc[leveloffset=+1]

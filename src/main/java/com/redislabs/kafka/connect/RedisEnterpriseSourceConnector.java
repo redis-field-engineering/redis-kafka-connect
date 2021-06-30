@@ -48,7 +48,7 @@ public class RedisEnterpriseSourceConnector extends SourceConnector {
 
     @Override
     public ConfigDef config() {
-        return RedisEnterpriseSourceConfig.config();
+        return new RedisEnterpriseSourceConfig.RedisEnterpriseSourceConfigDef();
     }
 
 

@@ -18,15 +18,23 @@ package com.redislabs.kafka.connect.sink;
 import com.github.jcustenborder.kafka.connect.utils.config.ConfigKeyBuilder;
 import com.github.jcustenborder.kafka.connect.utils.config.ConfigUtils;
 import com.github.jcustenborder.kafka.connect.utils.config.validators.Validators;
-import com.redislabs.kafka.connect.common.RedisEnterpriseConnectorConfig;
+import com.redislabs.kafka.connect.common.RedisEnterpriseConfig;
 import org.apache.kafka.common.config.ConfigDef;
+import org.apache.kafka.common.config.ConfigValue;
 
+import java.nio.charset.Charset;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
-public class RedisEnterpriseSinkConfig extends RedisEnterpriseConnectorConfig {
+public class RedisEnterpriseSinkConfig extends RedisEnterpriseConfig {
 
     public static final String TOKEN_TOPIC = "${topic}";
+
+    public static final String CHARSET = "redis.charset";
+    public static final String CHARSET_DEFAULT = Charset.defaultCharset().name();
+    public static final String CHARSET_DOC = "Character set to encode Redis key and value strings.";
 
     public static final String KEY = "redis.key";
     public static final String KEY_DEFAULT = TOKEN_TOPIC;
@@ -38,23 +46,32 @@ public class RedisEnterpriseSinkConfig extends RedisEnterpriseConnectorConfig {
 
     public static final String TYPE = "redis.type";
     public static final String TYPE_DEFAULT = DataType.STREAM.name();
-    public static final String TYPE_DOC = "Destination data structure: " + String.join(", ", Arrays.stream(DataType.values()).map(DataType::name).toArray(String[]::new));
+    public static final String TYPE_DOC = "Destination data structure: " + ConfigUtils.enumValues(DataType.class);
+
+    public static final Set<DataType> MULTI_EXEC_TYPES = new HashSet<>(Arrays.asList(DataType.STREAM, DataType.LIST, DataType.SET, DataType.ZSET));
 
     public static final String PUSH_DIRECTION = "redis.push.direction";
     public static final String PUSH_DIRECTION_DEFAULT = PushDirection.LEFT.name();
     public static final String PUSH_DIRECTION_DOC = "List push direction: " + PushDirection.LEFT + " (LPUSH) or " + PushDirection.RIGHT + " (RPUSH)";
 
+    private final Charset charset;
     private final DataType type;
     private final String keyFormat;
     private final PushDirection pushDirection;
     private final boolean multiexec;
 
     public RedisEnterpriseSinkConfig(Map<?, ?> originals) {
-        super(config(), originals);
+        super(new RedisEnterpriseSinkConfigDef(), originals);
+        String charsetName = getString(CHARSET).trim();
+        charset = Charset.forName(charsetName);
         type = ConfigUtils.getEnum(DataType.class, this, TYPE);
         keyFormat = getString(KEY).trim();
         pushDirection = ConfigUtils.getEnum(PushDirection.class, this, PUSH_DIRECTION);
         multiexec = Boolean.TRUE.equals(getBoolean(MULTIEXEC));
+    }
+
+    public Charset getCharset() {
+        return charset;
     }
 
     public DataType getType() {
@@ -73,12 +90,50 @@ public class RedisEnterpriseSinkConfig extends RedisEnterpriseConnectorConfig {
         return multiexec;
     }
 
-    public static ConfigDef config() {
-        return RedisEnterpriseConnectorConfig.config()
-                .define(ConfigKeyBuilder.of(TYPE, ConfigDef.Type.STRING).documentation(TYPE_DOC).defaultValue(TYPE_DEFAULT).validator(Validators.validEnum(DataType.class)).importance(ConfigDef.Importance.HIGH).build())
-                .define(ConfigKeyBuilder.of(KEY, ConfigDef.Type.STRING).documentation(KEY_DOC).defaultValue(KEY_DEFAULT).importance(ConfigDef.Importance.MEDIUM).build())
-                .define(ConfigKeyBuilder.of(PUSH_DIRECTION, ConfigDef.Type.STRING).documentation(PUSH_DIRECTION_DOC).defaultValue(PUSH_DIRECTION_DEFAULT).importance(ConfigDef.Importance.MEDIUM).build())
-                .define(ConfigKeyBuilder.of(MULTIEXEC, ConfigDef.Type.BOOLEAN).documentation(MULTIEXEC_DOC).defaultValue(MULTIEXEC_DEFAULT).importance(ConfigDef.Importance.MEDIUM).build());
+    public static class RedisEnterpriseSinkConfigDef extends RedisEnterpriseConfigDef {
+
+        public RedisEnterpriseSinkConfigDef() {
+            define();
+        }
+
+        public RedisEnterpriseSinkConfigDef(ConfigDef base) {
+            super(base);
+            define();
+        }
+
+        private void define() {
+            define(ConfigKeyBuilder.of(CHARSET, ConfigDef.Type.STRING).documentation(CHARSET_DOC).defaultValue(CHARSET_DEFAULT).importance(ConfigDef.Importance.HIGH).build());
+            define(ConfigKeyBuilder.of(TYPE, ConfigDef.Type.STRING).documentation(TYPE_DOC).defaultValue(TYPE_DEFAULT).importance(ConfigDef.Importance.HIGH).validator(Validators.validEnum(DataType.class)).build());
+            define(ConfigKeyBuilder.of(KEY, ConfigDef.Type.STRING).documentation(KEY_DOC).defaultValue(KEY_DEFAULT).importance(ConfigDef.Importance.MEDIUM).build());
+            define(ConfigKeyBuilder.of(PUSH_DIRECTION, ConfigDef.Type.STRING).documentation(PUSH_DIRECTION_DOC).defaultValue(PUSH_DIRECTION_DEFAULT).importance(ConfigDef.Importance.MEDIUM).build());
+            define(ConfigKeyBuilder.of(MULTIEXEC, ConfigDef.Type.BOOLEAN).documentation(MULTIEXEC_DOC).defaultValue(MULTIEXEC_DEFAULT).importance(ConfigDef.Importance.MEDIUM).build());
+        }
+
+        @Override
+        public Map<String, ConfigValue> validateAll(Map<String, String> props) {
+            Map<String, ConfigValue> results = super.validateAll(props);
+            if (results.values().stream().map(ConfigValue::errorMessages).anyMatch(l -> !l.isEmpty())) {
+                return results;
+            }
+            DataType dataType = dataType(props);
+            String multiexec = props.getOrDefault(MULTIEXEC, MULTIEXEC_DEFAULT).trim();
+            if (multiexec.equalsIgnoreCase("true") && !MULTI_EXEC_TYPES.contains(dataType)) {
+                String supportedTypes = String.join(", ", MULTI_EXEC_TYPES.stream().map(Enum::name).toArray(String[]::new));
+                results.get(MULTIEXEC).addErrorMessage("multi/exec is only supported with these data structures: " + supportedTypes);
+            }
+            String charsetName = props.getOrDefault(CHARSET, CHARSET_DEFAULT).trim();
+            try {
+                Charset.forName(charsetName);
+            } catch (Exception e) {
+                results.get(CHARSET).addErrorMessage(e.getMessage());
+            }
+            return results;
+        }
+
+        private DataType dataType(Map<String, String> props) {
+            return DataType.valueOf(props.getOrDefault(TYPE, TYPE_DEFAULT));
+        }
+
     }
 
     public enum DataType {

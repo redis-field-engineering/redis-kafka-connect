@@ -23,6 +23,7 @@ import com.redislabs.kafka.connect.RedisEnterpriseSinkConnector;
 import io.lettuce.core.KeyValue;
 import io.lettuce.core.RedisClient;
 import io.lettuce.core.api.StatefulRedisConnection;
+import io.lettuce.core.codec.ByteArrayCodec;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.config.ConfigException;
 import org.apache.kafka.connect.data.Field;
@@ -44,8 +45,10 @@ import org.springframework.batch.item.redis.support.operation.Sadd;
 import org.springframework.batch.item.redis.support.operation.Set;
 import org.springframework.batch.item.redis.support.operation.Xadd;
 import org.springframework.batch.item.redis.support.operation.Zadd;
+import org.springframework.core.convert.converter.Converter;
 
 import java.io.IOException;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -59,7 +62,8 @@ public class RedisEnterpriseSinkTask extends SinkTask {
 
     private RedisClient client;
     private RedisEnterpriseSinkConfig config;
-    private OperationItemWriter<SinkRecord> writer;
+    private Charset charset;
+    private OperationItemWriter<byte[], byte[], SinkRecord> writer;
     private StatefulRedisConnection<String, String> connection;
 
     @Override
@@ -72,7 +76,8 @@ public class RedisEnterpriseSinkTask extends SinkTask {
         config = new RedisEnterpriseSinkConfig(props);
         client = RedisClient.create(config.getRedisUri());
         connection = client.connect();
-        writer = OperationItemWriter.operation(operation()).client(client).transactional(Boolean.TRUE.equals(config.isMultiexec())).build();
+        charset = config.getCharset();
+        writer = OperationItemWriter.operation(operation()).codec(new ByteArrayCodec()).client(client).transactional(Boolean.TRUE.equals(config.isMultiexec())).build();
         writer.open(new ExecutionContext());
         final java.util.Set<TopicPartition> assignment = this.context.assignment();
         if (!assignment.isEmpty()) {
@@ -107,21 +112,21 @@ public class RedisEnterpriseSinkTask extends SinkTask {
         return String.format("__kafka.offset.%s.%s", topicPartition.topic(), topicPartition.partition());
     }
 
-    private OperationItemWriter.RedisOperation<SinkRecord> operation() {
+    private OperationItemWriter.RedisOperation<byte[], byte[], SinkRecord> operation() {
         switch (config.getType()) {
             case STREAM:
-                return new Xadd<>(this::collectionKey, this::map);
+                return new Xadd<>((Converter<SinkRecord, byte[]>) this::collectionKey, this::map);
             case HASH:
                 return new Hset<>(this::key, this::map, this::isDelete);
             case STRING:
-                return new Set<>(this::key, this::string, this::isDelete);
+                return new Set<>(this::key, this::value, this::isDelete);
             case LIST:
                 if (config.getPushDirection() == RedisEnterpriseSinkConfig.PushDirection.LEFT) {
-                    return new Lpush<>(this::collectionKey, this::key, new ConstantPredicate<>(false), new NullValuePredicate<>(this::string));
+                    return new Lpush<>(this::collectionKey, this::key, new ConstantPredicate<>(false), new NullValuePredicate<>(this::value));
                 }
-                return new Rpush<>(this::collectionKey, this::key, new ConstantPredicate<>(false), new NullValuePredicate<>(this::string));
+                return new Rpush<>(this::collectionKey, this::key, new ConstantPredicate<>(false), new NullValuePredicate<>(this::value));
             case SET:
-                return new Sadd<>(this::collectionKey, this::key, new ConstantPredicate<>(false), new NullValuePredicate<>(this::string));
+                return new Sadd<>(this::collectionKey, this::key, new ConstantPredicate<>(false), new NullValuePredicate<>(this::value));
             case ZSET:
                 return new Zadd<>(this::collectionKey, this::key, new ConstantPredicate<>(false), new NullValuePredicate<>(this::score), this::score);
             default:
@@ -129,8 +134,8 @@ public class RedisEnterpriseSinkTask extends SinkTask {
         }
     }
 
-    private String string(SinkRecord record) {
-        return string("value", record.value());
+    private byte[] value(SinkRecord record) {
+        return bytes("value", record.value());
     }
 
     private Double score(SinkRecord record) {
@@ -148,43 +153,48 @@ public class RedisEnterpriseSinkTask extends SinkTask {
         return record.value() == null;
     }
 
-    private String key(SinkRecord record) {
-        return string("key", record.key());
+    private byte[] key(SinkRecord record) {
+        return bytes("key", record.key());
     }
 
-    private String string(String source, Object input) {
+    private byte[] bytes(String source, Object input) {
         if (input == null) {
             return null;
         }
-        if (input instanceof String) {
-            return (String) input;
+        if (input instanceof byte[]) {
+            return (byte[]) input;
         }
-        throw new DataException(String.format("The %s for the record must be String or Bytes. Consider using the StringConverter if the data is stored in Kafka in the format needed in Redis. Another option is to use a single message transformation to transform the data before it is written to Redis.", source));
+        if (input instanceof String) {
+            return ((String) input).getBytes(charset);
+        }
+        throw new DataException(String.format("The %s for the record must be a string or byte array. Consider using the StringConverter or ByteArrayConverter if the data is stored in Kafka in the format needed in Redis.", source));
     }
 
-    private String collectionKey(SinkRecord record) {
-        return config.getKeyFormat().replace(RedisEnterpriseSinkConfig.TOKEN_TOPIC, record.topic());
+    private byte[] collectionKey(SinkRecord record) {
+        return config.getKeyFormat().replace(RedisEnterpriseSinkConfig.TOKEN_TOPIC, record.topic()).getBytes(charset);
     }
 
     @SuppressWarnings("unchecked")
-    private Map<String, String> map(SinkRecord record) {
+    private Map<byte[], byte[]> map(SinkRecord record) {
         Object value = record.value();
         if (value == null) {
             return null;
         }
         if (value instanceof Struct) {
-            Map<String, String> body = new LinkedHashMap<>();
+            Map<byte[], byte[]> body = new LinkedHashMap<>();
             Struct struct = (Struct) value;
             for (Field field : struct.schema().fields()) {
                 Object fieldValue = struct.get(field);
-                body.put(field.name(), fieldValue == null ? null : fieldValue.toString());
+                body.put(field.name().getBytes(charset), fieldValue == null ? null : fieldValue.toString().getBytes(charset));
             }
             return body;
         }
         if (value instanceof Map) {
             Map<String, Object> map = (Map<String, Object>) value;
-            Map<String, String> body = new LinkedHashMap<>();
-            map.forEach((k, v) -> body.put(String.valueOf(k), String.valueOf(v)));
+            Map<byte[], byte[]> body = new LinkedHashMap<>();
+            for (Map.Entry<String, Object> e : map.entrySet()) {
+                body.put(e.getKey().getBytes(charset), String.valueOf(e.getValue()).getBytes(charset));
+            }
             return body;
         }
         throw new ConnectException("Unsupported source value type: " + record.valueSchema().type().name());

@@ -1,0 +1,10 @@
+= Install
+
+== Install using Confluent Hub
+
+1. Install the https://docs.confluent.io/current/connect/managing/confluent-hub/client.html[Confluent Hub Client]
+2. Install the {project-name} using the Confluent Hub Client
+
+== Install Manually
+
+Follow the instructions in https://docs.confluent.io/home/connect/community.html#manually-installing-community-connectors/[Manually Installing Community Connectors]

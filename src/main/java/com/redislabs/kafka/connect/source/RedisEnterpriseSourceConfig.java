@@ -16,12 +16,12 @@
 package com.redislabs.kafka.connect.source;
 
 import com.github.jcustenborder.kafka.connect.utils.config.ConfigKeyBuilder;
-import com.redislabs.kafka.connect.common.RedisEnterpriseConnectorConfig;
+import com.redislabs.kafka.connect.common.RedisEnterpriseConfig;
 import org.apache.kafka.common.config.ConfigDef;
 
 import java.util.Map;
 
-public class RedisEnterpriseSourceConfig extends RedisEnterpriseConnectorConfig {
+public class RedisEnterpriseSourceConfig extends RedisEnterpriseConfig {
 
     public static final String TOKEN_STREAM = "${stream}";
 
@@ -40,9 +40,9 @@ public class RedisEnterpriseSourceConfig extends RedisEnterpriseConnectorConfig 
     public static final long STREAM_BLOCK_DEFAULT = 100;
     public static final String STREAM_BLOCK_DOC = "The max amount of time in milliseconds to wait while polling for stream messages (XREAD [BLOCK milliseconds])";
 
-    public static final String TOPIC_NAME_FORMAT = "topic.name.format";
+    public static final String TOPIC_NAME_FORMAT = "topic.name";
     public static final String TOPIC_NAME_FORMAT_DEFAULT = TOKEN_STREAM;
-    public static final String TOPIC_NAME_FORMAT_DOC = "A format string for the destination topic name, which may contain '${stream}' as a " + "placeholder for the originating topic name.\n" + "For example, ``redis_${stream}`` for the stream 'orders' will map to the topic name " + "'redis_orders'.";
+    public static final String TOPIC_NAME_FORMAT_DOC = "A format string for the destination topic name, which may contain '${stream}' as a " + "placeholder for the originating stream name.\n" + "For example, ``redis_${stream}`` for the stream 'orders' will map to the topic name " + "'redis_orders'.";
 
     private final String streamName;
     private final String streamOffset;
@@ -51,7 +51,7 @@ public class RedisEnterpriseSourceConfig extends RedisEnterpriseConnectorConfig 
     private final String topicNameFormat;
 
     public RedisEnterpriseSourceConfig(Map<?, ?> originals) {
-        super(config(), originals);
+        super(new RedisEnterpriseSourceConfigDef(), originals);
         this.streamName = getString(STREAM_NAME);
         this.streamOffset = getString(STREAM_OFFSET);
         this.streamCount = getLong(STREAM_COUNT);
@@ -79,13 +79,26 @@ public class RedisEnterpriseSourceConfig extends RedisEnterpriseConnectorConfig 
         return topicNameFormat;
     }
 
-    public static ConfigDef config() {
-        return RedisEnterpriseConnectorConfig.config()
-        .define(ConfigKeyBuilder.of(STREAM_NAME, ConfigDef.Type.STRING).documentation(STREAM_NAME_DOC).importance(ConfigDef.Importance.HIGH).validator(ConfigDef.CompositeValidator.of(new ConfigDef.NonNullValidator(), new ConfigDef.NonEmptyString())).build())
-        .define(ConfigKeyBuilder.of(STREAM_OFFSET, ConfigDef.Type.STRING).documentation(STREAM_OFFSET_DOC).defaultValue(STREAM_OFFSET_DEFAULT).importance(ConfigDef.Importance.MEDIUM).build())
-        .define(ConfigKeyBuilder.of(STREAM_COUNT, ConfigDef.Type.LONG).defaultValue(STREAM_COUNT_DEFAULT).importance(ConfigDef.Importance.LOW).documentation(STREAM_COUNT_DOC).validator(ConfigDef.Range.atLeast(1L)).build())
-        .define(ConfigKeyBuilder.of(STREAM_BLOCK, ConfigDef.Type.LONG).defaultValue(STREAM_BLOCK_DEFAULT).importance(ConfigDef.Importance.LOW).documentation(STREAM_BLOCK_DOC).validator(ConfigDef.Range.atLeast(1L)).build())
-        .define(ConfigKeyBuilder.of(TOPIC_NAME_FORMAT, ConfigDef.Type.STRING).defaultValue(TOPIC_NAME_FORMAT_DEFAULT).importance(ConfigDef.Importance.MEDIUM).documentation(TOPIC_NAME_FORMAT_DOC).build());
+    public static class RedisEnterpriseSourceConfigDef extends RedisEnterpriseConfigDef {
+
+        public RedisEnterpriseSourceConfigDef() {
+            define();
+        }
+
+        public RedisEnterpriseSourceConfigDef(ConfigDef base) {
+            super(base);
+            define();
+        }
+
+        private void define() {
+            define(ConfigKeyBuilder.of(STREAM_NAME, ConfigDef.Type.STRING).documentation(STREAM_NAME_DOC).importance(ConfigDef.Importance.HIGH).validator(ConfigDef.CompositeValidator.of(new ConfigDef.NonNullValidator(), new ConfigDef.NonEmptyString())).build());
+            define(ConfigKeyBuilder.of(STREAM_OFFSET, ConfigDef.Type.STRING).documentation(STREAM_OFFSET_DOC).defaultValue(STREAM_OFFSET_DEFAULT).importance(ConfigDef.Importance.MEDIUM).build());
+            define(ConfigKeyBuilder.of(STREAM_COUNT, ConfigDef.Type.LONG).defaultValue(STREAM_COUNT_DEFAULT).importance(ConfigDef.Importance.LOW).documentation(STREAM_COUNT_DOC).validator(ConfigDef.Range.atLeast(1L)).build());
+            define(ConfigKeyBuilder.of(STREAM_BLOCK, ConfigDef.Type.LONG).defaultValue(STREAM_BLOCK_DEFAULT).importance(ConfigDef.Importance.LOW).documentation(STREAM_BLOCK_DOC).validator(ConfigDef.Range.atLeast(1L)).build());
+            define(ConfigKeyBuilder.of(TOPIC_NAME_FORMAT, ConfigDef.Type.STRING).defaultValue(TOPIC_NAME_FORMAT_DEFAULT).importance(ConfigDef.Importance.MEDIUM).documentation(TOPIC_NAME_FORMAT_DOC).build());
+        }
+
+
     }
 
 }

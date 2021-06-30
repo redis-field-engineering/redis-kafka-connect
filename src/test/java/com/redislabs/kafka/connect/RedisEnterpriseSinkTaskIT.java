@@ -23,6 +23,7 @@ import org.testcontainers.shaded.com.google.common.collect.ImmutableList;
 import org.testcontainers.shaded.com.google.common.collect.ImmutableMap;
 import org.testcontainers.shaded.com.google.common.collect.ImmutableSet;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -181,6 +182,28 @@ public class RedisEnterpriseSinkTaskIT extends AbstractRedisEnterpriseIT {
             String value = "This is value " + i;
             expected.put(key, value);
             records.add(SinkRecordHelper.write(topic, new SchemaAndValue(Schema.STRING_SCHEMA, key), new SchemaAndValue(Schema.STRING_SCHEMA, value)));
+        }
+        put(topic, RedisEnterpriseSinkConfig.DataType.STRING, redis, records);
+        String[] keys = expected.keySet().toArray(new String[0]);
+        List<KeyValue<String, String>> actual = syncString(redis).mget(keys);
+        assertEquals(records.size(), actual.size());
+        for (KeyValue<String, String> keyValue : actual) {
+            assertEquals(expected.get(keyValue.getKey()), keyValue.getValue(), String.format("Value for key '%s' does not match.", keyValue.getKey()));
+        }
+    }
+
+    @ParameterizedTest
+    @MethodSource("redisServers")
+    public void setBytes(RedisServer redis) {
+        String topic = "setBytes";
+        int count = 50;
+        Map<String, String> expected = new LinkedHashMap<>(count);
+        List<SinkRecord> records = new ArrayList<>(count);
+        for (int i = 0; i < count; i++) {
+            String key = topic + i;
+            String value = "This is value " + i;
+            expected.put(key, value);
+            records.add(SinkRecordHelper.write(topic, new SchemaAndValue(Schema.BYTES_SCHEMA, key.getBytes(StandardCharsets.UTF_8)), new SchemaAndValue(Schema.BYTES_SCHEMA, value.getBytes(StandardCharsets.UTF_8))));
         }
         put(topic, RedisEnterpriseSinkConfig.DataType.STRING, redis, records);
         String[] keys = expected.keySet().toArray(new String[0]);

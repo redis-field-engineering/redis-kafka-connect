@@ -51,7 +51,7 @@ public class RedisEnterpriseSinkConnector extends SinkConnector {
 
     @Override
     public ConfigDef config() {
-        return RedisEnterpriseSinkConfig.config();
+        return new RedisEnterpriseSinkConfig.RedisEnterpriseSinkConfigDef();
     }
 
 

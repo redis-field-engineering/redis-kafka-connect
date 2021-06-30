@@ -22,7 +22,7 @@ import org.apache.kafka.common.config.ConfigDef;
 
 import java.util.Map;
 
-public class RedisEnterpriseConnectorConfig extends AbstractConfig {
+public class RedisEnterpriseConfig extends AbstractConfig {
 
     public static final String REDIS_URI = "redis.uri";
     private static final String REDIS_URI_DEFAULT = "redis://localhost:6379";
@@ -30,7 +30,7 @@ public class RedisEnterpriseConnectorConfig extends AbstractConfig {
 
     private final String redisUri;
 
-    public RedisEnterpriseConnectorConfig(ConfigDef config, Map<?, ?> originals) {
+    public RedisEnterpriseConfig(ConfigDef config, Map<?, ?> originals) {
         super(config, originals);
         redisUri = getString(REDIS_URI);
     }
@@ -39,9 +39,21 @@ public class RedisEnterpriseConnectorConfig extends AbstractConfig {
         return redisUri;
     }
 
-    protected static ConfigDef config() {
-        return new ConfigDef()
-                .define(ConfigKeyBuilder.of(REDIS_URI, ConfigDef.Type.STRING).documentation(REDIS_URI_DOC).defaultValue(REDIS_URI_DEFAULT).importance(ConfigDef.Importance.HIGH).validator(Validators.validURI("redis", "rediss")).build());
+    protected static class RedisEnterpriseConfigDef extends ConfigDef {
+
+        protected RedisEnterpriseConfigDef() {
+            defineRedisURI();
+        }
+
+        protected RedisEnterpriseConfigDef(ConfigDef base) {
+            super(base);
+            defineRedisURI();
+        }
+
+        private void defineRedisURI() {
+            define(ConfigKeyBuilder.of(REDIS_URI, ConfigDef.Type.STRING).documentation(REDIS_URI_DOC).defaultValue(REDIS_URI_DEFAULT).importance(ConfigDef.Importance.HIGH).validator(Validators.validURI("redis", "rediss")).build());
+        }
+
     }
 
 }

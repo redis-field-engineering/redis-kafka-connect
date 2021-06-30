@@ -64,7 +64,7 @@
         <dependency>
             <groupId>io.lettuce</groupId>
             <artifactId>lettuce-core</artifactId>
-            <version>6.1.2.RELEASE</version>
+            <version>6.1.3.RELEASE</version>
         </dependency>
         <dependency>
             <groupId>org.slf4j</groupId>
@@ -74,7 +74,7 @@
         <dependency>
             <groupId>com.redislabs</groupId>
             <artifactId>spring-batch-redis</artifactId>
-            <version>2.13.4</version>
+            <version>2.13.5-SNAPSHOT</version>
         </dependency>
         <dependency>
             <groupId>org.projectlombok</groupId>
@@ -129,15 +129,18 @@
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-javadoc-plugin</artifactId>
+                <artifactId>maven-assembly-plugin</artifactId>
+                <version>3.3.0</version>
                 <configuration>
-                    <source>8</source>
+                    <skipAssembly>true</skipAssembly>
                 </configuration>
             </plugin>
             <plugin>
-                <artifactId>maven-assembly-plugin</artifactId>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <version>3.3.0</version>
                 <configuration>
-                    <skipAssembly>true</skipAssembly>
+                    <source>8</source>
                 </configuration>
             </plugin>
             <plugin>
@@ -181,37 +184,106 @@
                 </executions>
             </plugin>
             <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-site-plugin</artifactId>
-                <version>3.7.1</version>
+                <groupId>org.asciidoctor</groupId>
+                <artifactId>asciidoctor-maven-plugin</artifactId>
+                <version>${asciidoctor.maven.plugin.version}</version>
                 <configuration>
-                    <!-- Disable generateReports if you don't want to include the built-in reports -->
-                    <generateReports>true</generateReports>
-                    <generateSitemap>true</generateSitemap>
-                    <relativizeDecorationLinks>false</relativizeDecorationLinks>
-                    <locales>en</locales>
-                    <inputEncoding>UTF-8</inputEncoding>
-                    <outputEncoding>UTF-8</outputEncoding>
+                    <attributes>
+                        <project-name>${project.name}</project-name>
+                        <project-version>${project.version}</project-version>
+                    </attributes>
                 </configuration>
-                <dependencies>
-                    <dependency>
-                        <groupId>org.asciidoctor</groupId>
-                        <artifactId>asciidoctor-maven-plugin</artifactId>
-                        <version>${asciidoctor.maven.plugin.version}</version>
-                    </dependency>
-                    <!-- Comment this section to use the default jruby artifact provided by the plugin -->
-                    <dependency>
-                        <groupId>org.jruby</groupId>
-                        <artifactId>jruby-complete</artifactId>
-                        <version>${jruby.version}</version>
-                    </dependency>
-                    <!-- Comment this section to use the default AsciidoctorJ artifact provided by the plugin -->
-                    <dependency>
-                        <groupId>org.asciidoctor</groupId>
-                        <artifactId>asciidoctorj</artifactId>
-                        <version>${asciidoctorj.version}</version>
-                    </dependency>
-                </dependencies>
+                <executions>
+                    <execution>
+                        <id>asciidoc-to-html</id>
+                        <phase>generate-resources</phase>
+                        <goals>
+                            <goal>process-asciidoc</goal>
+                        </goals>
+                        <configuration>
+                            <backend>html5</backend>
+                            <attributes>
+                                <source-highlighter>highlightjs</source-highlighter>
+                                <toc>left</toc>
+                                <toclevels>1</toclevels>
+                                <icons>font</icons>
+                                <sectanchors>true</sectanchors>
+                                <!-- set the idprefix to blank -->
+                                <idprefix/>
+                                <idseparator>-</idseparator>
+                            </attributes>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.jreleaser</groupId>
+                <artifactId>jreleaser-maven-plugin</artifactId>
+                <version>0.5.0-SNAPSHOT</version>
+                <configuration>
+                    <jreleaser>
+                        <distributions>
+                            <kafka-connect-archive>
+                                <artifacts>
+                                    <artifact>
+                                        <path>target/components/packages/redislabs-${project.artifactId}-${project.version}.zip</path>
+                                    </artifact>
+                                </artifacts>
+                            </kafka-connect-archive>
+                        </distributions>
+                        <release>
+                            <github>
+                                <owner>RedisLabs-Field-Engineering</owner>
+                                <overwrite>true</overwrite>
+                                <changelog>
+                                    <formatted>ALWAYS</formatted>
+                                    <change>- {{commitShortHash}} {{commitTitle}}</change>
+                                    <labelers>
+                                        <labeler>
+                                            <label>feature</label>
+                                            <title>Resolves #</title>
+                                            <body>Resolves #</body>
+                                        </labeler>
+                                        <labeler>
+                                            <label>issue</label>
+                                            <title>Fixes #</title>
+                                            <body>Fixes #</body>
+                                        </labeler>
+                                        <labeler>
+                                            <label>issue</label>
+                                            <title>Relates to #</title>
+                                            <body>Relates to #</body>
+                                        </labeler>
+                                        <labeler>
+                                            <label>task</label>
+                                            <title>[chore]</title>
+                                        </labeler>
+                                    </labelers>
+                                    <categories>
+                                        <category>
+                                            <title>🚀 Features</title>
+                                            <labelsAsString>feature</labelsAsString>
+                                        </category>
+                                        <category>
+                                            <title>✅ Issues</title>
+                                            <labelsAsString>issue</labelsAsString>
+                                        </category>
+                                        <category>
+                                            <title>🧰 Tasks</title>
+                                            <labelsAsString>task</labelsAsString>
+                                        </category>
+                                    </categories>
+                                    <replacers>
+                                        <replacer>
+                                            <search>\[chore\]\s</search>
+                                            <replace>''</replace>
+                                        </replacer>
+                                    </replacers>
+                                </changelog>
+                            </github>
+                        </release>
+                    </jreleaser>
+                </configuration>
             </plugin>
         </plugins>
     </build>
@@ -224,6 +296,7 @@
                 <version>2.6</version>
             </plugin>
             <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-project-info-reports-plugin</artifactId>
                 <version>2.8</version>
             </plugin>

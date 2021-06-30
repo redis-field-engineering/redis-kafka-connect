@@ -1,0 +1,34 @@
+= Source Connector Guide
+:name: Redis Enterprise Kafka Source Connector
+
+The {name} reads data from a Redis Enterprise database and publishes messages to a Kafka topic.
+
+== Features
+
+The {name} includes the following features:
+
+* <<at-least-once-delivery,At least once delivery>>
+* <<stream-reader,Stream Reader>>
+
+[[at-least-once-delivery]]
+=== At least once delivery
+The {name} guarantees that records from the Kafka topic are delivered at least once.
+
+[[stream-reader]]
+=== Stream Reader
+In stream reader mode, the {name} reads messages from a Redis stream and publishes to a Kafka topic.
+
+[source,properties]
+----
+redis.stream.name=<stream name> # <1>
+redis.stream.offset=<stream offset> # <2>
+redis.stream.count=<count> # <3>
+redis.stream.block=<millis> # <4>
+topic.name=<topic> # <5>
+----
+
+<1> Name of the stream to read from
+<2> https://redis.io/commands/xread#incomplete-ids[Message ID] to start reading from (default: `0-0`)
+<3> Maximum number of stream messages to include in a single https://redis.io/commands/xread[XREAD] when polling for new data (default: `50`). This setting can be used to limit the amount of data buffered internally in the connector
+<4> Maximum duration in milliseconds to wait while https://redis.io/commands/xread[reading] from the stream (default: 100)
+<5> A format string for the destination topic name (default: `${stream}`), which may contain `${stream}` as a placeholder for the originating stream name. For example, `redis_${stream}` for the stream 'orders' will map to the topic name `redis_orders`.
