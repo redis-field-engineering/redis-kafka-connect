@@ -59,6 +59,7 @@ import java.util.Map;
 public class RedisEnterpriseSinkTask extends SinkTask {
 
     private static final Logger log = LoggerFactory.getLogger(RedisEnterpriseSinkTask.class);
+    private static final String OFFSET_KEY_FORMAT = "com.redislabs.kafka.connect.sink.offset.%s.%s";
 
     private RedisClient client;
     private RedisEnterpriseSinkConfig config;
@@ -82,7 +83,7 @@ public class RedisEnterpriseSinkTask extends SinkTask {
         final java.util.Set<TopicPartition> assignment = this.context.assignment();
         if (!assignment.isEmpty()) {
             List<SinkOffsetState> offsetStates = new ArrayList<>();
-            String[] partitionKeys = assignment.stream().map(this::offsetKey).toArray(String[]::new);
+            String[] partitionKeys = assignment.stream().map(a -> offsetKey(a.topic(), a.partition())).toArray(String[]::new);
             List<KeyValue<String, String>> values = connection.sync().mget(partitionKeys);
             for (KeyValue<String, String> value : values) {
                 if (value.hasValue()) {
@@ -108,8 +109,8 @@ public class RedisEnterpriseSinkTask extends SinkTask {
         }
     }
 
-    private String offsetKey(TopicPartition topicPartition) {
-        return String.format("__kafka.offset.%s.%s", topicPartition.topic(), topicPartition.partition());
+    private String offsetKey(String topic, Integer partition) {
+        return String.format(OFFSET_KEY_FORMAT, topic, partition);
     }
 
     private OperationItemWriter.RedisOperation<byte[], byte[], SinkRecord> operation() {
@@ -231,7 +232,7 @@ public class RedisEnterpriseSinkTask extends SinkTask {
         if (!offsetData.isEmpty()) {
             Map<String, String> offsets = new LinkedHashMap<>(offsetData.size());
             for (SinkOffsetState e : offsetData) {
-                String key = String.format("__kafka.offset.%s.%s", e.topic(), e.partition());
+                String key = offsetKey(e.topic(), e.partition());
                 String value;
                 try {
                     value = ObjectMapperFactory.INSTANCE.writeValueAsString(e);

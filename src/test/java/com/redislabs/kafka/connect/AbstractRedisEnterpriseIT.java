@@ -1,7 +1,9 @@
 package com.redislabs.kafka.connect;
 
 import com.redislabs.testcontainers.RedisEnterpriseContainer;
+import com.redislabs.testcontainers.RedisModulesContainer;
 import com.redislabs.testcontainers.RedisServer;
+import com.redislabs.testcontainers.support.enterprise.rest.Database;
 import io.lettuce.core.AbstractRedisClient;
 import io.lettuce.core.RedisClient;
 import io.lettuce.core.api.StatefulConnection;
@@ -36,7 +38,8 @@ import java.util.stream.Stream;
 public class AbstractRedisEnterpriseIT {
 
     @Container
-    private static final RedisEnterpriseContainer REDIS_ENTERPRISE = new RedisEnterpriseContainer();
+    private static final RedisEnterpriseContainer REDIS_ENTERPRISE = new RedisEnterpriseContainer().withModules(Database.Module.GEARS);
+//    private static final RedisModulesContainer REDIS_ENTERPRISE = new RedisModulesContainer();
 
     static Stream<RedisServer> redisServers() {
         return Stream.of(REDIS_ENTERPRISE);

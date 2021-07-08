@@ -20,9 +20,7 @@ public class RedisEnterpriseSourceConnectorTest {
         Map<String, ConfigValue> results = config.validateAll(new HashMap<>());
         ConfigValue value = results.get(RedisEnterpriseSourceConfig.STREAM_NAME);
         Assertions.assertEquals(RedisEnterpriseSourceConfig.STREAM_NAME, value.name());
-        Assertions.assertNull(value.value());
-        String expected = "Missing required configuration \"" + RedisEnterpriseSourceConfig.STREAM_NAME + "\" which has no default value.";
-        Assertions.assertEquals(expected, value.errorMessages().get(0));
+        Assertions.assertEquals(RedisEnterpriseSourceConfig.STREAM_NAME_DEFAULT, value.value());
     }
 
     @Test

@@ -15,8 +15,12 @@
  */
 package com.redislabs.kafka.connect.source;
 
+import com.google.common.base.Charsets;
 import com.redislabs.kafka.connect.RedisEnterpriseSourceConnector;
-import io.lettuce.core.RedisClient;
+import com.redislabs.mesclun.RedisModulesClient;
+import com.redislabs.mesclun.api.StatefulRedisModulesConnection;
+import com.redislabs.mesclun.api.sync.RedisGearsCommands;
+import com.redislabs.mesclun.gears.RedisGearsUtils;
 import io.lettuce.core.StreamMessage;
 import io.lettuce.core.XReadArgs;
 import org.apache.kafka.connect.data.Schema;
@@ -35,19 +39,23 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 public class RedisEnterpriseSourceTask extends SourceTask {
 
     private static final Logger log = LoggerFactory.getLogger(RedisEnterpriseSourceTask.class);
 
-    public static final String STREAM_FIELD = "stream";
+    public static final String OFFSET = "stream";
     public static final String OFFSET_FIELD = "offset";
-
+    private static final String KEYSREADER_STREAM = "${stream}";
+    private static final String KEYSREADER_PATTERN = "${prefix}";
+    private static final String KEYSREADER_EVENTTYPES = "${eventTypes}";
+    private static final String EVENTTYPES_NONE = "None";
     private static final Schema KEY_SCHEMA = Schema.STRING_SCHEMA;
     private static final String VALUE_SCHEMA_NAME = "com.redislabs.kafka.connect.EventValue";
     private static final Schema VALUE_SCHEMA = SchemaBuilder.map(Schema.STRING_SCHEMA, Schema.STRING_SCHEMA).name(VALUE_SCHEMA_NAME);
 
-    private RedisClient client;
+    private RedisModulesClient client;
     private RedisEnterpriseSourceConfig sourceConfig;
     private StreamItemReader reader;
     private Map<String, String> offsetKey;
@@ -60,8 +68,17 @@ public class RedisEnterpriseSourceTask extends SourceTask {
     @Override
     public void start(Map<String, String> props) {
         this.sourceConfig = new RedisEnterpriseSourceConfig(props);
-        this.client = RedisClient.create(sourceConfig.getRedisUri());
-        this.offsetKey = Collections.singletonMap(STREAM_FIELD, sourceConfig.getStreamName());
+        this.client = RedisModulesClient.create(sourceConfig.getRedisUri());
+        if (sourceConfig.getReaderType() == RedisEnterpriseSourceConfig.ReaderType.KEYS) {
+            StatefulRedisModulesConnection<String, String> connection = client.connect();
+            RedisGearsCommands<String, String> sync = connection.sync();
+            String function = RedisGearsUtils.toString(getClass().getClassLoader().getResourceAsStream("keysreader.py"), Charsets.UTF_8);
+            function = function.replace(KEYSREADER_STREAM, sourceConfig.getStreamName());
+            function = function.replace(KEYSREADER_EVENTTYPES, toPyArray(sourceConfig.getKeysEventTypes()));
+            function = function.replace(KEYSREADER_PATTERN, sourceConfig.getKeysPattern());
+            sync.pyExecute(function);
+        }
+        this.offsetKey = Collections.singletonMap(OFFSET, sourceConfig.getStreamName());
         String offset = sourceConfig.getStreamOffset();
         if (context != null) {
             Map<String, Object> storedOffset = context.offsetStorageReader().offset(offsetKey);
@@ -80,6 +97,13 @@ public class RedisEnterpriseSourceTask extends SourceTask {
         XReadArgs.StreamOffset<String> streamOffset = XReadArgs.StreamOffset.from(sourceConfig.getStreamName(), offset);
         this.reader = StreamItemReader.client(client).offset(streamOffset).block(Duration.ofMillis(sourceConfig.getStreamBlock())).count(sourceConfig.getStreamCount()).build();
         this.reader.open(new ExecutionContext());
+    }
+
+    private String toPyArray(List<String> eventTypes) {
+        if (eventTypes.isEmpty()) {
+            return EVENTTYPES_NONE;
+        }
+        return eventTypes.stream().map(s -> "'" + s + "'").collect(Collectors.joining(",", "[", "]"));
     }
 
     @Override

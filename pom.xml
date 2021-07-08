@@ -62,9 +62,9 @@
     </repositories>
     <dependencies>
         <dependency>
-            <groupId>io.lettuce</groupId>
-            <artifactId>lettuce-core</artifactId>
-            <version>6.1.3.RELEASE</version>
+            <groupId>com.redislabs</groupId>
+            <artifactId>mesclun</artifactId>
+            <version>1.3.4</version>
         </dependency>
         <dependency>
             <groupId>org.slf4j</groupId>
