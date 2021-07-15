@@ -17,8 +17,9 @@ package com.redislabs.kafka.connect.sink;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.github.jcustenborder.kafka.connect.utils.data.SinkOffsetState;
-import com.github.jcustenborder.kafka.connect.utils.data.TopicPartitionCounter;
 import com.github.jcustenborder.kafka.connect.utils.jackson.ObjectMapperFactory;
+import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 import com.redislabs.kafka.connect.RedisEnterpriseSinkConnector;
 import io.lettuce.core.KeyValue;
 import io.lettuce.core.RedisClient;
@@ -55,6 +56,8 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 public class RedisEnterpriseSinkTask extends SinkTask {
 
@@ -144,10 +147,10 @@ public class RedisEnterpriseSinkTask extends SinkTask {
         if (value == null) {
             return null;
         }
-        if (value instanceof Double) {
-            return (Double) value;
+        if (value instanceof Number) {
+            return ((Number) value).doubleValue();
         }
-        throw new DataException("The value for the record must be float64 (Java double). Consider using a single message transformation to transform the data before it is written to Redis.");
+        throw new DataException("The value for the record must be a number. Consider using a single message transformation to transform the data before it is written to Redis.");
     }
 
     private boolean isDelete(SinkRecord record) {
@@ -224,11 +227,18 @@ public class RedisEnterpriseSinkTask extends SinkTask {
         } catch (Exception e) {
             log.warn("Could not write {} records", records.size(), e);
         }
-        TopicPartitionCounter counter = new TopicPartitionCounter();
+        Map<TopicPartition, Long> data = new ConcurrentHashMap<>(100);
         for (SinkRecord record : records) {
-            counter.increment(record.topic(), record.kafkaPartition(), record.kafkaOffset());
+            Preconditions.checkState(!Strings.isNullOrEmpty(record.topic()), "topic cannot be null or empty.");
+            Preconditions.checkNotNull(record.kafkaPartition(), "partition cannot be null.");
+            Preconditions.checkState(record.kafkaOffset() >= 0, "offset must be greater than or equal 0.");
+            TopicPartition partition = new TopicPartition(record.topic(), record.kafkaPartition());
+            long current = data.getOrDefault(partition, Long.MIN_VALUE);
+            if (record.kafkaOffset() > current) {
+                data.put(partition, record.kafkaOffset());
+            }
         }
-        List<SinkOffsetState> offsetData = counter.offsetStates();
+        List<SinkOffsetState> offsetData = data.entrySet().stream().map(e -> SinkOffsetState.of(e.getKey(), e.getValue())).collect(Collectors.toList());
         if (!offsetData.isEmpty()) {
             Map<String, String> offsets = new LinkedHashMap<>(offsetData.size());
             for (SinkOffsetState e : offsetData) {

@@ -8,11 +8,40 @@ The {name} reads data from a Redis Enterprise database and publishes messages to
 The {name} includes the following features:
 
 * <<at-least-once-delivery,At least once delivery>>
+* <<tasks,Multiple tasks>>
+* <<key-reader,Key Reader>>
 * <<stream-reader,Stream Reader>>
 
 [[at-least-once-delivery]]
 === At least once delivery
 The {name} guarantees that records from the Kafka topic are delivered at least once.
+
+[[tasks]]
+=== Multiple Tasks
+Use configuration property `tasks.max` to have the change stream handled by multiple tasks. The connector splits the work based on the number of configured key patterns. When the number of tasks is greater than the number of patterns, the number of patterns will be used instead.
+
+[[key-reader]]
+=== Key Reader
+In key reader mode, the {name} captures changes happening to keys in a Redis database and publishes keys and values to a Kafka topic. The data structure key will be mapped to the record key, and the value will be mapped to the record value.
+
+[IMPORTANT]
+.Supported Data Structures
+====
+The {name} supports the following data structures:
+
+* String: the Kafka record values will be strings
+* Hash: the Kafka record values will be maps (string key/value pairs)
+
+====
+
+[source,properties]
+----
+redis.keys.patterns=<glob> # <1>
+topic=<topic> # <2>
+----
+
+<1> Key portion of the pattern that will be used to listen to keyspace events. For example `foo:*` translates to pubsub channel `$$__$$keyspace@0$$__$$:foo:*` and will capture changes to keys `foo:1`, `foo:2`, etc. Use comma-separated values for multiple patterns (`foo:*,bar:*`)
+<2> Name of the destination topic.
 
 [[stream-reader]]
 === Stream Reader
@@ -20,15 +49,15 @@ In stream reader mode, the {name} reads messages from a Redis stream and publish
 
 [source,properties]
 ----
-redis.stream.name=<stream name> # <1>
-redis.stream.offset=<stream offset> # <2>
-redis.stream.count=<count> # <3>
+redis.reader=STREAM # <1>
+redis.stream.name=<stream name> # <2>
+redis.stream.offset=<stream offset> # <3>
 redis.stream.block=<millis> # <4>
-topic.name=<topic> # <5>
+topic=<topic> # <5>
 ----
 
-<1> Name of the stream to read from
-<2> https://redis.io/commands/xread#incomplete-ids[Message ID] to start reading from (default: `0-0`)
-<3> Maximum number of stream messages to include in a single https://redis.io/commands/xread[XREAD] when polling for new data (default: `50`). This setting can be used to limit the amount of data buffered internally in the connector
-<4> Maximum duration in milliseconds to wait while https://redis.io/commands/xread[reading] from the stream (default: 100)
-<5> A format string for the destination topic name (default: `${stream}`), which may contain `${stream}` as a placeholder for the originating stream name. For example, `redis_${stream}` for the stream 'orders' will map to the topic name `redis_orders`.
+<1> Reader mode is STREAM
+<2> Name of the stream to read from.
+<3> https://redis.io/commands/xread#incomplete-ids[Message ID] to start reading from (default: `0-0`).
+<4> Maximum duration in milliseconds to wait while https://redis.io/commands/xread[reading] from the stream (default: 100).
+<5> Name of the destination topic which may contain `${stream}` as a placeholder for the originating stream name. For example, `redis_${stream}` for the stream 'orders' will map to the topic name `redis_orders`.

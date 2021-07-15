@@ -223,9 +223,8 @@ public class RedisEnterpriseSinkTaskIT extends AbstractRedisEnterpriseIT {
         List<SinkRecord> records = new ArrayList<>(count);
         for (int i = 0; i < count; i++) {
             String value = "zsetmember:" + i;
-            double score = i;
-            expected.add(ScoredValue.just(score, value));
-            records.add(SinkRecordHelper.write(topic, new SchemaAndValue(Schema.STRING_SCHEMA, value), new SchemaAndValue(Schema.FLOAT64_SCHEMA, score)));
+            expected.add(ScoredValue.just(i, value));
+            records.add(SinkRecordHelper.write(topic, new SchemaAndValue(Schema.STRING_SCHEMA, value), new SchemaAndValue(Schema.FLOAT64_SCHEMA, i)));
         }
         put(topic, RedisEnterpriseSinkConfig.DataType.ZSET, redis, records);
         List<ScoredValue<String>> actual = syncSortedSet(redis).zrangeWithScores(topic, 0, -1);

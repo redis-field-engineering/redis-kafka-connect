@@ -18,9 +18,9 @@ public class RedisEnterpriseSourceConnectorTest {
         ConfigDef config = new RedisEnterpriseSourceConnector().config();
         Assertions.assertNotNull(config);
         Map<String, ConfigValue> results = config.validateAll(new HashMap<>());
-        ConfigValue value = results.get(RedisEnterpriseSourceConfig.STREAM_NAME);
-        Assertions.assertEquals(RedisEnterpriseSourceConfig.STREAM_NAME, value.name());
-        Assertions.assertEquals(RedisEnterpriseSourceConfig.STREAM_NAME_DEFAULT, value.value());
+        ConfigValue value = results.get(RedisEnterpriseSourceConfig.READER_TYPE);
+        Assertions.assertEquals(RedisEnterpriseSourceConfig.READER_TYPE, value.name());
+        Assertions.assertEquals(RedisEnterpriseSourceConfig.ReaderType.KEYS.name(), value.value());
     }
 
     @Test
@@ -32,9 +32,12 @@ public class RedisEnterpriseSourceConnectorTest {
     public void testTaskConfigs() {
         RedisEnterpriseSourceConnector connector = new RedisEnterpriseSourceConnector();
         HashMap<String, String> props = new HashMap<>();
+        props.put(RedisEnterpriseSourceConfig.TOPIC, "topic");
         props.put("field1", "value1");
         connector.start(props);
-        Assertions.assertEquals(props, connector.taskConfigs(123).get(0));
+        HashMap<String, String> expected = new HashMap<>(props);
+        expected.put(RedisEnterpriseSourceConfig.KEY_PATTERNS, "*");
+        Assertions.assertEquals(expected, connector.taskConfigs(123).get(0));
     }
 
     @Test
