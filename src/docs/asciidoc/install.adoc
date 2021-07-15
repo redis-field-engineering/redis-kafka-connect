@@ -1,5 +1,9 @@
 = Install
 
+== Download
+
+Download the latest release archive from https://github.com/RedisLabs-Field-Engineering/redis-enterprise-kafka/releases[here].
+
 == Install using Confluent Hub
 
 1. Install the https://docs.confluent.io/current/connect/managing/confluent-hub/client.html[Confluent Hub Client]
