@@ -103,8 +103,10 @@ curl -X POST -H "Content-Type: application/json" --data '
    "config": {
      "tasks.max":"1",
      "connector.class":"com.redislabs.kafka.connect.RedisEnterpriseSourceConnector",
+     "redis.reader":"STREAM",
      "redis.uri":"redis://redis:6379",
-     "redis.stream.name":"mystream"
+     "redis.stream.name":"mystream",
+     "topic": "mystream"
 }}' http://localhost:8083/connectors -w "\n"
 
 sleep 2
@@ -126,7 +128,7 @@ echo -e '''
 Examine the topics in the Kafka UI: http://localhost:9021 or http://localhost:8000/
   - The `pageviews` topic should have the generated page views.
   - The `mystream` topic should contain the Redis stream messages.
-  - The `pageviews` stream in Redis should contain the sunk page views.
+The `pageviews` stream in Redis should contain the sunk page views: redis-cli xlen pageviews
 
 Examine the collections:
   - In your shell run: docker-compose exec redis /usr/local/bin/redis-cli
