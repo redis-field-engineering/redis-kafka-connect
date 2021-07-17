@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.redislabs</groupId>
     <artifactId>redis-enterprise-kafka</artifactId>
-    <version>1.0.0-SNAPSHOT</version>
+    <version>0.2.0-SNAPSHOT</version>
     <name>Redis Enterprise Kafka Connector</name>
     <description>Kafka Connect source and sink connectors for Redis Enterprise</description>
     <url>https://github.com/RedisLabs-Field-Engineering/redis-enterprise-kafka</url>
@@ -54,11 +54,6 @@
         <repository>
             <id>confluent</id>
             <url>http://packages.confluent.io/maven/</url>
-        </repository>
-        <repository>
-            <id>github</id>
-            <name>GitHub Packages</name>
-            <url>https://maven.pkg.github.com/redis-developer/registry</url>
         </repository>
     </repositories>
     <dependencies>
@@ -129,15 +124,15 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>com.redislabs</groupId>
-            <artifactId>testcontainers-redis</artifactId>
-            <version>1.1.6</version>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>testcontainers</artifactId>
+            <version>1.15.3</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.testcontainers</groupId>
             <artifactId>junit-jupiter</artifactId>
-            <version>1.15.3-REDISLABS</version>
+            <version>1.15.3</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -291,7 +286,7 @@
                             <documentationUrl>https://redislabs-field-engineering.github.io/redis-enterprise-kafka/
                             </documentationUrl>
                             <ownerLogo>src/docs/asciidoc/images/redislabs.svg</ownerLogo>
-                            <ownerUsername>jruaux</ownerUsername>
+                            <ownerUsername>redislabs</ownerUsername>
                             <ownerName>Redis Labs</ownerName>
                             <ownerUrl>https://redislabs.com</ownerUrl>
                             <sourceUrl>${project.scm.url}</sourceUrl>
