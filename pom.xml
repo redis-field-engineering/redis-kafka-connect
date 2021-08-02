@@ -308,6 +308,7 @@
                                 <tag>redis</tag>
                                 <tag>enterprise</tag>
                             </tags>
+                            <!-- Uncomment to build the connector for Confluent 6.x. Known issue: https://github.com/jcustenborder/kafka-connect-redis/issues/31 -->
                             <!--                            <excludes>-->
                             <!--                                <exclude>io.netty:*</exclude>-->
                             <!--                            </excludes>-->
