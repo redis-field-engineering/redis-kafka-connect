@@ -21,3 +21,4 @@ redis-enterprise-kafka.iml
 /bin/
 /dump.rdb
 .DS_Store
+/out/
