@@ -17,7 +17,7 @@ release:
     changelog:
       sort: DESC
       formatted: ALWAYS
-      change: '- {{commitShortHash}} {{commitTitle}}'
+      format: '- {{commitShortHash}} {{commitTitle}}'
       labelers:
         - label: 'feature'
           title: 'Resolves #'
@@ -53,8 +53,9 @@ release:
 
 announce:
   slack:
-    active: always
+    active: release
     channel: '#field-engineering-announcements'
+    message: '🚀 Redis Enterprise Kafka Connector {{projectVersion}} has been released! {{releaseNotesUrl}}'
 
 distributions:
   kafka-connect-archive:
