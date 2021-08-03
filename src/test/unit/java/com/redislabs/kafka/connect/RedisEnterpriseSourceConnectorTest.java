@@ -20,7 +20,7 @@ public class RedisEnterpriseSourceConnectorTest {
         Map<String, ConfigValue> results = config.validateAll(new HashMap<>());
         ConfigValue value = results.get(RedisEnterpriseSourceConfig.READER_TYPE);
         Assertions.assertEquals(RedisEnterpriseSourceConfig.READER_TYPE, value.name());
-        Assertions.assertEquals(RedisEnterpriseSourceConfig.ReaderType.KEYS.name(), value.value());
+        Assertions.assertEquals(RedisEnterpriseSourceConfig.ReaderType.STREAM.name(), value.value());
     }
 
     @Test
@@ -29,15 +29,32 @@ public class RedisEnterpriseSourceConnectorTest {
     }
 
     @Test
-    public void testTaskConfigs() {
+    public void testStreamReaderTaskConfig() {
         RedisEnterpriseSourceConnector connector = new RedisEnterpriseSourceConnector();
         HashMap<String, String> props = new HashMap<>();
-        props.put(RedisEnterpriseSourceConfig.TOPIC, "topic");
+        props.put(RedisEnterpriseSourceConfig.STREAM_NAME, "mystream");
         props.put("field1", "value1");
         connector.start(props);
         HashMap<String, String> expected = new HashMap<>(props);
-        expected.put(RedisEnterpriseSourceConfig.KEY_PATTERNS, "*");
+        expected.put("task.id", "0");
         Assertions.assertEquals(expected, connector.taskConfigs(123).get(0));
+    }
+
+    @Test
+    public void testKeyReaderTaskConfig() {
+        RedisEnterpriseSourceConnector connector = new RedisEnterpriseSourceConnector();
+        HashMap<String, String> props = new HashMap<>();
+        props.put(RedisEnterpriseSourceConfig.READER_TYPE, RedisEnterpriseSourceConfig.ReaderType.KEYS.name());
+        props.put(RedisEnterpriseSourceConfig.STREAM_NAME, "dummy");
+        props.put(RedisEnterpriseSourceConfig.TOPIC, "mytopic");
+        props.put(RedisEnterpriseSourceConfig.REDIS_URI, "redis://localhost:12000");
+        props.put(RedisEnterpriseSourceConfig.KEY_PATTERNS, "a:*");
+        props.put("field1", "value1");
+        connector.start(props);
+        HashMap<String, String> expected = new HashMap<>(props);
+        Assertions.assertEquals(expected, connector.taskConfigs(123).get(0));
+
+
     }
 
     @Test

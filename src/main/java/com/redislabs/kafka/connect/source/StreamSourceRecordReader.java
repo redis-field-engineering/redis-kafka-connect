@@ -23,20 +23,20 @@ public class StreamSourceRecordReader extends AbstractSourceRecordReader<StreamM
     private static final String VALUE_SCHEMA_NAME = "com.redislabs.kafka.connect.StreamEventValue";
     private static final Schema VALUE_SCHEMA = SchemaBuilder.map(Schema.STRING_SCHEMA, Schema.STRING_SCHEMA).name(VALUE_SCHEMA_NAME);
     private final String topic;
-    private final int taskId;
+    private final String consumer;
 
     private StreamItemReader reader;
 
     public StreamSourceRecordReader(RedisEnterpriseSourceConfig sourceConfig, int taskId) {
         super(sourceConfig);
         this.topic = sourceConfig.getTopicName().replace(RedisEnterpriseSourceConfig.TOKEN_STREAM, sourceConfig.getStreamName());
-        this.taskId = taskId;
+        this.consumer = sourceConfig.getStreamConsumerName().replace(RedisEnterpriseSourceConfig.TOKEN_TASK, String.valueOf(taskId));
     }
 
     @Override
     protected void open(RedisClient client) {
         XReadArgs.StreamOffset<String> streamOffset = XReadArgs.StreamOffset.from(sourceConfig.getStreamName(), sourceConfig.getStreamOffset());
-        reader = StreamItemReader.client(client).offset(streamOffset).block(Duration.ofMillis(sourceConfig.getStreamBlock())).count(sourceConfig.getBatchSize()).consumerGroup(sourceConfig.getStreamConsumerGroup()).consumer("consumer" + taskId).build();
+        reader = StreamItemReader.client(client).offset(streamOffset).block(Duration.ofMillis(sourceConfig.getStreamBlock())).count(sourceConfig.getBatchSize()).consumerGroup(sourceConfig.getStreamConsumerGroup()).consumer(consumer).build();
         reader.open(new ExecutionContext());
     }
 

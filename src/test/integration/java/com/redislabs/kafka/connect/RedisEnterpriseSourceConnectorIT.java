@@ -20,18 +20,21 @@ public class RedisEnterpriseSourceConnectorIT extends AbstractRedisEnterpriseIT 
 
         final Map<String, String> connectorConfig = new HashMap<>();
         connectorConfig.put(RedisEnterpriseSourceConfig.READER_TYPE, RedisEnterpriseSourceConfig.ReaderType.KEYS.name());
+        connectorConfig.put(RedisEnterpriseSourceConfig.STREAM_NAME, "dummy");
         connectorConfig.put(RedisEnterpriseSourceConfig.TOPIC, "mytopic");
         connectorConfig.put(RedisEnterpriseSourceConfig.REDIS_URI, server.getRedisURI());
         connectorConfig.put(RedisEnterpriseSourceConfig.KEY_PATTERNS, "a:*,b:*,c:*");
 
         final Map<String, String> expectedPartitionedConnectorConfigA = new HashMap<>();
         expectedPartitionedConnectorConfigA.put(RedisEnterpriseSourceConfig.READER_TYPE, RedisEnterpriseSourceConfig.ReaderType.KEYS.name());
+        expectedPartitionedConnectorConfigA.put(RedisEnterpriseSourceConfig.STREAM_NAME, "dummy");
         expectedPartitionedConnectorConfigA.put(RedisEnterpriseSourceConfig.TOPIC, "mytopic");
         expectedPartitionedConnectorConfigA.put(RedisEnterpriseSourceConfig.REDIS_URI, server.getRedisURI());
         expectedPartitionedConnectorConfigA.put(RedisEnterpriseSourceConfig.KEY_PATTERNS, "a:*,b:*");
 
         final Map<String, String> expectedPartitionedConnectorConfigB = new HashMap<>();
         expectedPartitionedConnectorConfigB.put(RedisEnterpriseSourceConfig.READER_TYPE, RedisEnterpriseSourceConfig.ReaderType.KEYS.name());
+        expectedPartitionedConnectorConfigB.put(RedisEnterpriseSourceConfig.STREAM_NAME, "dummy");
         expectedPartitionedConnectorConfigB.put(RedisEnterpriseSourceConfig.TOPIC, "mytopic");
         expectedPartitionedConnectorConfigB.put(RedisEnterpriseSourceConfig.REDIS_URI, server.getRedisURI());
         expectedPartitionedConnectorConfigB.put(RedisEnterpriseSourceConfig.KEY_PATTERNS, "c:*");

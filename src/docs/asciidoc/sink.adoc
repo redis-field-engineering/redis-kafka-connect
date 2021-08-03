@@ -103,7 +103,7 @@ value.converter.schema.registry.url=http://localhost:8081
 [source,properties]
 ----
 value.converter=org.apache.kafka.connect.json.JsonConverter
-value.converter.schemas.enable=<true|false> # <1>
+value.converter.schemas.enable=<true|false> <1>
 ----
 
 <1> Set to `true` if the JSON record structure has an attached schema
@@ -123,8 +123,8 @@ Use the following properties to store Kafka records as Redis stream messages:
 [source,properties]
 ----
 redis.type=STREAM
-redis.key=<stream key> # <1>
-value.converter=<Avro or JSON> # <2>
+redis.key=<stream key> <1>
+value.converter=<Avro or JSON> <2>
 ----
 
 <1> <<collection-key,Stream key>>
@@ -136,8 +136,8 @@ Use the following properties to write Kafka records as Redis hashes:
 [source,properties]
 ----
 redis.type=HASH
-key.converter=<string or bytes> # <1>
-value.converter=<Avro or JSON> # <2>
+key.converter=<string or bytes> <1>
+value.converter=<Avro or JSON> <2>
 ----
 
 <1> <<key-string,String>> or <<key-bytes,bytes>>
@@ -149,8 +149,8 @@ Use the following properties to write Kafka records as Redis strings:
 [source,properties]
 ----
 redis.type=STRING
-key.converter=<string or bytes> # <1>
-value.converter=<string or bytes> # <2>
+key.converter=<string or bytes> <1>
+value.converter=<string or bytes> <2>
 ----
 
 <1> <<key-string,String>> or <<key-bytes,bytes>>
@@ -162,9 +162,9 @@ Use the following properties to add Kafka record keys to a Redis list:
 [source,properties]
 ----
 redis.type=LIST
-redis.key=<key name> # <1>
-key.converter=<string or bytes> # <2>
-redis.push.direction=<LEFT or RIGHT> # <3>
+redis.key=<key name> <1>
+key.converter=<string or bytes> <2>
+redis.push.direction=<LEFT or RIGHT> <3>
 ----
 
 <1> <<collection-key,List key>>
@@ -179,8 +179,8 @@ Use the following properties to add Kafka record keys to a Redis set:
 [source,properties]
 ----
 redis.type=SET
-redis.key=<key name> # <1>
-key.converter=<string or bytes> # <2>
+redis.key=<key name> <1>
+key.converter=<string or bytes> <2>
 ----
 
 <1> <<collection-key,Set key>>
@@ -194,8 +194,8 @@ Use the following properties to add Kafka record keys to a Redis sorted set:
 [source,properties]
 ----
 redis.type=ZSET
-redis.key=<key name> # <1>
-key.converter=<string or bytes> # <2>
+redis.key=<key name> <1>
+key.converter=<string or bytes> <2>
 ----
 
 <1> <<collection-key,Sorted set key>>

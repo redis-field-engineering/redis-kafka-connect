@@ -63,7 +63,7 @@ public class RedisEnterpriseSourceTaskIT extends AbstractRedisEnterpriseIT {
     @MethodSource("redisServers")
     public void pollKeys(RedisServer redis) throws InterruptedException {
         String topic = "mytopic";
-        startTask(redis, RedisEnterpriseSourceConfig.TOPIC, topic, RedisEnterpriseSourceTask.KEYS_IDLE_TIMEOUT, "800");
+        startTask(redis, RedisEnterpriseSourceConfig.READER_TYPE, RedisEnterpriseSourceConfig.ReaderType.KEYS.name(), RedisEnterpriseSourceConfig.STREAM_NAME, "dummy", RedisEnterpriseSourceConfig.TOPIC, topic, RedisEnterpriseSourceTask.KEYS_IDLE_TIMEOUT, "800");
         Thread.sleep(500);
         String stringKey = "key:1";
         String stringValue = "my string";

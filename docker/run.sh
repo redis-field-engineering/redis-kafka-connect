@@ -103,7 +103,6 @@ curl -X POST -H "Content-Type: application/json" --data '
    "config": {
      "tasks.max":"1",
      "connector.class":"com.redislabs.kafka.connect.RedisEnterpriseSourceConnector",
-     "redis.reader":"STREAM",
      "redis.uri":"redis://redis:6379",
      "redis.stream.name":"mystream",
      "topic": "mystream"
