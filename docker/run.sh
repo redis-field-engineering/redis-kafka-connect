@@ -28,7 +28,7 @@ function clean_up {
     then
       echo -e "Bye!\n"
     else
-      echo -e $1
+      echo -e "$1"
     fi
 }
 
@@ -39,7 +39,7 @@ function test_systems_available {
   until $(curl --output /dev/null --silent --head --fail http://localhost:$1); do
       printf '.'
       sleep 2
-      let COUNTER+=1
+      (( COUNTER+=1 ))
       if [[ $COUNTER -gt 30 ]]; then
         MSG="\nWARNING: Could not reach configured kafka system on http://localhost:$1 \nNote: This script requires curl.\n"
 
@@ -47,7 +47,7 @@ function test_systems_available {
             MSG+="\nIf using OSX please try reconfiguring Docker and increasing RAM and CPU. Then restart and try again.\n\n"
           fi
 
-        echo -e $MSG
+        echo -e "$MSG"
         clean_up "$MSG"
         exit 1
       fi
