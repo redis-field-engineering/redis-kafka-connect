@@ -444,7 +444,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <div class="details">
 <span id="author" class="author">Julien Ruaux</span><br>
 <span id="email" class="email"><a href="mailto:julien@redislabs.com">julien@redislabs.com</a></span><br>
-<span id="revnumber">version 0.2.0-SNAPSHOT,</span>
+<span id="revnumber">version 0.2.0,</span>
 <span id="revdate">2021-06-24</span>
 </div>
 <div id="toc" class="toc2">
@@ -960,7 +960,7 @@ key.converter=&lt;string or bytes&gt; <i class="conum" data-value="2"></i><b>(2)
 <h2 id="source"><a class="anchor" href="#source"></a>Source Connector Guide</h2>
 <div class="sectionbody">
 <div class="paragraph">
-<p>The Redis Enterprise Kafka Source Connector reads data from a Redis Enterprise database and publishes messages to a Kafka topic.</p>
+<p>The Redis Enterprise Kafka Source Connector reads from a Redis Enterprise stream and publishes messages to a Kafka topic.</p>
 </div>
 <div class="sect2">
 <h3 id="features-2"><a class="anchor" href="#features-2"></a>Features</h3>
@@ -974,9 +974,6 @@ key.converter=&lt;string or bytes&gt; <i class="conum" data-value="2"></i><b>(2)
 </li>
 <li>
 <p><a href="#tasks">Multiple tasks</a></p>
-</li>
-<li>
-<p><a href="#key-reader">Key Reader</a></p>
 </li>
 <li>
 <p><a href="#stream-reader">Stream Reader</a></p>
@@ -996,89 +993,45 @@ key.converter=&lt;string or bytes&gt; <i class="conum" data-value="2"></i><b>(2)
 </div>
 </div>
 <div class="sect3">
-<h4 id="key-reader"><a class="anchor" href="#key-reader"></a>Key Reader</h4>
-<div class="paragraph">
-<p>In key reader mode, the Redis Enterprise Kafka Source Connector captures changes happening to keys in a Redis database and publishes keys and values to a Kafka topic. The data structure key will be mapped to the record key, and the value will be mapped to the record value.</p>
-</div>
-<div class="admonitionblock important">
-<table>
-<tr>
-<td class="icon">
-<i class="fa icon-important" title="Important"></i>
-</td>
-<td class="content">
-<div class="title">Supported Data Structures</div>
-<div class="paragraph">
-<p>The Redis Enterprise Kafka Source Connector supports the following data structures:</p>
-</div>
-<div class="ulist">
-<ul>
-<li>
-<p>String: the Kafka record values will be strings</p>
-</li>
-<li>
-<p>Hash: the Kafka record values will be maps (string key/value pairs)</p>
-</li>
-</ul>
-</div>
-</td>
-</tr>
-</table>
-</div>
-<div class="listingblock">
-<div class="content">
-<pre class="highlightjs highlight"><code data-lang="properties" class="language-properties hljs">redis.keys.patterns=&lt;glob&gt; <i class="conum" data-value="1"></i><b>(1)</b>
-topic=&lt;topic&gt; <i class="conum" data-value="2"></i><b>(2)</b></code></pre>
-</div>
-</div>
-<div class="colist arabic">
-<table>
-<tr>
-<td><i class="conum" data-value="1"></i><b>1</b></td>
-<td>Key portion of the pattern that will be used to listen to keyspace events. For example <code>foo:*</code> translates to pubsub channel <code>__keyspace@0__:foo:*</code> and will capture changes to keys <code>foo:1</code>, <code>foo:2</code>, etc. Use comma-separated values for multiple patterns (<code>foo:*,bar:*</code>)</td>
-</tr>
-<tr>
-<td><i class="conum" data-value="2"></i><b>2</b></td>
-<td>Name of the destination topic.</td>
-</tr>
-</table>
-</div>
-</div>
-<div class="sect3">
 <h4 id="stream-reader"><a class="anchor" href="#stream-reader"></a>Stream Reader</h4>
 <div class="paragraph">
-<p>In stream reader mode, the Redis Enterprise Kafka Source Connector reads messages from a Redis stream and publishes to a Kafka topic.</p>
+<p>The Redis Enterprise Kafka Source Connector reads messages from a stream and publishes to a Kafka topic. Reading is done through a consumer group so that <a href="#multiple-tasks">multiple instances</a> of the connector configured via the <code>tasks.max</code> can consume messages in a round-robin fashion.</p>
 </div>
 <div class="listingblock">
 <div class="content">
-<pre class="highlightjs highlight"><code data-lang="properties" class="language-properties hljs">redis.reader=STREAM <i class="conum" data-value="1"></i><b>(1)</b>
-redis.stream.name=&lt;stream name&gt; <i class="conum" data-value="2"></i><b>(2)</b>
-redis.stream.offset=&lt;stream offset&gt; <i class="conum" data-value="3"></i><b>(3)</b>
-redis.stream.block=&lt;millis&gt; <i class="conum" data-value="4"></i><b>(4)</b>
-topic=&lt;topic&gt; <i class="conum" data-value="5"></i><b>(5)</b></code></pre>
+<pre class="highlightjs highlight"><code data-lang="properties" class="language-properties hljs">redis.stream.name=&lt;name&gt; <i class="conum" data-value="1"></i><b>(1)</b>
+redis.stream.offset=&lt;offset&gt; <i class="conum" data-value="2"></i><b>(2)</b>
+redis.stream.block=&lt;millis&gt; <i class="conum" data-value="3"></i><b>(3)</b>
+redis.stream.consumer.group=&lt;group&gt; <i class="conum" data-value="4"></i><b>(4)</b>
+redis.stream.consumer.name=&lt;name&gt; <i class="conum" data-value="5"></i><b>(5)</b>
+topic=&lt;name&gt; <i class="conum" data-value="6"></i><b>(6)</b></code></pre>
 </div>
 </div>
 <div class="colist arabic">
 <table>
 <tr>
 <td><i class="conum" data-value="1"></i><b>1</b></td>
-<td>Reader mode is STREAM</td>
-</tr>
-<tr>
-<td><i class="conum" data-value="2"></i><b>2</b></td>
 <td>Name of the stream to read from.</td>
 </tr>
 <tr>
-<td><i class="conum" data-value="3"></i><b>3</b></td>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
 <td><a href="https://redis.io/commands/xread#incomplete-ids">Message ID</a> to start reading from (default: <code>0-0</code>).</td>
 </tr>
 <tr>
+<td><i class="conum" data-value="3"></i><b>3</b></td>
+<td>Maximum <a href="https://redis.io/commands/xread">XREAD</a> wait duration in milliseconds (default: <code>100</code>).</td>
+</tr>
+<tr>
 <td><i class="conum" data-value="4"></i><b>4</b></td>
-<td>Maximum duration in milliseconds to wait while <a href="https://redis.io/commands/xread">reading</a> from the stream (default: 100).</td>
+<td>Name of the stream consumer group (default: <code>kafka-consumer-group</code>).</td>
 </tr>
 <tr>
 <td><i class="conum" data-value="5"></i><b>5</b></td>
-<td>Name of the destination topic which may contain <code>${stream}</code> as a placeholder for the originating stream name. For example, <code>redis_${stream}</code> for the stream 'orders' will map to the topic name <code>redis_orders</code>.</td>
+<td>Name of the stream consumer (default: <code>consumer-${task}</code>). May contain <code>${task}</code> as a placeholder for the task id. For example, <code>foo${task}</code> and task <code>123</code> &#8658; consumer <code>foo123</code>.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="6"></i><b>6</b></td>
+<td>Destination topic (default: <code>${stream}</code>). May contain <code>${stream}</code> as a placeholder for the originating stream name. For example, <code>redis_${stream}</code> and stream <code>orders</code> &#8658; topic <code>redis_orders</code>.</td>
 </tr>
 </table>
 </div>
@@ -1200,8 +1153,8 @@ xread COUNT 10 STREAMS pageviews 0</code></pre>
 </div>
 <div id="footer">
 <div id="footer-text">
-Version 0.2.0-SNAPSHOT<br>
-Last updated 2021-08-02 07:22:18 UTC
+Version 0.2.0<br>
+Last updated 2021-08-05 09:39:49 UTC
 </div>
 </div>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.15.6/styles/github.min.css">
