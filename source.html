@@ -492,18 +492,49 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <p>The Redis Enterprise Kafka Source Connector reads messages from a stream and publishes to a Kafka topic. Reading is done through a consumer group so that <a href="#multiple-tasks">multiple instances</a> of the connector configured via the <code>tasks.max</code> can consume messages in a round-robin fashion.</p>
 </div>
 <div class="sect3">
-<h4 id="schema"><a class="anchor" href="#schema"></a>Schema</h4>
+<h4 id="stream-message-schema"><a class="anchor" href="#stream-message-schema"></a>Stream Message Schema</h4>
+<div class="sect4">
+<h5 id="key-schema"><a class="anchor" href="#key-schema"></a>Key Schema</h5>
 <div class="paragraph">
-<p>The schema for the records produced by the source connector is the following:</p>
+<p>Keys are of type String and contain the stream message id.</p>
 </div>
-<div class="listingblock">
-<div class="content">
-<pre class="highlightjs highlight"><code data-lang="json" class="language-json hljs">{
-  "type": "map",
-  "values": "string",
-  "connect.name": "com.redislabs.kafka.connect.StreamEventValue"
-}</code></pre>
 </div>
+<div class="sect4">
+<h5 id="value-schema"><a class="anchor" href="#value-schema"></a>Value Schema</h5>
+<div class="paragraph">
+<p>The value schema defines the following fields:</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 33.3333%;">
+<col style="width: 33.3333%;">
+<col style="width: 33.3334%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Name</th>
+<th class="tableblock halign-left valign-top">Schema</th>
+<th class="tableblock halign-left valign-top">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">id</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">STRING</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Stream message ID</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">stream</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">STRING</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Stream key</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">body</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Map of STRING</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Stream message body</p></td>
+</tr>
+</tbody>
+</table>
 </div>
 </div>
 <div class="sect3">
@@ -553,7 +584,7 @@ topic=&lt;name&gt; <i class="conum" data-value="6"></i><b>(6)</b></code></pre>
 </div>
 <div id="footer">
 <div id="footer-text">
-Last updated 2021-08-05 09:58:59 UTC
+Last updated 2021-08-05 20:19:30 UTC
 </div>
 </div>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.15.6/styles/github.min.css">
