@@ -117,8 +117,8 @@ docker-compose exec redis /usr/local/bin/redis-cli xlen pageviews
 
 sleep 2
 echo -e "\nAdding messages to Redis stream 'mystream':"
-docker-compose exec redis /usr/local/bin/redis-cli "xadd" "mystream" "*" "field1" "message1: value1" "field2" "message1: value2"
-docker-compose exec redis /usr/local/bin/redis-cli "xadd" "mystream" "*" "field1" "message2: value1" "field2" "message2: value2"
+docker-compose exec redis /usr/local/bin/redis-cli "xadd" "mystream" "*" "field1" "value11" "field2" "value21"
+docker-compose exec redis /usr/local/bin/redis-cli "xadd" "mystream" "*" "field1" "value12" "field2" "value22"
 
 echo -e '''
 

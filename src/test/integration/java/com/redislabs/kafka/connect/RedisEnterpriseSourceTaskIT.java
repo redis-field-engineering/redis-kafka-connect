@@ -3,6 +3,7 @@ package com.redislabs.kafka.connect;
 import com.redislabs.kafka.connect.source.RedisEnterpriseSourceConfig;
 import com.redislabs.kafka.connect.source.RedisEnterpriseSourceTask;
 import com.redislabs.testcontainers.RedisServer;
+import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.source.SourceRecord;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
@@ -12,8 +13,6 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.List;
 import java.util.Map;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class RedisEnterpriseSourceTaskIT extends AbstractRedisEnterpriseIT {
 
@@ -40,23 +39,30 @@ public class RedisEnterpriseSourceTaskIT extends AbstractRedisEnterpriseIT {
     @MethodSource("redisServers")
     public void pollStream(RedisServer redis) throws InterruptedException {
         final String stream = "stream1";
-        startTask(redis, RedisEnterpriseSourceConfig.TOPIC, RedisEnterpriseSourceConfig.TOKEN_STREAM, RedisEnterpriseSourceConfig.READER_TYPE, RedisEnterpriseSourceConfig.ReaderType.STREAM.name(), RedisEnterpriseSourceConfig.STREAM_NAME, stream);
+        final String topicPrefix = "testprefix-";
+        startTask(redis, RedisEnterpriseSourceConfig.TOPIC, topicPrefix + RedisEnterpriseSourceConfig.TOKEN_STREAM, RedisEnterpriseSourceConfig.READER_TYPE, RedisEnterpriseSourceConfig.ReaderType.STREAM.name(), RedisEnterpriseSourceConfig.STREAM_NAME, stream);
         String field1 = "field1";
         String value1 = "value1";
         String field2 = "field2";
         String value2 = "value2";
-        syncStream(redis).xadd(stream, map(field1, value1, field2, value2));
-        syncStream(redis).xadd(stream, map(field1, value1, field2, value2));
-        syncStream(redis).xadd(stream, map(field1, value1, field2, value2));
+        final Map<String, String> body = map(field1, value1, field2, value2);
+        final String id1 = syncStream(redis).xadd(stream, body);
+        final String id2 = syncStream(redis).xadd(stream, body);
+        final String id3 = syncStream(redis).xadd(stream, body);
         Thread.sleep(100);
         List<SourceRecord> sourceRecords = task.poll();
-        assertEquals(3, sourceRecords.size());
-        for (SourceRecord record : sourceRecords) {
-            Assertions.assertEquals(stream, record.topic());
-            Map<String, String> map = (Map<String, String>) record.value();
-            Assertions.assertEquals(value1, map.get(field1));
-            Assertions.assertEquals(value2, map.get(field2));
-        }
+        Assertions.assertEquals(3, sourceRecords.size());
+        assertEquals(id1, body, stream, topicPrefix + stream, sourceRecords.get(0));
+        assertEquals(id2, body, stream, topicPrefix + stream, sourceRecords.get(1));
+        assertEquals(id3, body, stream, topicPrefix + stream, sourceRecords.get(2));
+    }
+
+    private void assertEquals(String expectedId, Map<String, String> expectedBody, String expectedStream, String expectedTopic, SourceRecord record) {
+        Struct struct = (Struct) record.value();
+        Assertions.assertEquals(expectedId, struct.get("id"));
+        Assertions.assertEquals(expectedBody, struct.get("body"));
+        Assertions.assertEquals(expectedStream, struct.get("stream"));
+        Assertions.assertEquals(expectedTopic, record.topic());
     }
 
     @ParameterizedTest
@@ -73,12 +79,12 @@ public class RedisEnterpriseSourceTaskIT extends AbstractRedisEnterpriseIT {
         syncHash(redis).hset(hashKey, hashValue);
         Thread.sleep(100);
         List<SourceRecord> sourceRecords = task.poll();
-        assertEquals(2, sourceRecords.size());
+        Assertions.assertEquals(2, sourceRecords.size());
         for (SourceRecord record : sourceRecords) {
-            assertEquals(topic, record.topic());
+            Assertions.assertEquals(topic, record.topic());
         }
-        assertEquals(stringValue, sourceRecords.get(0).value());
-        assertEquals(hashValue, sourceRecords.get(1).value());
+        Assertions.assertEquals(stringValue, sourceRecords.get(0).value());
+        Assertions.assertEquals(hashValue, sourceRecords.get(1).value());
     }
 
 }

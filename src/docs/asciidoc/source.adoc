@@ -48,18 +48,23 @@ Use configuration property `tasks.max` to have the change stream handled by mult
 The {name} reads messages from a stream and publishes to a Kafka topic. Reading is done through a consumer group so that <<multiple-tasks,multiple instances>> of the connector configured via the `tasks.max` can consume messages in a round-robin fashion.
 
 
-==== Schema
+==== Stream Message Schema
 
-The schema for the records produced by the source connector is the following:
+===== Key Schema
 
-[source,json]
-----
-{
-  "type": "map",
-  "values": "string",
-  "connect.name": "com.redislabs.kafka.connect.StreamEventValue"
-}
-----
+Keys are of type String and contain the stream message id.
+
+===== Value Schema
+
+The value schema defines the following fields:
+
+[options="header"]
+|====
+|Name|Schema|Description
+|id    |STRING       |Stream message ID
+|stream|STRING       |Stream key
+|body  |Map of STRING|Stream message body
+|====
 
 ==== Configuration
 

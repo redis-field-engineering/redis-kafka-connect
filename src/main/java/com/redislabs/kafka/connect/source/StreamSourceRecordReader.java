@@ -5,6 +5,7 @@ import io.lettuce.core.StreamMessage;
 import io.lettuce.core.XReadArgs;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.SchemaBuilder;
+import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.source.SourceRecord;
 import org.springframework.batch.item.ExecutionContext;
 import org.springframework.batch.item.redis.StreamItemReader;
@@ -19,9 +20,12 @@ import java.util.Map;
 public class StreamSourceRecordReader extends AbstractSourceRecordReader<StreamMessage<String, String>> {
 
     public static final String OFFSET_FIELD = "offset";
+    public static final String FIELD_ID = "id";
+    public static final String FIELD_BODY = "body";
+    public static final String FIELD_STREAM = "stream";
     private static final Schema KEY_SCHEMA = Schema.STRING_SCHEMA;
-    private static final String VALUE_SCHEMA_NAME = "com.redislabs.kafka.connect.StreamEventValue";
-    private static final Schema VALUE_SCHEMA = SchemaBuilder.map(Schema.STRING_SCHEMA, Schema.STRING_SCHEMA).name(VALUE_SCHEMA_NAME);
+    private static final String VALUE_SCHEMA_NAME = "com.redislabs.kafka.connect.stream.Value";
+    private static final Schema VALUE_SCHEMA = SchemaBuilder.struct().field(FIELD_ID, Schema.STRING_SCHEMA).field(FIELD_BODY, SchemaBuilder.map(Schema.STRING_SCHEMA, Schema.STRING_SCHEMA)).field(FIELD_STREAM, Schema.STRING_SCHEMA).name(VALUE_SCHEMA_NAME);
     private final String topic;
     private final String consumer;
 
@@ -56,7 +60,9 @@ public class StreamSourceRecordReader extends AbstractSourceRecordReader<StreamM
     protected SourceRecord convert(StreamMessage<String, String> message) {
         Map<String, ?> sourcePartition = new HashMap<>();
         Map<String, ?> sourceOffset = Collections.singletonMap(OFFSET_FIELD, message.getId());
-        return new SourceRecord(sourcePartition, sourceOffset, topic, null, KEY_SCHEMA, message.getId(), VALUE_SCHEMA, message.getBody(), Instant.now().getEpochSecond());
+        String key = message.getId();
+        Struct value = new Struct(VALUE_SCHEMA).put(FIELD_ID, message.getId()).put(FIELD_BODY, message.getBody()).put(FIELD_STREAM, message.getStream());
+        return new SourceRecord(sourcePartition, sourceOffset, topic, null, KEY_SCHEMA, key, VALUE_SCHEMA, value, Instant.now().getEpochSecond());
     }
 
 }
