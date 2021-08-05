@@ -47,6 +47,22 @@ Use configuration property `tasks.max` to have the change stream handled by mult
 === Stream Reader
 The {name} reads messages from a stream and publishes to a Kafka topic. Reading is done through a consumer group so that <<multiple-tasks,multiple instances>> of the connector configured via the `tasks.max` can consume messages in a round-robin fashion.
 
+
+==== Schema
+
+The schema for the records produced by the source connector is the following:
+
+[source,json]
+----
+{
+  "type": "map",
+  "values": "string",
+  "connect.name": "com.redislabs.kafka.connect.StreamEventValue"
+}
+----
+
+==== Configuration
+
 [source,properties]
 ----
 redis.stream.name=<name> <1>
