@@ -997,6 +997,23 @@ key.converter=&lt;string or bytes&gt; <i class="conum" data-value="2"></i><b>(2)
 <div class="paragraph">
 <p>The Redis Enterprise Kafka Source Connector reads messages from a stream and publishes to a Kafka topic. Reading is done through a consumer group so that <a href="#multiple-tasks">multiple instances</a> of the connector configured via the <code>tasks.max</code> can consume messages in a round-robin fashion.</p>
 </div>
+<div class="sect4">
+<h5 id="schema"><a class="anchor" href="#schema"></a>Schema</h5>
+<div class="paragraph">
+<p>The schema for the records produced by the source connector is the following:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code data-lang="json" class="language-json hljs">{
+  "type": "map",
+  "values": "string",
+  "connect.name": "com.redislabs.kafka.connect.StreamEventValue"
+}</code></pre>
+</div>
+</div>
+</div>
+<div class="sect4">
+<h5 id="configuration"><a class="anchor" href="#configuration"></a>Configuration</h5>
 <div class="listingblock">
 <div class="content">
 <pre class="highlightjs highlight"><code data-lang="properties" class="language-properties hljs">redis.stream.name=&lt;name&gt; <i class="conum" data-value="1"></i><b>(1)</b>
@@ -1034,6 +1051,7 @@ topic=&lt;name&gt; <i class="conum" data-value="6"></i><b>(6)</b></code></pre>
 <td>Destination topic (default: <code>${stream}</code>). May contain <code>${stream}</code> as a placeholder for the originating stream name. For example, <code>redis_${stream}</code> and stream <code>orders</code> &#8658; topic <code>redis_orders</code>.</td>
 </tr>
 </table>
+</div>
 </div>
 </div>
 </div>
@@ -1154,7 +1172,7 @@ xread COUNT 10 STREAMS pageviews 0</code></pre>
 <div id="footer">
 <div id="footer-text">
 Version 0.2.0<br>
-Last updated 2021-08-05 09:39:49 UTC
+Last updated 2021-08-05 09:58:59 UTC
 </div>
 </div>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.15.6/styles/github.min.css">
