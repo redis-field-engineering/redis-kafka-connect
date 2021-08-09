@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.redislabs</groupId>
     <artifactId>redis-enterprise-kafka</artifactId>
-    <version>0.3.1-SNAPSHOT</version>
+    <version>0.3.1</version>
     <name>Redis Enterprise Kafka Connector</name>
     <description>Kafka Connect source and sink connectors for Redis Enterprise</description>
     <url>https://github.com/RedisLabs-Field-Engineering/redis-enterprise-kafka</url>
