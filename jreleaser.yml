@@ -61,4 +61,5 @@ distributions:
   kafka-connect-archive:
     type: binary
     artifacts:
-      - path: target/components/packages/redislabs-{{projectName}}-{{projectVersion}}.zip
+      - path: target/components/packages/redislabs-cp5-{{projectName}}-{{projectVersion}}.zip
+      - path: target/components/packages/redislabs-cp6-{{projectName}}-{{projectVersion}}.zip

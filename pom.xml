@@ -277,16 +277,17 @@
                 <version>0.12.0</version>
                 <executions>
                     <execution>
+                        <id>cp5</id>
                         <phase>package</phase>
                         <goals>
                             <goal>kafka-connect</goal>
                         </goals>
                         <configuration>
-                            <title>Redis Enterprise Kafka</title>
+                            <title>Redis Enterprise Kafka for Confluent Platform 5.x</title>
                             <documentationUrl>https://redislabs-field-engineering.github.io/redis-enterprise-kafka/
                             </documentationUrl>
                             <ownerLogo>src/docs/asciidoc/images/redislabs.svg</ownerLogo>
-                            <ownerUsername>redislabs</ownerUsername>
+                            <ownerUsername>redislabs-cp5</ownerUsername>
                             <ownerName>Redis Labs</ownerName>
                             <ownerUrl>https://redislabs.com</ownerUrl>
                             <sourceUrl>${project.scm.url}</sourceUrl>
@@ -302,16 +303,52 @@
                                 <componentType>source</componentType>
                             </componentTypes>
                             <requirements>
+                                <requirement>Confluent Platform 5.0+</requirement>
                                 <requirement>Redis Enterprise 6.0+</requirement>
                             </requirements>
                             <tags>
                                 <tag>redis</tag>
                                 <tag>enterprise</tag>
                             </tags>
-                            <!-- Uncomment to build the connector for Confluent 6.x. Known issue: https://github.com/jcustenborder/kafka-connect-redis/issues/31 -->
-                            <!--                            <excludes>-->
-                            <!--                                <exclude>io.netty:*</exclude>-->
-                            <!--                            </excludes>-->
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>cp6</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>kafka-connect</goal>
+                        </goals>
+                        <configuration>
+                            <title>Redis Enterprise Kafka for Confluent Platform 6.x</title>
+                            <documentationUrl>https://redislabs-field-engineering.github.io/redis-enterprise-kafka/
+                            </documentationUrl>
+                            <ownerLogo>src/docs/asciidoc/images/redislabs.svg</ownerLogo>
+                            <ownerUsername>redislabs-cp6</ownerUsername>
+                            <ownerName>Redis Labs</ownerName>
+                            <ownerUrl>https://redislabs.com</ownerUrl>
+                            <sourceUrl>${project.scm.url}</sourceUrl>
+                            <supportProviderName>Redis Labs</supportProviderName>
+                            <supportSummary>
+                                <![CDATA[This connector is <a href="https://redislabs.com/company/support/">supported by Redis Labs</a> as part of a
+                                <a href="https://redislabs.com/redis-enterprise">Redis Enterprise</a> license.]]>
+                            </supportSummary>
+                            <supportUrl>${project.issueManagement.url}</supportUrl>
+                            <confluentControlCenterIntegration>true</confluentControlCenterIntegration>
+                            <componentTypes>
+                                <componentType>sink</componentType>
+                                <componentType>source</componentType>
+                            </componentTypes>
+                            <requirements>
+                                <requirement>Confluent Platform 6.0+</requirement>
+                                <requirement>Redis Enterprise 6.0+</requirement>
+                            </requirements>
+                            <tags>
+                                <tag>redis</tag>
+                                <tag>enterprise</tag>
+                            </tags>
+                            <excludes>
+                                <exclude>io.netty:*</exclude>
+                            </excludes>
                         </configuration>
                     </execution>
                 </executions>
