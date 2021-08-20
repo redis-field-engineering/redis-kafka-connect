@@ -78,7 +78,7 @@ public class RedisEnterpriseSinkTask extends SinkTask {
     @Override
     public void start(final Map<String, String> props) {
         config = new RedisEnterpriseSinkConfig(props);
-        client = RedisClient.create(config.getRedisUri());
+        client = RedisClient.create(config.getRedisURI());
         connection = client.connect();
         charset = config.getCharset();
         writer = OperationItemWriter.operation(operation()).codec(new ByteArrayCodec()).client(client).transactional(Boolean.TRUE.equals(config.isMultiexec())).build();

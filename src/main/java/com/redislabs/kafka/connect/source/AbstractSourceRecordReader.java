@@ -24,7 +24,7 @@ public abstract class AbstractSourceRecordReader<T> implements SourceRecordReade
 
     @Override
     public void open() {
-        this.client = RedisModulesClient.create(sourceConfig.getRedisUri());
+        this.client = RedisModulesClient.create(sourceConfig.getRedisURI());
         open(client);
     }
 
