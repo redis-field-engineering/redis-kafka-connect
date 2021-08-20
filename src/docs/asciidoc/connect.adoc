@@ -2,11 +2,7 @@
 
 This section provides information on configuring the Redis Enterprise Kafka Source or Sink Connector to connect to Redis Enterprise.
 
-== Redis URI
-
-The {project-name} relies on https://lettuce.io[Lettuce] to connect to Redis Enterprise. The Redis URI connection format is described https://github.com/lettuce-io/lettuce-core/wiki/Redis-URI-and-connection-details#uri-syntax[here].
-
-== Configuring the Connection URI
+== Configuration
 
 Specify the Redis URI in the `redis.uri` property, for example:
 
@@ -15,9 +11,11 @@ Specify the Redis URI in the `redis.uri` property, for example:
 redis.uri=redis://redis-12000.redislabs.com:12000
 ----
 
-Refer to the configuration guides for more detail:
+Details on the https://github.com/lettuce-io/lettuce-core/wiki/Redis-URI-and-connection-details#uri-syntax[Redis URI syntax] can be found in the Lettuce project https://github.com/lettuce-io/lettuce-core/wiki[wiki].
 
-* <<sink,Sink Connector Guide>>
-* <<source,Source Connector Guide>>
+TLS connection URIs start with `rediss://`. To disable certificate verification for TLS connections use the following property:
 
-
+[source,properties]
+----
+redis.insecure=true
+----

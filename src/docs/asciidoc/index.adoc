@@ -1,7 +1,8 @@
 = {project-name}
-Julien Ruaux <julien@redislabs.com>
-2021-06-24
+:author: Julien Ruaux <julien@redislabs.com>
 :revnumber: {project-version}
+:toclevels: 2
+:docinfo1:
 
 == Introduction
 
@@ -16,14 +17,23 @@ This guide provides documentation and usage information across the following top
 * <<sink,Sink Connector Guide>>
 * <<source,Source Connector Guide>>
 * <<docker,Docker Example>>
+* <<links,Resources>>
 
+:leveloffset: 1
 [[install]]
-include::install.adoc[leveloffset=+1]
+include::install.adoc[]
+
 [[connect]]
-include::connect.adoc[leveloffset=+1]
+include::connect.adoc[]
+
 [[sink]]
-include::sink.adoc[leveloffset=+1]
+include::sink.adoc[]
+
 [[source]]
-include::source.adoc[leveloffset=+1]
+include::source.adoc[]
+
 [[docker]]
-include::docker.adoc[leveloffset=+1]
+include::docker.adoc[]
+
+[[links]]
+include::links.adoc[]

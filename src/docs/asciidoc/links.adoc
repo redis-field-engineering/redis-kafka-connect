@@ -1,5 +1,33 @@
 = Links
 
-. https://www.confluent.io/blog/put-several-event-types-kafka-topic/[Should You Put Several Event Types in the Same Kafka Topic?]
-. https://kafka.apache.org/quickstart[Kafka Quickstart]
-. https://kafka-tutorials.confluent.io/kafka-console-consumer-producer-basics/kafka.html[Console Producer and Consumer Basics]
+== Kafka
+What is Apache Kafka?::
+https://youtu.be/06iRM1Ghr1k
+
+Should You Put Several Event Types in the Same Kafka Topic?::
+https://www.confluent.io/blog/put-several-event-types-kafka-topic/
+
+Kafka Quickstart::
+https://kafka.apache.org/quickstart
+
+Console Producer and Consumer Basics::
+https://kafka-tutorials.confluent.io/kafka-console-consumer-producer-basics/kafka.html
+
+== Kafka Connect
+
+Introduction to Kafka Connectors::
+https://www.baeldung.com/kafka-connectors-guide
+
+Kafka Connect Documentation::
+https://docs.confluent.io/platform/current/connect/index.html
+
+== Redis
+
+Redis::
+https://redis.io/topics/introduction
+
+Redis Streams::
+https://redis.io/topics/streams-intro
+
+Redis Enterprise Advantages::
+https://redis.com/redis-enterprise/advantages/
