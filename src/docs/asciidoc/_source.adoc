@@ -7,15 +7,15 @@ The {name} reads from a Redis Enterprise stream and publishes messages to a Kafk
 
 The {name} includes the following features:
 
-* <<at-least-once-delivery,At least once delivery>>
-* <<tasks,Multiple tasks>>
+* <<source-at-least-once-delivery,At least once delivery>>
+* <<source-tasks,Multiple tasks>>
 * <<stream-reader,Stream Reader>>
 
-[[at-least-once-delivery]]
+[[source-at-least-once-delivery]]
 === At least once delivery
 The {name} guarantees that records from the Kafka topic are delivered at least once.
 
-[[tasks]]
+[[source-tasks]]
 === Multiple Tasks
 Use configuration property `tasks.max` to have the change stream handled by multiple tasks. The connector splits the work based on the number of configured key patterns. When the number of tasks is greater than the number of patterns, the number of patterns will be used instead.
 
@@ -45,7 +45,7 @@ Use configuration property `tasks.max` to have the change stream handled by mult
 
 [[stream-reader]]
 === Stream Reader
-The {name} reads messages from a stream and publishes to a Kafka topic. Reading is done through a consumer group so that <<multiple-tasks,multiple instances>> of the connector configured via the `tasks.max` can consume messages in a round-robin fashion.
+The {name} reads messages from a stream and publishes to a Kafka topic. Reading is done through a consumer group so that <<source-tasks,multiple instances>> of the connector configured via the `tasks.max` can consume messages in a round-robin fashion.
 
 
 ==== Stream Message Schema

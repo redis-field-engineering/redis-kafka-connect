@@ -1,4 +1,4 @@
-= Links
+= Resources
 
 == Kafka
 What is Apache Kafka?::

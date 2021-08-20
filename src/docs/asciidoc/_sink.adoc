@@ -7,16 +7,16 @@ The {name} consumes records from a Kafka topic and writes the data to a Redis En
 
 The {name} includes the following features:
 
-* <<at-least-once-delivery,At least once delivery>>
-* <<multiple-tasks,Multiple tasks>>
+* <<sink-at-least-once-delivery,At least once delivery>>
+* <<sink-tasks,Multiple tasks>>
 * <<data-formats,Supported Data Formats>>
 * <<data-structures,Redis Data Structures>>
 
-[[at-least-once-delivery]]
+[[sink-at-least-once-delivery]]
 === At least once delivery
 The {name} guarantees that records from the Kafka topic are delivered at least once.
 
-[[multiple-tasks]]
+[[sink-tasks]]
 === Multiples tasks
 
 The {name} supports running one or more tasks. You can specify the number of tasks with the `tasks.max` configuration property.

@@ -66,3 +66,7 @@ distributions:
     type: binary
     artifacts:
       - path: target/components/packages/redislabs-cp6-{{projectName}}-{{projectVersion}}.zip
+
+files:
+  artifacts:
+    - path: target/generated-docs/Kafka_Connector_for_Redis_Enterprise.pdf

@@ -1,7 +1,6 @@
 = {project-name}
 :author: Julien Ruaux <julien@redislabs.com>
 :revnumber: {project-version}
-:toclevels: 2
 :docinfo1:
 
 == Introduction
@@ -14,26 +13,26 @@ This guide provides documentation and usage information across the following top
 
 * <<install,Install>>
 * <<connect,Connect to Redis Enterprise>>
-* <<sink,Sink Connector Guide>>
-* <<source,Source Connector Guide>>
+* <<sink,Sink Connector>>
+* <<source,Source Connector>>
 * <<docker,Docker Example>>
 * <<links,Resources>>
 
 :leveloffset: 1
 [[install]]
-include::install.adoc[]
+include::_install.adoc[]
 
 [[connect]]
-include::connect.adoc[]
+include::_connect.adoc[]
 
 [[sink]]
-include::sink.adoc[]
+include::_sink.adoc[]
 
 [[source]]
-include::source.adoc[]
+include::_source.adoc[]
 
 [[docker]]
-include::docker.adoc[]
+include::_docker.adoc[]
 
 [[links]]
-include::links.adoc[]
+include::_links.adoc[]
