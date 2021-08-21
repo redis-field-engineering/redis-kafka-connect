@@ -26,9 +26,6 @@ jobs:
 
       - name: Build
         run: ./mvnw -B package --file pom.xml
-        env:
-          GITHUB_USERNAME: jruaux
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Show Reports
         uses: actions/upload-artifact@v1

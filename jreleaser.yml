@@ -11,10 +11,11 @@ project:
 
 release:
   github:
-    branch: master
     username: jruaux
     overwrite: true
     changelog:
+      contributors:
+        enabled: false
       sort: DESC
       formatted: ALWAYS
       format: '- {{commitShortHash}} {{commitTitle}}'
