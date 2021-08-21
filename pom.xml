@@ -401,8 +401,10 @@
                         </goals>
                         <configuration>
                             <backend>pdf</backend>
-                            <outputFile>Kafka_Connector_for_Redis_Enterprise.pdf</outputFile>
+                            <outputFile>redis-enterprise-kafka-${project.version}.pdf</outputFile>
                             <attributes>
+                                <doctype>book</doctype>
+                                <title-page></title-page>
                                 <toc></toc>
                                 <toclevels>1</toclevels>
                             </attributes>

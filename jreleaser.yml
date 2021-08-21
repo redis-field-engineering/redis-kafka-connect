@@ -70,4 +70,4 @@ distributions:
 
 files:
   artifacts:
-    - path: target/generated-docs/Kafka_Connector_for_Redis_Enterprise.pdf
+    - path: target/generated-docs/redis-enterprise-kafka-{{projectVersion}}.pdf
