@@ -59,14 +59,13 @@ announce:
     message: '🚀 Redis Enterprise Kafka Connector {{projectVersion}} has been released! {{releaseNotesUrl}}'
 
 distributions:
-  kafka-connect-archive-cp5:
+  redis-enterprise-kafka:
     type: binary
     artifacts:
-      - path: target/components/packages/redislabs-cp5-{{projectName}}-{{projectVersion}}.zip
-  kafka-connect-archive-cp6:
-    type: binary
-    artifacts:
-      - path: target/components/packages/redislabs-cp6-{{projectName}}-{{projectVersion}}.zip
+      - path: target/components/packages/redis-{{projectName}}-cp5-{{projectVersion}}.zip
+        transform: '{{distributionName}}/{{distributionName}}-cp5-{{projectEffectiveVersion}}.zip'
+      - path: target/components/packages/redis-{{projectName}}-cp6-{{projectVersion}}.zip
+        transform: '{{distributionName}}/{{distributionName}}-cp6-{{projectEffectiveVersion}}.zip'
 
 files:
   artifacts:
