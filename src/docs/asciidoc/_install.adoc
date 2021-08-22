@@ -9,8 +9,8 @@ Download the latest release archive from https://github.com/RedisLabs-Field-Engi
 ====
 Download the connector archive that matches your version of Confluent Platform:
 
-* Confluent Platform 5.0+: `redislabs-*cp5*-redis-enterprise-kafka-X.Y.Z`
-* Confluent Platform 6.0+: `redislabs-*cp6*-redis-enterprise-kafka-X.Y.Z`
+* Confluent Platform 5.0+: `redis-enterprise-kafka-*cp5*-X.Y.Z.zip`
+* Confluent Platform 6.0+: `redis-enterprise-kafka-*cp6*-X.Y.Z.zip`
 ====
 
 == Install using Confluent Hub
