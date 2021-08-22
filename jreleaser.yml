@@ -72,3 +72,4 @@ distributions:
 files:
   artifacts:
     - path: target/generated-docs/redis-enterprise-kafka-{{projectVersion}}.pdf
+      transform: 'redis-enterprise-kafka-{{projectEffectiveVersion}}.pdf'
