@@ -1,7 +1,7 @@
-package com.redislabs.kafka.connect;
+package com.redis.kafka.connect;
 
-import com.redislabs.kafka.connect.source.RedisEnterpriseSourceConfig;
-import com.redislabs.kafka.connect.source.RedisEnterpriseSourceTask;
+import com.redis.kafka.connect.source.RedisEnterpriseSourceConfig;
+import com.redis.kafka.connect.source.RedisEnterpriseSourceTask;
 import com.redislabs.testcontainers.RedisServer;
 import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.source.SourceRecord;
@@ -34,7 +34,6 @@ public class RedisEnterpriseSourceTaskIT extends AbstractRedisEnterpriseIT {
         task.stop();
     }
 
-    @SuppressWarnings("unchecked")
     @ParameterizedTest
     @MethodSource("redisServers")
     public void pollStream(RedisServer redis) throws InterruptedException {

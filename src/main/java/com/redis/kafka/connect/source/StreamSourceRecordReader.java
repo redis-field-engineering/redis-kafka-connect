@@ -1,4 +1,4 @@
-package com.redislabs.kafka.connect.source;
+package com.redis.kafka.connect.source;
 
 import io.lettuce.core.RedisClient;
 import io.lettuce.core.StreamMessage;
@@ -24,7 +24,7 @@ public class StreamSourceRecordReader extends AbstractSourceRecordReader<StreamM
     public static final String FIELD_BODY = "body";
     public static final String FIELD_STREAM = "stream";
     private static final Schema KEY_SCHEMA = Schema.STRING_SCHEMA;
-    private static final String VALUE_SCHEMA_NAME = "com.redislabs.kafka.connect.stream.Value";
+    private static final String VALUE_SCHEMA_NAME = "com.redis.kafka.connect.stream.Value";
     private static final Schema VALUE_SCHEMA = SchemaBuilder.struct().field(FIELD_ID, Schema.STRING_SCHEMA).field(FIELD_BODY, SchemaBuilder.map(Schema.STRING_SCHEMA, Schema.STRING_SCHEMA)).field(FIELD_STREAM, Schema.STRING_SCHEMA).name(VALUE_SCHEMA_NAME);
     private final String topic;
     private final String consumer;

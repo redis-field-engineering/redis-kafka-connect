@@ -1,4 +1,4 @@
-package com.redislabs.kafka.connect;
+package com.redis.kafka.connect;
 
 import com.redislabs.testcontainers.RedisContainer;
 import com.redislabs.testcontainers.RedisServer;

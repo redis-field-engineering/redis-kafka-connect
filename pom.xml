@@ -3,14 +3,16 @@
          xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
     <modelVersion>4.0.0</modelVersion>
-    <groupId>com.redislabs</groupId>
+    <groupId>com.redis</groupId>
     <artifactId>redis-enterprise-kafka</artifactId>
     <version>0.4.1-SNAPSHOT</version>
     <name>Redis Enterprise Kafka Connector</name>
     <description>Kafka Connect source and sink connectors for Redis Enterprise</description>
-    <url>https://github.com/RedisLabs-Field-Engineering/redis-enterprise-kafka</url>
+    <url>https://github.com/${github.owner}/${github.repo}</url>
     <inceptionYear>2021</inceptionYear>
     <properties>
+        <github.owner>RedisLabs-Field-Engineering</github.owner>
+        <github.repo>redis-enterprise-kafka</github.repo>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <java.version>8</java.version>
@@ -42,14 +44,14 @@
         </developer>
     </developers>
     <scm>
-        <connection>scm:git:https://github.com/RedisLabs-Field-Engineering/redis-enterprise-kafka.git</connection>
-        <developerConnection>scm:git:git@github.com:RedisLabs-Field-Engineering/redis-enterprise-kafka.git
+        <connection>scm:git:https://github.com/${github.owner}/${github.repo}.git</connection>
+        <developerConnection>scm:git:git@github.com:${github.owner}/${github.repo}.git
         </developerConnection>
-        <url>https://github.com/RedisLabs-Field-Engineering/redis-enterprise-kafka</url>
+        <url>https://github.com/${github.owner}/${github.repo}</url>
     </scm>
     <issueManagement>
         <system>github</system>
-        <url>https://github.com/RedisLabs-Field-Engineering/redis-enterprise-kafka/issues</url>
+        <url>https://github.com/${github.owner}/${github.repo}/issues</url>
     </issueManagement>
     <repositories>
         <repository>
@@ -278,15 +280,15 @@
                 <version>0.12.0</version>
                 <configuration>
                     <ownerUsername>redis</ownerUsername>
-                    <documentationUrl>https://redislabs-field-engineering.github.io/redis-enterprise-kafka/</documentationUrl>
-                    <ownerLogo>src/docs/asciidoc/images/redislabs.svg</ownerLogo>
-                    <ownerName>Redis Labs</ownerName>
-                    <ownerUrl>https://redislabs.com</ownerUrl>
+                    <documentationUrl>https://redislabs-field-engineering.github.io/${github.repo}/</documentationUrl>
+                    <ownerLogo>src/docs/asciidoc/images/logo-redis.svg</ownerLogo>
+                    <ownerName>Redis</ownerName>
+                    <ownerUrl>https://redis.com</ownerUrl>
                     <sourceUrl>${project.scm.url}</sourceUrl>
-                    <supportProviderName>Redis Labs</supportProviderName>
+                    <supportProviderName>Redis</supportProviderName>
                     <supportSummary>
-                        <![CDATA[This connector is <a href="https://redislabs.com/company/support/">supported by Redis Labs</a> as part of a
-                                <a href="https://redislabs.com/redis-enterprise">Redis Enterprise</a> license.]]>
+                        <![CDATA[This connector is <a href="https://redis.com/company/support/">supported by Redis</a> as part of a
+                                <a href="https://redis.com/redis-enterprise">Redis Enterprise</a> license.]]>
                     </supportSummary>
                     <supportUrl>${project.issueManagement.url}</supportUrl>
                     <confluentControlCenterIntegration>true</confluentControlCenterIntegration>

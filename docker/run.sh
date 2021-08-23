@@ -12,7 +12,7 @@ echo "Building the Redis Enterprise Kafka Connector"
 (
 cd ..
 ./mvnw clean package
-find ./target/components/packages -type d -name "redislabs-cp5-*" -mindepth 2 -maxdepth 2 -exec mv {} ./target/components/packages/redis-enterprise-kafka \;
+find ./target/components/packages -type d -name "redis-redis-enterprise-kafka-cp5-*" -mindepth 2 -maxdepth 2 -exec mv {} ./target/components/packages/redis-enterprise-kafka \;
 )
 
 echo "Starting docker ."
@@ -87,7 +87,7 @@ echo -e "\nAdding Redis Enteprise Kafka Sink Connector for the 'pageviews' topic
 curl -X POST -H "Content-Type: application/json" --data '
   {"name": "redis-enterprise-sink",
    "config": {
-     "connector.class":"com.redislabs.kafka.connect.RedisEnterpriseSinkConnector",
+     "connector.class":"com.redis.kafka.connect.RedisEnterpriseSinkConnector",
      "tasks.max":"1",
      "topics":"pageviews",
      "redis.uri":"redis://redis:6379",
@@ -102,7 +102,7 @@ curl -X POST -H "Content-Type: application/json" --data '
   {"name": "redis-enterprise-source",
    "config": {
      "tasks.max":"1",
-     "connector.class":"com.redislabs.kafka.connect.RedisEnterpriseSourceConnector",
+     "connector.class":"com.redis.kafka.connect.RedisEnterpriseSourceConnector",
      "redis.uri":"redis://redis:6379",
      "redis.stream.name":"mystream",
      "topic": "mystream"

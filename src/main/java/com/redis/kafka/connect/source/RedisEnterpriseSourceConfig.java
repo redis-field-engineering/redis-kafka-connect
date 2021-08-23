@@ -1,5 +1,5 @@
 /*
- * Copyright © 2021 Redis Labs
+ * Copyright © 2021 Redis
  * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,12 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.redislabs.kafka.connect.source;
+package com.redis.kafka.connect.source;
 
 import com.github.jcustenborder.kafka.connect.utils.config.ConfigKeyBuilder;
 import com.github.jcustenborder.kafka.connect.utils.config.ConfigUtils;
 import com.github.jcustenborder.kafka.connect.utils.config.validators.Validators;
-import com.redislabs.kafka.connect.common.RedisEnterpriseConfig;
+import com.redis.kafka.connect.common.RedisEnterpriseConfig;
 import org.apache.kafka.common.config.ConfigDef;
 
 import java.util.List;

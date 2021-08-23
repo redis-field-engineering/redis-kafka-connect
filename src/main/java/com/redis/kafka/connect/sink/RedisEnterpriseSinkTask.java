@@ -1,5 +1,5 @@
 /*
- * Copyright © 2021 Redis Labs
+ * Copyright © 2021 Redis
  * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,14 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.redislabs.kafka.connect.sink;
+package com.redis.kafka.connect.sink;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.github.jcustenborder.kafka.connect.utils.data.SinkOffsetState;
 import com.github.jcustenborder.kafka.connect.utils.jackson.ObjectMapperFactory;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
-import com.redislabs.kafka.connect.RedisEnterpriseSinkConnector;
+import com.redis.kafka.connect.RedisEnterpriseSinkConnector;
 import io.lettuce.core.KeyValue;
 import io.lettuce.core.RedisClient;
 import io.lettuce.core.api.StatefulRedisConnection;
@@ -62,7 +62,7 @@ import java.util.stream.Collectors;
 public class RedisEnterpriseSinkTask extends SinkTask {
 
     private static final Logger log = LoggerFactory.getLogger(RedisEnterpriseSinkTask.class);
-    private static final String OFFSET_KEY_FORMAT = "com.redislabs.kafka.connect.sink.offset.%s.%s";
+    private static final String OFFSET_KEY_FORMAT = "com.redis.kafka.connect.sink.offset.%s.%s";
 
     private RedisClient client;
     private RedisEnterpriseSinkConfig config;

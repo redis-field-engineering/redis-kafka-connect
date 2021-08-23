@@ -1,5 +1,5 @@
 /*
- * Copyright © 2021 Redis Labs
+ * Copyright © 2021 Redis
  * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,9 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.redislabs.kafka.connect.source;
+package com.redis.kafka.connect.source;
 
-import com.redislabs.kafka.connect.RedisEnterpriseSourceConnector;
+import com.redis.kafka.connect.RedisEnterpriseSourceConnector;
 import org.apache.kafka.connect.source.SourceRecord;
 import org.apache.kafka.connect.source.SourceTask;
 

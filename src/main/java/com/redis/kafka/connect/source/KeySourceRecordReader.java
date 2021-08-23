@@ -1,4 +1,4 @@
-package com.redislabs.kafka.connect.source;
+package com.redis.kafka.connect.source;
 
 import io.lettuce.core.RedisClient;
 import org.apache.kafka.connect.data.Schema;
@@ -19,7 +19,7 @@ public class KeySourceRecordReader extends AbstractSourceRecordReader<DataStruct
 
     private static final Schema KEY_SCHEMA = Schema.STRING_SCHEMA;
     private static final Schema STRING_VALUE_SCHEMA = Schema.STRING_SCHEMA;
-    private static final String HASH_VALUE_SCHEMA_NAME = "com.redislabs.kafka.connect.HashEventValue";
+    private static final String HASH_VALUE_SCHEMA_NAME = "com.redis.kafka.connect.HashEventValue";
     private static final Schema HASH_VALUE_SCHEMA = SchemaBuilder.map(Schema.STRING_SCHEMA, Schema.STRING_SCHEMA).name(HASH_VALUE_SCHEMA_NAME);
 
     private final int batchSize;

@@ -1,7 +1,7 @@
-package com.redislabs.kafka.connect;
+package com.redis.kafka.connect;
 
-import com.redislabs.kafka.connect.source.RedisEnterpriseSourceConfig;
-import com.redislabs.kafka.connect.source.RedisEnterpriseSourceTask;
+import com.redis.kafka.connect.source.RedisEnterpriseSourceConfig;
+import com.redis.kafka.connect.source.RedisEnterpriseSourceTask;
 import org.apache.kafka.common.config.ConfigDef;
 import org.apache.kafka.common.config.ConfigValue;
 import org.apache.kafka.common.utils.AppInfoParser;

@@ -1,4 +1,4 @@
-package com.redislabs.kafka.connect.source;
+package com.redis.kafka.connect.source;
 
 import org.apache.kafka.connect.source.SourceRecord;
 

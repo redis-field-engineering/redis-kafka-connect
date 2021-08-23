@@ -1,5 +1,5 @@
 = {project-name}
-:author: Julien Ruaux <julien@redislabs.com>
+:author: Julien Ruaux <julien@redis.com>
 :revnumber: {project-version}
 :docinfo1:
 
