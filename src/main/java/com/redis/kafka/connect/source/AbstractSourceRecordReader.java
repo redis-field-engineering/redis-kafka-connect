@@ -1,6 +1,6 @@
 package com.redis.kafka.connect.source;
 
-import com.redislabs.mesclun.RedisModulesClient;
+import com.redis.lettucemod.RedisModulesClient;
 import io.lettuce.core.RedisClient;
 import org.apache.kafka.connect.source.SourceRecord;
 import org.slf4j.Logger;

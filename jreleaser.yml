@@ -2,7 +2,7 @@ project:
   name: redis-enterprise-kafka
   description: Kafka Connector for Redis Enterprise
   longDescription: Kafka Connect source and sink connectors for Redis Enterprise
-  website: https://github.com/RedisLabs-Field-Engineering/redis-enterprise-kafka
+  website: https://github.com/redis-field-engineering/redis-enterprise-kafka
   authors:
     - Julien Ruaux
   license: Apache-2.0

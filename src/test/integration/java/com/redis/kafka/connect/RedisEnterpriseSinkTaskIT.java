@@ -3,7 +3,7 @@ package com.redis.kafka.connect;
 import com.github.jcustenborder.kafka.connect.utils.SinkRecordHelper;
 import com.redis.kafka.connect.sink.RedisEnterpriseSinkConfig;
 import com.redis.kafka.connect.sink.RedisEnterpriseSinkTask;
-import com.redislabs.testcontainers.RedisServer;
+import com.redis.testcontainers.RedisServer;
 import io.lettuce.core.KeyValue;
 import io.lettuce.core.Range;
 import io.lettuce.core.ScoredValue;

@@ -37,16 +37,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.batch.item.ExecutionContext;
 import org.springframework.batch.item.redis.OperationItemWriter;
-import org.springframework.batch.item.redis.support.operation.ConstantPredicate;
+import org.springframework.batch.item.redis.support.RedisOperation;
+import org.springframework.batch.item.redis.support.convert.ScoredValueConverter;
 import org.springframework.batch.item.redis.support.operation.Hset;
 import org.springframework.batch.item.redis.support.operation.Lpush;
-import org.springframework.batch.item.redis.support.operation.NullValuePredicate;
 import org.springframework.batch.item.redis.support.operation.Rpush;
 import org.springframework.batch.item.redis.support.operation.Sadd;
 import org.springframework.batch.item.redis.support.operation.Set;
 import org.springframework.batch.item.redis.support.operation.Xadd;
 import org.springframework.batch.item.redis.support.operation.Zadd;
-import org.springframework.core.convert.converter.Converter;
 
 import java.io.IOException;
 import java.nio.charset.Charset;
@@ -81,7 +80,7 @@ public class RedisEnterpriseSinkTask extends SinkTask {
         client = RedisClient.create(config.getRedisURI());
         connection = client.connect();
         charset = config.getCharset();
-        writer = OperationItemWriter.operation(operation()).codec(new ByteArrayCodec()).client(client).transactional(Boolean.TRUE.equals(config.isMultiexec())).build();
+        writer = writer(client);
         writer.open(new ExecutionContext());
         final java.util.Set<TopicPartition> assignment = this.context.assignment();
         if (!assignment.isEmpty()) {
@@ -112,27 +111,35 @@ public class RedisEnterpriseSinkTask extends SinkTask {
         }
     }
 
+    private OperationItemWriter<byte[],byte[], SinkRecord> writer(RedisClient client) {
+        OperationItemWriter.OperationItemWriterBuilder<byte[], byte[], SinkRecord> builder = OperationItemWriter.client(client, new ByteArrayCodec()).operation(operation());
+        if (Boolean.TRUE.equals(config.isMultiexec())) {
+            return builder.transactional().build();
+        }
+        return builder.build();
+    }
+
     private String offsetKey(String topic, Integer partition) {
         return String.format(OFFSET_KEY_FORMAT, topic, partition);
     }
 
-    private OperationItemWriter.RedisOperation<byte[], byte[], SinkRecord> operation() {
+    private RedisOperation<byte[], byte[], SinkRecord> operation() {
         switch (config.getType()) {
             case STREAM:
-                return new Xadd<>((Converter<SinkRecord, byte[]>) this::collectionKey, this::map);
+                return Xadd.key(this::collectionKey).body(this::map).build();
             case HASH:
-                return new Hset<>(this::key, this::map, this::isDelete);
+                return Hset.key(this::key).map(this::map).del(this::isDelete).build();
             case STRING:
-                return new Set<>(this::key, this::value, this::isDelete);
+                return Set.key(this::key).value(this::value).del(this::isDelete).build();
             case LIST:
                 if (config.getPushDirection() == RedisEnterpriseSinkConfig.PushDirection.LEFT) {
-                    return new Lpush<>(this::collectionKey, this::key, new ConstantPredicate<>(false), new NullValuePredicate<>(this::value));
+                    return Lpush.key(this::collectionKey).member(this::key).build();
                 }
-                return new Rpush<>(this::collectionKey, this::key, new ConstantPredicate<>(false), new NullValuePredicate<>(this::value));
+                return Rpush.key(this::collectionKey).member(this::key).build();
             case SET:
-                return new Sadd<>(this::collectionKey, this::key, new ConstantPredicate<>(false), new NullValuePredicate<>(this::value));
+                return Sadd.key(this::collectionKey).member(this::key).build();
             case ZSET:
-                return new Zadd<>(this::collectionKey, this::key, new ConstantPredicate<>(false), new NullValuePredicate<>(this::score), this::score);
+                return Zadd.key(this::collectionKey).value(new ScoredValueConverter<>(this::key, this::score)).build();
             default:
                 throw new ConfigException(RedisEnterpriseSinkConfig.TYPE, config.getType());
         }

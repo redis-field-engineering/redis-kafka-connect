@@ -2,15 +2,15 @@
 
 == Download
 
-Download the latest release archive from https://github.com/RedisLabs-Field-Engineering/redis-enterprise-kafka/releases[here].
+Download the latest release archive from https://github.com/{github-owner}/{github-repo}/releases[here].
 
 [IMPORTANT]
 .Confluent Platform Version
 ====
 Download the connector archive that matches your version of Confluent Platform:
 
-* Confluent Platform 5.0+: `redis-enterprise-kafka-*cp5*-X.Y.Z.zip`
-* Confluent Platform 6.0+: `redis-enterprise-kafka-*cp6*-X.Y.Z.zip`
+* Confluent Platform 5.0+: `{project-artifact}-*cp5*-{project-version}.zip`
+* Confluent Platform 6.0+: `{project-artifact}-*cp6*-{project-version}.zip`
 ====
 
 == Install using Confluent Hub

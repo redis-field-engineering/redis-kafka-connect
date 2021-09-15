@@ -11,7 +11,7 @@
     <url>https://github.com/${github.owner}/${github.repo}</url>
     <inceptionYear>2021</inceptionYear>
     <properties>
-        <github.owner>RedisLabs-Field-Engineering</github.owner>
+        <github.owner>redis-field-engineering</github.owner>
         <github.repo>redis-enterprise-kafka</github.repo>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
@@ -23,8 +23,14 @@
         <asciidoctorj.pdf.version>1.6.0</asciidoctorj.pdf.version>
         <jruby.version>9.2.17.0</jruby.version>
         <junit.version>5.7.1</junit.version>
+        <lettucemod.version>1.7.2</lettucemod.version>
+        <lombok.version>1.18.20</lombok.version>
         <mockito.version>3.9.0</mockito.version>
+        <reactor.version>3.4.6</reactor.version>
+        <spring-batch-redis.version>2.17.1</spring-batch-redis.version>
         <slf4j.version>1.7.30</slf4j.version>
+        <testcontainers-redis.version>1.3.3</testcontainers-redis.version>
+        <testcontainers.version>1.15.3</testcontainers.version>
     </properties>
     <licenses>
         <license>
@@ -77,9 +83,9 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
-            <groupId>com.redislabs</groupId>
-            <artifactId>mesclun</artifactId>
-            <version>1.3.4</version>
+            <groupId>com.redis</groupId>
+            <artifactId>lettucemod</artifactId>
+            <version>${lettucemod.version}</version>
         </dependency>
         <dependency>
             <groupId>org.slf4j</groupId>
@@ -87,9 +93,9 @@
             <version>${slf4j.version}</version>
         </dependency>
         <dependency>
-            <groupId>com.redislabs</groupId>
-            <artifactId>spring-batch-redis</artifactId>
-            <version>2.13.7</version>
+            <groupId>com.redis</groupId>
+            <artifactId>spring-boot-starter-batch-redis</artifactId>
+            <version>${spring-batch-redis.version}</version>
         </dependency>
         <dependency>
             <groupId>org.slf4j</groupId>
@@ -99,7 +105,7 @@
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
-            <version>1.18.20</version>
+            <version>${lombok.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -127,21 +133,21 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>com.redislabs.testcontainers</groupId>
+            <groupId>com.redis.testcontainers</groupId>
             <artifactId>testcontainers-redis</artifactId>
-            <version>1.2.0</version>
+            <version>${testcontainers-redis.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>com.redislabs.testcontainers</groupId>
+            <groupId>com.redis.testcontainers</groupId>
             <artifactId>junit-jupiter</artifactId>
-            <version>1.15.3</version>
+            <version>${testcontainers.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>io.projectreactor</groupId>
             <artifactId>reactor-test</artifactId>
-            <version>3.4.6</version>
+            <version>${reactor.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -280,7 +286,7 @@
                 <version>0.12.0</version>
                 <configuration>
                     <ownerUsername>redis</ownerUsername>
-                    <documentationUrl>https://redislabs-field-engineering.github.io/${github.repo}/</documentationUrl>
+                    <documentationUrl>https://${github.owner}.github.io/${github.repo}/</documentationUrl>
                     <ownerLogo>src/docs/asciidoc/images/logo-redis.svg</ownerLogo>
                     <ownerName>Redis</ownerName>
                     <ownerUrl>https://redis.com</ownerUrl>
@@ -350,6 +356,9 @@
                 </dependencies>
                 <configuration>
                     <attributes>
+                        <github-owner>${github.owner}</github-owner>
+                        <github-repo>${github.repo}</github-repo>
+                        <project-artifact>${artifactId}</project-artifact>
                         <project-name>${project.name}</project-name>
                         <project-version>${project.version}</project-version>
                         <sourcedir>${project.build.sourceDirectory}</sourcedir>

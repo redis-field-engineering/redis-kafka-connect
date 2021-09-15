@@ -27,7 +27,7 @@ public class RedisEnterpriseConfig extends AbstractConfig {
 
     public static final String REDIS_URI = "redis.uri";
     private static final String REDIS_URI_DEFAULT = "redis://localhost:6379";
-    private static final String REDIS_URI_DOC = "URI of the Redis Enterprise database to connect to, e.g. redis://redis-12000.redislabs.com:12000";
+    private static final String REDIS_URI_DOC = "URI of the Redis Enterprise database to connect to, e.g. redis://redis-12000.redis.com:12000";
 
     public static final String INSECURE = "redis.insecure";
     public static final String INSECURE_DEFAULT = "false";

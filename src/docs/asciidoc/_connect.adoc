@@ -8,7 +8,7 @@ Specify the Redis URI in the `redis.uri` property, for example:
 
 [source,properties]
 ----
-redis.uri=redis://redis-12000.redislabs.com:12000
+redis.uri=redis://redis-12000.redis.com:12000
 ----
 
 Details on the https://github.com/lettuce-io/lettuce-core/wiki/Redis-URI-and-connection-details#uri-syntax[Redis URI syntax] can be found in the Lettuce project https://github.com/lettuce-io/lettuce-core/wiki[wiki].

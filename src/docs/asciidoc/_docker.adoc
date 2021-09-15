@@ -11,11 +11,11 @@ https://docs.docker.com/get-docker/[Docker]
 
 == Run the example
 
-Clone the https://github.com/RedisLabs-Field-Engineering/redis-enterprise-kafka.git[redis-enterprise-kafka] repository and execute `run.sh` in `docker` directory:
+Clone the https://github.com/{github-owner}/{github-repo}.git[{github-repo}] repository and execute `run.sh` in `docker` directory:
 
-[source,bash]
+[source,bash,subs="attributes"]
 ----
-git clone https://github.com/RedisLabs-Field-Engineering/redis-enterprise-kafka.git
+git clone https://github.com/{github-owner}/{github-repo}.git
 cd redis-enterprise-kafka/docker
 ./run.sh
 ----

@@ -1,7 +1,7 @@
 package com.redis.kafka.connect;
 
 import com.redis.kafka.connect.source.RedisEnterpriseSourceConfig;
-import com.redislabs.testcontainers.RedisServer;
+import com.redis.testcontainers.RedisServer;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 

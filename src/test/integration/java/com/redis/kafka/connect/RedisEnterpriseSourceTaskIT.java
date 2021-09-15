@@ -2,7 +2,7 @@ package com.redis.kafka.connect;
 
 import com.redis.kafka.connect.source.RedisEnterpriseSourceConfig;
 import com.redis.kafka.connect.source.RedisEnterpriseSourceTask;
-import com.redislabs.testcontainers.RedisServer;
+import com.redis.testcontainers.RedisServer;
 import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.source.SourceRecord;
 import org.junit.jupiter.api.AfterEach;
