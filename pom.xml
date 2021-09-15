@@ -289,7 +289,7 @@
                 <configuration>
                     <ownerUsername>redis</ownerUsername>
                     <documentationUrl>https://${github.owner}.github.io/${github.repo}/</documentationUrl>
-                    <ownerLogo>src/docs/asciidoc/images/logo-redis.svg</ownerLogo>
+                    <ownerLogo>src/docs/asciidoc/images/redis_logo.svg</ownerLogo>
                     <ownerName>Redis</ownerName>
                     <ownerUrl>https://redis.com</ownerUrl>
                     <sourceUrl>${project.scm.url}</sourceUrl>
