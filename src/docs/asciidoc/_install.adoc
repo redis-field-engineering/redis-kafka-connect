@@ -9,8 +9,8 @@ Download the latest release archive from https://github.com/{github-owner}/{gith
 ====
 Download the connector archive that matches your version of Confluent Platform:
 
-* Confluent Platform 5.0+: `{project-artifact}-*cp5*-{project-version}.zip`
-* Confluent Platform 6.0+: `{project-artifact}-*cp6*-{project-version}.zip`
+* Confluent Platform 5.0+: `{component-owner}-{component-name}-*cp5*-{project-version}.zip`
+* Confluent Platform 6.0+: `{component-owner}-{component-name}-*cp6*-{project-version}.zip`
 ====
 
 == Install using Confluent Hub
