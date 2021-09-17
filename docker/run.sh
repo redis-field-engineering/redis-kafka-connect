@@ -12,7 +12,7 @@ echo "Building the Redis Enterprise Kafka Connector"
 (
 cd ..
 ./mvnw clean package
-find ./target/components/packages -type d -name "redis-redis-enterprise-kafka-cp5-*" -mindepth 2 -maxdepth 2 -exec mv {} ./target/components/packages/redis-enterprise-kafka \;
+find ./target/components/packages -type d -name "redis-redis-enterprise-kafka-5.*" -mindepth 2 -maxdepth 2 -exec mv {} ./target/components/packages/redis-enterprise-kafka \;
 )
 
 echo "Starting docker ."
