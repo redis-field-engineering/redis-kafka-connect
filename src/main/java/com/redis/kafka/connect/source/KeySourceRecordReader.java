@@ -1,6 +1,6 @@
 package com.redis.kafka.connect.source;
 
-import io.lettuce.core.RedisClient;
+import com.redis.lettucemod.RedisModulesClient;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.SchemaBuilder;
 import org.apache.kafka.connect.source.SourceRecord;
@@ -35,7 +35,7 @@ public class KeySourceRecordReader extends AbstractSourceRecordReader<DataStruct
     }
 
     @Override
-    protected void open(RedisClient client) {
+    protected void open(RedisModulesClient client) {
         reader = DataStructureItemReader.client(client).live().idleTimeout(idleTimeout).keyPatterns(sourceConfig.getKeyPatterns().toArray(new String[0])).build();
         reader.open(new ExecutionContext());
     }

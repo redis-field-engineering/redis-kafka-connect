@@ -137,7 +137,7 @@ public class RedisEnterpriseSinkConfig extends RedisEnterpriseConfig {
     }
 
     public enum DataType {
-        HASH, STRING, STREAM, LIST, SET, ZSET
+        HASH, JSON, STRING, STREAM, LIST, SET, ZSET
     }
 
     public enum PushDirection {

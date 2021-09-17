@@ -1,6 +1,6 @@
 package com.redis.kafka.connect.source;
 
-import io.lettuce.core.RedisClient;
+import com.redis.lettucemod.RedisModulesClient;
 import io.lettuce.core.StreamMessage;
 import io.lettuce.core.XReadArgs;
 import org.apache.kafka.connect.data.Schema;
@@ -38,7 +38,7 @@ public class StreamSourceRecordReader extends AbstractSourceRecordReader<StreamM
     }
 
     @Override
-    protected void open(RedisClient client) {
+    protected void open(RedisModulesClient client) {
         XReadArgs.StreamOffset<String> streamOffset = XReadArgs.StreamOffset.from(sourceConfig.getStreamName(), sourceConfig.getStreamOffset());
         reader = StreamItemReader.client(client).offset(streamOffset).block(Duration.ofMillis(sourceConfig.getStreamBlock())).count(sourceConfig.getBatchSize()).consumerGroup(sourceConfig.getStreamConsumerGroup()).consumer(consumer).build();
         reader.open(new ExecutionContext());

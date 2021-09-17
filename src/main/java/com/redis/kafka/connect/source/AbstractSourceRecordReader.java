@@ -1,7 +1,6 @@
 package com.redis.kafka.connect.source;
 
 import com.redis.lettucemod.RedisModulesClient;
-import io.lettuce.core.RedisClient;
 import org.apache.kafka.connect.source.SourceRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,7 +14,7 @@ public abstract class AbstractSourceRecordReader<T> implements SourceRecordReade
     private static final Logger log = LoggerFactory.getLogger(AbstractSourceRecordReader.class);
 
     protected final RedisEnterpriseSourceConfig sourceConfig;
-    private RedisClient client;
+    private RedisModulesClient client;
 
     protected AbstractSourceRecordReader(RedisEnterpriseSourceConfig sourceConfig) {
         Assert.notNull(sourceConfig, "Source connector config must not be null");
@@ -28,7 +27,7 @@ public abstract class AbstractSourceRecordReader<T> implements SourceRecordReade
         open(client);
     }
 
-    protected abstract void open(RedisClient client);
+    protected abstract void open(RedisModulesClient client);
 
     @Override
     public List<SourceRecord> poll() {

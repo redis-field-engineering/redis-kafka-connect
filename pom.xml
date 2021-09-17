@@ -23,11 +23,11 @@
         <asciidoctorj.pdf.version>1.6.0</asciidoctorj.pdf.version>
         <jruby.version>9.2.17.0</jruby.version>
         <junit.version>5.7.1</junit.version>
-        <lettucemod.version>1.7.2</lettucemod.version>
+        <lettucemod.version>1.7.3</lettucemod.version>
         <lombok.version>1.18.20</lombok.version>
         <mockito.version>3.9.0</mockito.version>
         <reactor.version>3.4.6</reactor.version>
-        <spring-batch-redis.version>2.17.1</spring-batch-redis.version>
+        <spring-batch-redis.version>2.17.2</spring-batch-redis.version>
         <slf4j.version>1.7.30</slf4j.version>
         <testcontainers-redis.version>1.3.3</testcontainers-redis.version>
         <testcontainers.version>1.15.3</testcontainers.version>
@@ -269,7 +269,7 @@
                     <descriptorRefs>
                         <descriptorRef>jar-with-dependencies</descriptorRef>
                     </descriptorRefs>
-                    <finalName>${project.name}-${project.version}</finalName>
+                    <finalName>${artifactId}-${project.version}</finalName>
                     <appendAssemblyId>false</appendAssemblyId>
                 </configuration>
                 <executions>
@@ -287,9 +287,10 @@
                 <artifactId>kafka-connect-maven-plugin</artifactId>
                 <version>0.12.0</version>
                 <configuration>
+                    <title>Redis Enterprise Connector</title>
                     <ownerUsername>redis</ownerUsername>
                     <documentationUrl>https://${github.owner}.github.io/${github.repo}/</documentationUrl>
-                    <ownerLogo>src/docs/asciidoc/images/redis_logo.svg</ownerLogo>
+                    <ownerLogo>src/docs/asciidoc/images/redis_logo.png</ownerLogo>
                     <ownerName>Redis</ownerName>
                     <ownerUrl>https://redis.com</ownerUrl>
                     <sourceUrl>${project.scm.url}</sourceUrl>
@@ -317,7 +318,7 @@
                             <goal>kafka-connect</goal>
                         </goals>
                         <configuration>
-                            <title>Redis Enterprise Kafka for Confluent Platform 5.x</title>
+                            <description>Kafka Connect source and sink connectors for Redis Enterprise. It is for Confluent Plaform 5.0 and above</description>
                             <version>cp5-${project.version}</version>
                             <requirements>
                                 <requirement>Confluent Platform 5.0+</requirement>
@@ -332,7 +333,7 @@
                             <goal>kafka-connect</goal>
                         </goals>
                         <configuration>
-                            <title>Redis Enterprise Kafka for Confluent Platform 6.x</title>
+                            <description>Kafka Connect source and sink connectors for Redis Enterprise. It is for Confluent Plaform 6.0 and above</description>
                             <version>cp6-${project.version}</version>
                             <requirements>
                                 <requirement>Confluent Platform 6.0+</requirement>

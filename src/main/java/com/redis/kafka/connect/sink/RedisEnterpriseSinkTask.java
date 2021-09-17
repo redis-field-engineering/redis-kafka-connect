@@ -21,8 +21,8 @@ import com.github.jcustenborder.kafka.connect.utils.jackson.ObjectMapperFactory;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.redis.kafka.connect.RedisEnterpriseSinkConnector;
+import com.redis.lettucemod.RedisModulesClient;
 import io.lettuce.core.KeyValue;
-import io.lettuce.core.RedisClient;
 import io.lettuce.core.api.StatefulRedisConnection;
 import io.lettuce.core.codec.ByteArrayCodec;
 import org.apache.kafka.common.TopicPartition;
@@ -40,6 +40,7 @@ import org.springframework.batch.item.redis.OperationItemWriter;
 import org.springframework.batch.item.redis.support.RedisOperation;
 import org.springframework.batch.item.redis.support.convert.ScoredValueConverter;
 import org.springframework.batch.item.redis.support.operation.Hset;
+import org.springframework.batch.item.redis.support.operation.JsonSet;
 import org.springframework.batch.item.redis.support.operation.Lpush;
 import org.springframework.batch.item.redis.support.operation.Rpush;
 import org.springframework.batch.item.redis.support.operation.Sadd;
@@ -63,7 +64,7 @@ public class RedisEnterpriseSinkTask extends SinkTask {
     private static final Logger log = LoggerFactory.getLogger(RedisEnterpriseSinkTask.class);
     private static final String OFFSET_KEY_FORMAT = "com.redis.kafka.connect.sink.offset.%s.%s";
 
-    private RedisClient client;
+    private RedisModulesClient client;
     private RedisEnterpriseSinkConfig config;
     private Charset charset;
     private OperationItemWriter<byte[], byte[], SinkRecord> writer;
@@ -77,7 +78,7 @@ public class RedisEnterpriseSinkTask extends SinkTask {
     @Override
     public void start(final Map<String, String> props) {
         config = new RedisEnterpriseSinkConfig(props);
-        client = RedisClient.create(config.getRedisURI());
+        client = RedisModulesClient.create(config.getRedisURI());
         connection = client.connect();
         charset = config.getCharset();
         writer = writer(client);
@@ -111,7 +112,7 @@ public class RedisEnterpriseSinkTask extends SinkTask {
         }
     }
 
-    private OperationItemWriter<byte[],byte[], SinkRecord> writer(RedisClient client) {
+    private OperationItemWriter<byte[], byte[], SinkRecord> writer(RedisModulesClient client) {
         OperationItemWriter.OperationItemWriterBuilder<byte[], byte[], SinkRecord> builder = OperationItemWriter.client(client, new ByteArrayCodec()).operation(operation());
         if (Boolean.TRUE.equals(config.isMultiexec())) {
             return builder.transactional().build();
@@ -129,6 +130,8 @@ public class RedisEnterpriseSinkTask extends SinkTask {
                 return Xadd.key(this::collectionKey).body(this::map).build();
             case HASH:
                 return Hset.key(this::key).map(this::map).del(this::isDelete).build();
+            case JSON:
+                return JsonSet.key(this::key).path(".".getBytes(charset)).value(this::value).del(this::isDelete).build();
             case STRING:
                 return Set.key(this::key).value(this::value).del(this::isDelete).build();
             case LIST:

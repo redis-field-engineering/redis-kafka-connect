@@ -1,5 +1,7 @@
 package com.redis.kafka.connect;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.jcustenborder.kafka.connect.utils.SinkRecordHelper;
 import com.redis.kafka.connect.sink.RedisEnterpriseSinkConfig;
 import com.redis.kafka.connect.sink.RedisEnterpriseSinkTask;
@@ -8,6 +10,9 @@ import io.lettuce.core.KeyValue;
 import io.lettuce.core.Range;
 import io.lettuce.core.ScoredValue;
 import io.lettuce.core.StreamMessage;
+import lombok.Builder;
+import lombok.Data;
+import lombok.Singular;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.connect.data.Schema;
@@ -93,6 +98,45 @@ public class RedisEnterpriseSinkTaskIT extends AbstractRedisEnterpriseIT {
             Map<String, String> hash = expected.get(key);
             Map<String, String> actual = syncHash(redis).hgetall(key);
             assertEquals(hash, actual, String.format("Hash for key '%s' does not match.", key));
+        }
+    }
+
+    @Data
+    @Builder
+    private static class Person {
+        private long id;
+        private String name;
+        @Singular
+        private Set<String> hobbies;
+        private Address address;
+    }
+
+    @Data
+    @Builder
+    private static class Address {
+        private String street;
+        private String city;
+        private String state;
+        private String zip;
+    }
+
+    @ParameterizedTest
+    @MethodSource("redisServers")
+    public void putJSON(RedisServer redis) throws JsonProcessingException {
+        String topic = "putJSON";
+        List<Person> persons = new ArrayList<>();
+        persons.add(Person.builder().id(1).name("Bodysnatch Cummerbund").address(Address.builder().city("New York").zip("10013").state("NY").street("150 Mott St").build()).hobby("Fishing").hobby("Singing").build());
+        persons.add(Person.builder().id(2).name("Buffalo Custardbath").address(Address.builder().city("Los Angeles").zip("90001").state("CA").street("123 Sunset Blvd").build()).hobby("Surfing").hobby("Piano").build());
+        persons.add(Person.builder().id(3).name("Bumblesnuff Crimpysnitch").address(Address.builder().city("Chicago").zip("60603").state("IL").street("100 S State St").build()).hobby("Skiing").hobby("Drums").build());
+        List<SinkRecord> records = new ArrayList<>();
+        ObjectMapper mapper = new ObjectMapper();
+        for (Person person : persons) {
+            records.add(SinkRecordHelper.write(topic, new SchemaAndValue(Schema.STRING_SCHEMA, "person:" + person.getId()), new SchemaAndValue(Schema.STRING_SCHEMA, mapper.writeValueAsString(person))));
+        }
+        put(topic, RedisEnterpriseSinkConfig.DataType.JSON, redis, records);
+        for (Person person : persons) {
+            String json = syncJSON(redis).jsonGet("person:" + person.getId());
+            assertEquals(mapper.writeValueAsString(person), json);
         }
     }
 

@@ -1,9 +1,11 @@
 package com.redis.kafka.connect;
 
-import com.redis.testcontainers.RedisContainer;
+import com.redis.lettucemod.RedisModulesClient;
+import com.redis.lettucemod.api.sync.RedisJSONCommands;
+import com.redis.lettucemod.cluster.RedisModulesClusterClient;
+import com.redis.testcontainers.RedisModulesContainer;
 import com.redis.testcontainers.RedisServer;
 import io.lettuce.core.AbstractRedisClient;
-import io.lettuce.core.RedisClient;
 import io.lettuce.core.api.StatefulConnection;
 import io.lettuce.core.api.StatefulRedisConnection;
 import io.lettuce.core.api.async.BaseRedisAsyncCommands;
@@ -17,7 +19,6 @@ import io.lettuce.core.api.sync.RedisSetCommands;
 import io.lettuce.core.api.sync.RedisSortedSetCommands;
 import io.lettuce.core.api.sync.RedisStreamCommands;
 import io.lettuce.core.api.sync.RedisStringCommands;
-import io.lettuce.core.cluster.RedisClusterClient;
 import io.lettuce.core.cluster.api.StatefulRedisClusterConnection;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -36,7 +37,7 @@ import java.util.stream.Stream;
 public class AbstractRedisEnterpriseIT {
 
     @Container
-    private static final RedisContainer REDIS = new RedisContainer().withKeyspaceNotifications();
+    private static final RedisModulesContainer REDIS = new RedisModulesContainer();
 
     static Stream<RedisServer> redisServers() {
         return Stream.of(REDIS);
@@ -52,7 +53,7 @@ public class AbstractRedisEnterpriseIT {
     public void setupEach() {
         for (RedisServer redis : redisServers().collect(Collectors.toList())) {
             if (redis.isCluster()) {
-                RedisClusterClient client = RedisClusterClient.create(redis.getRedisURI());
+                RedisModulesClusterClient client = RedisModulesClusterClient.create(redis.getRedisURI());
                 clients.put(redis, client);
                 StatefulRedisClusterConnection<String, String> connection = client.connect();
                 connections.put(redis, connection);
@@ -60,7 +61,7 @@ public class AbstractRedisEnterpriseIT {
                 asyncs.put(redis, connection.async());
                 reactives.put(redis, connection.reactive());
             } else {
-                RedisClient client = RedisClient.create(redis.getRedisURI());
+                RedisModulesClient client = RedisModulesClient.create(redis.getRedisURI());
                 clients.put(redis, client);
                 StatefulRedisConnection<String, String> connection = client.connect();
                 connections.put(redis, connection);
@@ -96,6 +97,10 @@ public class AbstractRedisEnterpriseIT {
 
     protected RedisHashCommands<String, String> syncHash(RedisServer redis) {
         return ((RedisHashCommands<String, String>) sync(redis));
+    }
+
+    protected RedisJSONCommands<String, String> syncJSON(RedisServer redis) {
+        return ((RedisJSONCommands<String, String>) sync(redis));
     }
 
     protected RedisListCommands<String, String> syncList(RedisServer redis) {
