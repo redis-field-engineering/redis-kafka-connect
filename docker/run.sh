@@ -97,6 +97,24 @@ curl -X POST -H "Content-Type: application/json" --data '
 }}' http://localhost:8083/connectors -w "\n"
 
 sleep 2
+echo -e "\nAdding Redis Enterprise Kafka Sink Connector for the 'pageviews' topic into RedisJSON:"
+curl -X POST -H "Content-Type: application/json" --data '
+  {"name": "redis-enterprise-sink-json",
+   "config": {
+     "connector.class":"com.redis.kafka.connect.RedisEnterpriseSinkConnector",
+     "tasks.max":"1",
+     "topics":"pageviews",
+     "redis.uri":"redis://redis:6379",
+     "redis.type":"JSON",
+     "key.converter": "org.apache.kafka.connect.json.JsonConverter",
+     "value.converter": "org.apache.kafka.connect.storage.StringConverter",
+     "value.converter.schemas.enable": "false",
+     "transforms": "Cast",
+     "transforms.Cast.type": "org.apache.kafka.connect.transforms.Cast$Key",
+     "transforms.Cast.spec": "string"
+}}' http://localhost:8083/connectors -w "\n"
+
+sleep 2
 echo -e "\nAdding Redis Enterprise Kafka Source Connector for the 'mystream' stream:"
 curl -X POST -H "Content-Type: application/json" --data '
   {"name": "redis-enterprise-source",
@@ -129,8 +147,10 @@ Examine the topics in the Kafka UI: http://localhost:9021 or http://localhost:80
   - The `mystream` topic should contain the Redis stream messages.
 The `pageviews` stream in Redis should contain the sunk page views: redis-cli xlen pageviews
 
-Examine the collections:
+Examine the Redis database:
   - In your shell run: docker-compose exec redis /usr/local/bin/redis-cli
+  - List some RedisJSON keys: SCAN 0 TYPE ReJSON-RL
+  - Show the JSON value of a given key: JSON.GET 971
 ==============================================================================================================
 
 Use <ctrl>-c to quit'''
