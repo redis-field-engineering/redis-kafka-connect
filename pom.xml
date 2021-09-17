@@ -367,6 +367,7 @@
                         <project-name>${project.name}</project-name>
                         <project-version>${project.version}</project-version>
                         <sourcedir>${project.build.sourceDirectory}</sourcedir>
+                        <icons>font</icons>
                     </attributes>
                 </configuration>
                 <executions>
@@ -382,7 +383,6 @@
                                 <source-highlighter>highlightjs</source-highlighter>
                                 <toc>left</toc>
                                 <toclevels>2</toclevels>
-                                <icons>font</icons>
                                 <sectanchors>true</sectanchors>
                                 <!-- set the idprefix to blank -->
                                 <idprefix/>
