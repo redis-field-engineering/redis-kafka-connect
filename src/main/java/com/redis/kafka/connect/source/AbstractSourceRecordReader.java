@@ -22,12 +22,12 @@ public abstract class AbstractSourceRecordReader<T> implements SourceRecordReade
     }
 
     @Override
-    public void open() {
+    public void open() throws Exception {
         this.client = RedisModulesClient.create(sourceConfig.getRedisURI());
         open(client);
     }
 
-    protected abstract void open(RedisModulesClient client);
+    protected abstract void open(RedisModulesClient client) throws Exception;
 
     @Override
     public List<SourceRecord> poll() {

@@ -15,54 +15,65 @@
  */
 package com.redis.kafka.connect.source;
 
-import com.redis.kafka.connect.RedisEnterpriseSourceConnector;
-import org.apache.kafka.connect.source.SourceRecord;
-import org.apache.kafka.connect.source.SourceTask;
-
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.kafka.connect.errors.RetriableException;
+import org.apache.kafka.connect.source.SourceRecord;
+import org.apache.kafka.connect.source.SourceTask;
+
+import com.redis.kafka.connect.RedisEnterpriseSourceConnector;
+
 public class RedisEnterpriseSourceTask extends SourceTask {
 
-    public static final String TASK_ID = "task.id";
-    public static final String KEYS_IDLE_TIMEOUT = "keys.idletimeout";
+	public static final String TASK_ID = "task.id";
+	public static final String KEYS_IDLE_TIMEOUT = "keys.idletimeout";
 
-    private SourceRecordReader reader;
+	private SourceRecordReader reader;
 
-    @Override
-    public String version() {
-        return new RedisEnterpriseSourceConnector().version();
-    }
+	@Override
+	public String version() {
+		return new RedisEnterpriseSourceConnector().version();
+	}
 
-    @Override
-    public void start(Map<String, String> props) {
-        this.reader = reader(props);
-        this.reader.open();
-    }
+	public SourceRecordReader getReader() {
+		return reader;
+	}
 
-    private SourceRecordReader reader(Map<String, String> props) {
-        RedisEnterpriseSourceConfig sourceConfig = new RedisEnterpriseSourceConfig(props);
-        if (sourceConfig.getReaderType() == RedisEnterpriseSourceConfig.ReaderType.STREAM) {
-            String taskIdString = props.get(TASK_ID);
-            int taskId = taskIdString == null ? 0 : Integer.parseInt(taskIdString);
-            return new StreamSourceRecordReader(sourceConfig, taskId);
-        }
-        String idleTimeoutString = props.get(KEYS_IDLE_TIMEOUT);
-        return new KeySourceRecordReader(sourceConfig, idleTimeoutString == null ? null : Duration.ofMillis(Long.parseLong(idleTimeoutString)));
-    }
+	@Override
+	public void start(Map<String, String> props) {
+		this.reader = reader(props);
+		try {
+			this.reader.open();
+		} catch (Exception e) {
+			throw new RetriableException("Could not open reader", e);
+		}
+	}
 
-    @Override
-    public void stop() {
-        if (reader != null) {
-            reader.close();
-        }
-    }
+	private SourceRecordReader reader(Map<String, String> props) {
+		RedisEnterpriseSourceConfig sourceConfig = new RedisEnterpriseSourceConfig(props);
+		if (sourceConfig.getReaderType() == RedisEnterpriseSourceConfig.ReaderType.STREAM) {
+			String taskIdString = props.get(TASK_ID);
+			int taskId = taskIdString == null ? 0 : Integer.parseInt(taskIdString);
+			return new StreamSourceRecordReader(sourceConfig, taskId);
+		}
+		String idleTimeoutString = props.get(KEYS_IDLE_TIMEOUT);
+		return new KeySourceRecordReader(sourceConfig,
+				idleTimeoutString == null ? null : Duration.ofMillis(Long.parseLong(idleTimeoutString)));
+	}
 
-    @Override
-    public List<SourceRecord> poll() {
-        return reader.poll();
-        // TODO: return heartbeat if no records
-    }
+	@Override
+	public void stop() {
+		if (reader != null) {
+			reader.close();
+		}
+	}
+
+	@Override
+	public List<SourceRecord> poll() {
+		return reader.poll();
+		// TODO: return heartbeat if no records
+	}
 
 }

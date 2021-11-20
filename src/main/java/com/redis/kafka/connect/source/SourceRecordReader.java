@@ -6,7 +6,7 @@ import java.util.List;
 
 public interface SourceRecordReader {
 
-    void open();
+    void open() throws Exception;
 
     List<SourceRecord> poll();
 
