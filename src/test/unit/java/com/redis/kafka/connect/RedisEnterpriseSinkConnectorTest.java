@@ -8,32 +8,31 @@ import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
 
-public class RedisEnterpriseSinkConnectorTest {
+class RedisEnterpriseSinkConnectorTest {
 
-    @Test
-    public void testConfig() {
-        ConfigDef config = new RedisEnterpriseSinkConnector().config();
-        Assertions.assertNotNull(config);
-    }
+	@Test
+	void testConfig() {
+		ConfigDef config = new RedisEnterpriseSinkConnector().config();
+		Assertions.assertNotNull(config);
+	}
 
-    @Test
-    public void testTask() {
-        Assertions.assertEquals(RedisEnterpriseSinkTask.class, new RedisEnterpriseSinkConnector().taskClass());
-    }
+	@Test
+	void testTask() {
+		Assertions.assertEquals(RedisEnterpriseSinkTask.class, new RedisEnterpriseSinkConnector().taskClass());
+	}
 
-    @Test
-    public void testTaskConfigs() {
-        RedisEnterpriseSinkConnector connector = new RedisEnterpriseSinkConnector();
-        HashMap<String, String> props = new HashMap<>();
-        props.put("field1", "value1");
-        connector.start(props);
-        Assertions.assertEquals(props, connector.taskConfigs(123).get(0));
-    }
+	@Test
+	void testTaskConfigs() {
+		RedisEnterpriseSinkConnector connector = new RedisEnterpriseSinkConnector();
+		HashMap<String, String> props = new HashMap<>();
+		props.put("field1", "value1");
+		connector.start(props);
+		Assertions.assertEquals(props, connector.taskConfigs(123).get(0));
+	}
 
-    @Test
-    public void testVersion() {
-        Assertions.assertEquals(AppInfoParser.getVersion(), new RedisEnterpriseSinkConnector().version());
-    }
-
+	@Test
+	void testVersion() {
+		Assertions.assertEquals(AppInfoParser.getVersion(), new RedisEnterpriseSinkConnector().version());
+	}
 
 }

@@ -25,11 +25,11 @@ import java.util.Map;
 
 public class RedisEnterpriseConfig extends AbstractConfig {
 
-    public static final String REDIS_URI = "redis.uri";
+    public static final String REDIS_URI_CONFIG = "redis.uri";
     private static final String REDIS_URI_DEFAULT = "redis://localhost:6379";
     private static final String REDIS_URI_DOC = "URI of the Redis Enterprise database to connect to, e.g. redis://redis-12000.redis.com:12000";
 
-    public static final String INSECURE = "redis.insecure";
+    public static final String INSECURE_CONFIG = "redis.insecure";
     public static final String INSECURE_DEFAULT = "false";
     public static final String INSECURE_DOC = "Allow insecure connections (e.g. invalid certificates) to Redis Enterprise when using SSL.";
 
@@ -38,8 +38,8 @@ public class RedisEnterpriseConfig extends AbstractConfig {
     }
 
     public RedisURI getRedisURI() {
-        RedisURI uri = RedisURI.create(getString(REDIS_URI));
-        uri.setVerifyPeer(!getBoolean(INSECURE));
+        RedisURI uri = RedisURI.create(getString(REDIS_URI_CONFIG));
+        uri.setVerifyPeer(!getBoolean(INSECURE_CONFIG));
         return uri;
     }
 
@@ -55,8 +55,8 @@ public class RedisEnterpriseConfig extends AbstractConfig {
         }
 
         private void defineConfigs() {
-            define(ConfigKeyBuilder.of(REDIS_URI, ConfigDef.Type.STRING).documentation(REDIS_URI_DOC).defaultValue(REDIS_URI_DEFAULT).importance(ConfigDef.Importance.HIGH).validator(Validators.validURI("redis", "rediss")).build());
-            define(ConfigKeyBuilder.of(INSECURE, ConfigDef.Type.BOOLEAN).documentation(INSECURE_DOC).defaultValue(INSECURE_DEFAULT).importance(ConfigDef.Importance.MEDIUM).build());
+            define(ConfigKeyBuilder.of(REDIS_URI_CONFIG, ConfigDef.Type.STRING).documentation(REDIS_URI_DOC).defaultValue(REDIS_URI_DEFAULT).importance(ConfigDef.Importance.HIGH).validator(Validators.validURI("redis", "rediss")).build());
+            define(ConfigKeyBuilder.of(INSECURE_CONFIG, ConfigDef.Type.BOOLEAN).documentation(INSECURE_DOC).defaultValue(INSECURE_DEFAULT).importance(ConfigDef.Importance.MEDIUM).build());
         }
 
     }

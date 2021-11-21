@@ -50,7 +50,7 @@ class RedisEnterpriseSourceTaskIT extends AbstractTestcontainersRedisTestBase {
 
 	private void startTask(RedisTestContext redis, String... props) {
 		Map<String, String> config = map(props);
-		config.put(RedisEnterpriseSourceConfig.REDIS_URI, redis.getServer().getRedisURI());
+		config.put(RedisEnterpriseSourceConfig.REDIS_URI_CONFIG, redis.getServer().getRedisURI());
 		task.start(config);
 	}
 	
@@ -74,9 +74,9 @@ class RedisEnterpriseSourceTaskIT extends AbstractTestcontainersRedisTestBase {
 	void pollStream(RedisTestContext redis) throws InterruptedException {
 		final String stream = "stream1";
 		final String topicPrefix = "testprefix-";
-		startTask(redis, RedisEnterpriseSourceConfig.TOPIC, topicPrefix + RedisEnterpriseSourceConfig.TOKEN_STREAM,
-				RedisEnterpriseSourceConfig.READER_TYPE, RedisEnterpriseSourceConfig.ReaderType.STREAM.name(),
-				RedisEnterpriseSourceConfig.STREAM_NAME, stream);
+		startTask(redis, RedisEnterpriseSourceConfig.TOPIC_CONFIG, topicPrefix + RedisEnterpriseSourceConfig.TOKEN_STREAM,
+				RedisEnterpriseSourceConfig.READER_CONFIG, RedisEnterpriseSourceConfig.ReaderType.STREAM.name(),
+				RedisEnterpriseSourceConfig.STREAM_NAME_CONFIG, stream);
 		String field1 = "field1";
 		String value1 = "value1";
 		String field2 = "field2";
@@ -106,8 +106,8 @@ class RedisEnterpriseSourceTaskIT extends AbstractTestcontainersRedisTestBase {
 	@RedisTestContextsSource
 	void pollKeys(RedisTestContext redis) throws InterruptedException {
 		String topic = "mytopic";
-		startTask(redis, RedisEnterpriseSourceConfig.READER_TYPE, RedisEnterpriseSourceConfig.ReaderType.KEYS.name(),
-				RedisEnterpriseSourceConfig.STREAM_NAME, "dummy", RedisEnterpriseSourceConfig.TOPIC, topic,
+		startTask(redis, RedisEnterpriseSourceConfig.READER_CONFIG, RedisEnterpriseSourceConfig.ReaderType.KEYS.name(),
+				RedisEnterpriseSourceConfig.STREAM_NAME_CONFIG, "dummy", RedisEnterpriseSourceConfig.TOPIC_CONFIG, topic,
 				RedisEnterpriseSourceTask.KEYS_IDLE_TIMEOUT, "3000");
 		LiveRedisItemReader<String, DataStructure<String>> reader = ((KeySourceRecordReader) task.getReader())
 				.getReader();

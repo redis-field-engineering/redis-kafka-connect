@@ -87,7 +87,7 @@ public class RedisEnterpriseSinkTask extends SinkTask {
 		client = RedisModulesClient.create(config.getRedisURI());
 		connection = client.connect();
 		charset = config.getCharset();
-		writer = writer(client);
+		writer = writer(client).build();
 		writer.open(new ExecutionContext());
 		final java.util.Set<TopicPartition> assignment = this.context.assignment();
 		if (!assignment.isEmpty()) {
@@ -120,13 +120,16 @@ public class RedisEnterpriseSinkTask extends SinkTask {
 		return offsetStates;
 	}
 
-	private RedisItemWriter<byte[], byte[], SinkRecord> writer(RedisModulesClient client) {
-		RedisItemWriterBuilder<byte[], byte[], SinkRecord> writerBuilder = new OperationItemWriterBuilder<>(client,
+	private RedisItemWriterBuilder<byte[], byte[], SinkRecord> writer(RedisModulesClient client) {
+		RedisItemWriterBuilder<byte[], byte[], SinkRecord> builder = new OperationItemWriterBuilder<>(client,
 				new ByteArrayCodec()).operation(operation());
 		if (Boolean.TRUE.equals(config.isMultiexec())) {
-			writerBuilder.multiExec();
+			builder.multiExec();
 		}
-		return writerBuilder.build();
+		if (config.getWaitReplicas() > 0) {
+			builder.waitForReplication(config.getWaitReplicas(), config.getWaitTimeout());
+		}
+		return builder;
 	}
 
 	private String offsetKey(String topic, Integer partition) {
@@ -158,7 +161,7 @@ public class RedisEnterpriseSinkTask extends SinkTask {
 			return Zadd.<byte[], byte[], SinkRecord>key(this::collectionKey)
 					.value(new ScoredValueConverter<>(this::key, this::doubleValue)).build();
 		default:
-			throw new ConfigException(RedisEnterpriseSinkConfig.TYPE, config.getType());
+			throw new ConfigException(RedisEnterpriseSinkConfig.TYPE_CONFIG, config.getType());
 		}
 	}
 

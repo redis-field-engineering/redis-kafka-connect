@@ -93,7 +93,7 @@ class RedisEnterpriseSinkTaskIT extends AbstractTestcontainersRedisTestBase {
 		SinkTaskContext taskContext = mock(SinkTaskContext.class);
 		when(taskContext.assignment()).thenReturn(ImmutableSet.of());
 		this.task.initialize(taskContext);
-		this.task.start(ImmutableMap.of(RedisEnterpriseSinkConfig.REDIS_URI, context.getServer().getRedisURI()));
+		this.task.start(ImmutableMap.of(RedisEnterpriseSinkConfig.REDIS_URI_CONFIG, context.getServer().getRedisURI()));
 	}
 
 	@ParameterizedTest
@@ -103,7 +103,7 @@ class RedisEnterpriseSinkTaskIT extends AbstractTestcontainersRedisTestBase {
 		SinkTaskContext context = mock(SinkTaskContext.class);
 		when(context.assignment()).thenReturn(ImmutableSet.of(new TopicPartition(topic, 1)));
 		this.task.initialize(context);
-		this.task.start(ImmutableMap.of(RedisEnterpriseSinkConfig.REDIS_URI, redis.getServer().getRedisURI()));
+		this.task.start(ImmutableMap.of(RedisEnterpriseSinkConfig.REDIS_URI_CONFIG, redis.getServer().getRedisURI()));
 		this.task.put(ImmutableList.of());
 	}
 
@@ -234,7 +234,7 @@ class RedisEnterpriseSinkTaskIT extends AbstractTestcontainersRedisTestBase {
 			records.add(SinkRecordHelper.write(topic, new SchemaAndValue(Schema.STRING_SCHEMA, member),
 					new SchemaAndValue(Schema.STRING_SCHEMA, member)));
 		}
-		put(topic, RedisEnterpriseSinkConfig.DataType.LIST, redis, records, RedisEnterpriseSinkConfig.PUSH_DIRECTION,
+		put(topic, RedisEnterpriseSinkConfig.DataType.LIST, redis, records, RedisEnterpriseSinkConfig.PUSH_DIRECTION_CONFIG,
 				RedisEnterpriseSinkConfig.PushDirection.RIGHT.name());
 		List<String> actual = redis.sync().lrange(topic, 0, -1);
 		assertEquals(expected, actual);
@@ -354,8 +354,8 @@ class RedisEnterpriseSinkTaskIT extends AbstractTestcontainersRedisTestBase {
 		SinkTaskContext taskContext = mock(SinkTaskContext.class);
 		when(taskContext.assignment()).thenReturn(ImmutableSet.of(new TopicPartition(topic, 1)));
 		task.initialize(taskContext);
-		Map<String, String> propsMap = map(RedisEnterpriseSinkConfig.REDIS_URI, context.getServer().getRedisURI(),
-				RedisEnterpriseSinkConfig.TYPE, type.name());
+		Map<String, String> propsMap = map(RedisEnterpriseSinkConfig.REDIS_URI_CONFIG, context.getServer().getRedisURI(),
+				RedisEnterpriseSinkConfig.TYPE_CONFIG, type.name());
 		propsMap.putAll(map(props));
 		task.start(propsMap);
 		task.put(records);
@@ -368,8 +368,8 @@ class RedisEnterpriseSinkTaskIT extends AbstractTestcontainersRedisTestBase {
 		SinkTaskContext taskContext = mock(SinkTaskContext.class);
 		when(taskContext.assignment()).thenReturn(ImmutableSet.of(new TopicPartition(topic, 1)));
 		this.task.initialize(taskContext);
-		this.task.start(ImmutableMap.of(RedisEnterpriseSinkConfig.REDIS_URI, context.getServer().getRedisURI(),
-				RedisEnterpriseSinkConfig.TYPE, RedisEnterpriseSinkConfig.DataType.STRING.name()));
+		this.task.start(ImmutableMap.of(RedisEnterpriseSinkConfig.REDIS_URI_CONFIG, context.getServer().getRedisURI(),
+				RedisEnterpriseSinkConfig.TYPE_CONFIG, RedisEnterpriseSinkConfig.DataType.STRING.name()));
 
 		int count = 50;
 		Map<String, String> expected = new LinkedHashMap<>(count);

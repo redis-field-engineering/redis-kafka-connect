@@ -69,7 +69,7 @@ public class RedisEnterpriseSourceConnector extends SourceConnector {
 
     private Map<String, String> taskConfig(List<String> patterns) {
         final Map<String, String> taskConfig = new HashMap<>(this.config.originalsStrings());
-        taskConfig.put(RedisEnterpriseSourceConfig.KEY_PATTERNS, String.join(",", patterns));
+        taskConfig.put(RedisEnterpriseSourceConfig.KEY_PATTERNS_CONFIG, String.join(",", patterns));
         return taskConfig;
     }
 
