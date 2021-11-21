@@ -11,7 +11,8 @@ jobs:
     name: Release
     runs-on: ubuntu-18.04
     steps:
-      - uses: actions/checkout@v2
+      - name: Checkout
+        uses: actions/checkout@v2
         with:
           fetch-depth: 0
 
@@ -40,14 +41,16 @@ jobs:
           git push origin master
 
       - name: Build
-        run: ./mvnw --no-transfer-progress -B --file pom.xml verify
+        run: ./mvnw --no-transfer-progress -B --file pom.xml package
 
-      - name: Setup Java for JReleaser
-        uses: actions/setup-java@v1
+      - name: Show Reports
+        uses: actions/upload-artifact@v1
+        if: failure()
         with:
-          java-version: 11
+          name: reports-${{ runner.os }}
+          path: target/
 
-      - name: Run JReleaser
+      - name: Release
         uses: jreleaser/release-action@v1
         env:
           JRELEASER_PROJECT_VERSION: ${{ github.event.inputs.version }}
