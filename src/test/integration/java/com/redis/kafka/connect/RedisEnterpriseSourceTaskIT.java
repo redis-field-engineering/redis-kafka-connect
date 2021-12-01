@@ -32,9 +32,10 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 class RedisEnterpriseSourceTaskIT extends AbstractTestcontainersRedisTestBase {
-	
+
 	@Container
-	private static final RedisContainer REDIS = new RedisContainer().withKeyspaceNotifications();
+	private static final RedisContainer REDIS = new RedisContainer(
+			RedisContainer.DEFAULT_IMAGE_NAME.withTag(RedisContainer.DEFAULT_TAG)).withKeyspaceNotifications();
 
 	@Override
 	protected Collection<RedisServer> servers() {
@@ -53,16 +54,16 @@ class RedisEnterpriseSourceTaskIT extends AbstractTestcontainersRedisTestBase {
 		config.put(RedisEnterpriseSourceConfig.REDIS_URI_CONFIG, redis.getServer().getRedisURI());
 		task.start(config);
 	}
-	
-    protected Map<String, String> map(String... args) {
-        Assert.notNull(args, "Args cannot be null");
-        Assert.isTrue(args.length % 2 == 0, "Args length is not a multiple of 2");
-        Map<String, String> body = new LinkedHashMap<>();
-        for (int index = 0; index < args.length / 2; index++) {
-            body.put(args[index * 2], args[index * 2 + 1]);
-        }
-        return body;
-    }
+
+	protected Map<String, String> map(String... args) {
+		Assert.notNull(args, "Args cannot be null");
+		Assert.isTrue(args.length % 2 == 0, "Args length is not a multiple of 2");
+		Map<String, String> body = new LinkedHashMap<>();
+		for (int index = 0; index < args.length / 2; index++) {
+			body.put(args[index * 2], args[index * 2 + 1]);
+		}
+		return body;
+	}
 
 	@AfterEach
 	public void teardown() {
@@ -74,9 +75,10 @@ class RedisEnterpriseSourceTaskIT extends AbstractTestcontainersRedisTestBase {
 	void pollStream(RedisTestContext redis) throws InterruptedException {
 		final String stream = "stream1";
 		final String topicPrefix = "testprefix-";
-		startTask(redis, RedisEnterpriseSourceConfig.TOPIC_CONFIG, topicPrefix + RedisEnterpriseSourceConfig.TOKEN_STREAM,
-				RedisEnterpriseSourceConfig.READER_CONFIG, RedisEnterpriseSourceConfig.ReaderType.STREAM.name(),
-				RedisEnterpriseSourceConfig.STREAM_NAME_CONFIG, stream);
+		startTask(redis, RedisEnterpriseSourceConfig.TOPIC_CONFIG,
+				topicPrefix + RedisEnterpriseSourceConfig.TOKEN_STREAM, RedisEnterpriseSourceConfig.READER_CONFIG,
+				RedisEnterpriseSourceConfig.ReaderType.STREAM.name(), RedisEnterpriseSourceConfig.STREAM_NAME_CONFIG,
+				stream);
 		String field1 = "field1";
 		String value1 = "value1";
 		String field2 = "field2";
@@ -107,8 +109,8 @@ class RedisEnterpriseSourceTaskIT extends AbstractTestcontainersRedisTestBase {
 	void pollKeys(RedisTestContext redis) throws InterruptedException {
 		String topic = "mytopic";
 		startTask(redis, RedisEnterpriseSourceConfig.READER_CONFIG, RedisEnterpriseSourceConfig.ReaderType.KEYS.name(),
-				RedisEnterpriseSourceConfig.STREAM_NAME_CONFIG, "dummy", RedisEnterpriseSourceConfig.TOPIC_CONFIG, topic,
-				RedisEnterpriseSourceTask.KEYS_IDLE_TIMEOUT, "3000");
+				RedisEnterpriseSourceConfig.STREAM_NAME_CONFIG, "dummy", RedisEnterpriseSourceConfig.TOPIC_CONFIG,
+				topic, RedisEnterpriseSourceTask.KEYS_IDLE_TIMEOUT, "3000");
 		LiveRedisItemReader<String, DataStructure<String>> reader = ((KeySourceRecordReader) task.getReader())
 				.getReader();
 		Awaitility.await().until(reader::isOpen);

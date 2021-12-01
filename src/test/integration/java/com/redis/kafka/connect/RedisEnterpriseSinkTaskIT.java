@@ -56,7 +56,8 @@ import lombok.Singular;
 class RedisEnterpriseSinkTaskIT extends AbstractTestcontainersRedisTestBase {
 
 	@Container
-	private static final RedisModulesContainer REDIS = new RedisModulesContainer();
+	private static final RedisModulesContainer REDIS = new RedisModulesContainer(
+			RedisModulesContainer.DEFAULT_IMAGE_NAME.withTag(RedisModulesContainer.DEFAULT_TAG));
 
 	@Override
 	protected Collection<RedisServer> servers() {
@@ -234,8 +235,8 @@ class RedisEnterpriseSinkTaskIT extends AbstractTestcontainersRedisTestBase {
 			records.add(SinkRecordHelper.write(topic, new SchemaAndValue(Schema.STRING_SCHEMA, member),
 					new SchemaAndValue(Schema.STRING_SCHEMA, member)));
 		}
-		put(topic, RedisEnterpriseSinkConfig.DataType.LIST, redis, records, RedisEnterpriseSinkConfig.PUSH_DIRECTION_CONFIG,
-				RedisEnterpriseSinkConfig.PushDirection.RIGHT.name());
+		put(topic, RedisEnterpriseSinkConfig.DataType.LIST, redis, records,
+				RedisEnterpriseSinkConfig.PUSH_DIRECTION_CONFIG, RedisEnterpriseSinkConfig.PushDirection.RIGHT.name());
 		List<String> actual = redis.sync().lrange(topic, 0, -1);
 		assertEquals(expected, actual);
 	}
@@ -354,8 +355,8 @@ class RedisEnterpriseSinkTaskIT extends AbstractTestcontainersRedisTestBase {
 		SinkTaskContext taskContext = mock(SinkTaskContext.class);
 		when(taskContext.assignment()).thenReturn(ImmutableSet.of(new TopicPartition(topic, 1)));
 		task.initialize(taskContext);
-		Map<String, String> propsMap = map(RedisEnterpriseSinkConfig.REDIS_URI_CONFIG, context.getServer().getRedisURI(),
-				RedisEnterpriseSinkConfig.TYPE_CONFIG, type.name());
+		Map<String, String> propsMap = map(RedisEnterpriseSinkConfig.REDIS_URI_CONFIG,
+				context.getServer().getRedisURI(), RedisEnterpriseSinkConfig.TYPE_CONFIG, type.name());
 		propsMap.putAll(map(props));
 		task.start(propsMap);
 		task.put(records);
