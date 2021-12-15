@@ -26,11 +26,11 @@
 		<jruby.version>9.2.17.0</jruby.version>
 		<junit.version>5.8.1</junit.version>
 		<lettucemod.version>1.8.1</lettucemod.version>
-		<lombok.version>1.18.22</lombok.version>
 		<mockito.version>4.1.0</mockito.version>
-		<reactor.version>3.4.12</reactor.version>
-		<spring-batch-redis.version>2.23.7</spring-batch-redis.version>
-		<slf4j.version>1.7.30</slf4j.version>
+		<reactor.version>3.4.13</reactor.version>
+		<spring-batch-redis.version>2.23.9</spring-batch-redis.version>
+		<spring-batch.version>4.3.4</spring-batch.version>
+		<slf4j.version>1.7.32</slf4j.version>
 		<testcontainers-redis.version>1.4.6</testcontainers-redis.version>
 		<testcontainers.version>1.15.3</testcontainers.version>
 		<component-owner>redis</component-owner>
@@ -98,19 +98,18 @@
 		</dependency>
 		<dependency>
 			<groupId>com.redis</groupId>
-			<artifactId>spring-boot-starter-batch-redis</artifactId>
+			<artifactId>spring-batch-redis</artifactId>
 			<version>${spring-batch-redis.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.batch</groupId>
+			<artifactId>spring-batch-core</artifactId>
+			<version>${spring-batch.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.slf4j</groupId>
 			<artifactId>slf4j-simple</artifactId>
 			<version>${slf4j.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>org.projectlombok</groupId>
-			<artifactId>lombok</artifactId>
-			<version>${lombok.version}</version>
-			<scope>test</scope>
 		</dependency>
 		<dependency>
 			<groupId>com.github.jcustenborder.kafka.connect</groupId>
@@ -199,7 +198,7 @@
 			<plugin>
 				<groupId>org.jacoco</groupId>
 				<artifactId>jacoco-maven-plugin</artifactId>
-				<version>0.8.6</version>
+				<version>0.8.7</version>
 			</plugin>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>

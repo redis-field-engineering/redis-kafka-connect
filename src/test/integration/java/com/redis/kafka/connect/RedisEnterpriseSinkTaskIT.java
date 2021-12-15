@@ -49,9 +49,6 @@ import io.lettuce.core.KeyValue;
 import io.lettuce.core.Range;
 import io.lettuce.core.ScoredValue;
 import io.lettuce.core.StreamMessage;
-import lombok.Builder;
-import lombok.Data;
-import lombok.Singular;
 
 class RedisEnterpriseSinkTaskIT extends AbstractTestcontainersRedisTestBase {
 
@@ -130,23 +127,85 @@ class RedisEnterpriseSinkTaskIT extends AbstractTestcontainersRedisTestBase {
 		}
 	}
 
-	@Data
-	@Builder
 	private static class Person {
 		private long id;
 		private String name;
-		@Singular
-		private Set<String> hobbies;
+		private Set<String> hobbies = new HashSet<>();
 		private Address address;
+
+		public long getId() {
+			return id;
+		}
+
+		public void setId(long id) {
+			this.id = id;
+		}
+
+		public String getName() {
+			return name;
+		}
+
+		public void setName(String name) {
+			this.name = name;
+		}
+
+		public Set<String> getHobbies() {
+			return hobbies;
+		}
+
+		public void setHobbies(Set<String> hobbies) {
+			this.hobbies = hobbies;
+		}
+
+		public Address getAddress() {
+			return address;
+		}
+
+		public void setAddress(Address address) {
+			this.address = address;
+		}
+
 	}
 
-	@Data
-	@Builder
 	private static class Address {
+
 		private String street;
 		private String city;
 		private String state;
 		private String zip;
+
+		public String getStreet() {
+			return street;
+		}
+
+		public void setStreet(String street) {
+			this.street = street;
+		}
+
+		public String getCity() {
+			return city;
+		}
+
+		public void setCity(String city) {
+			this.city = city;
+		}
+
+		public String getState() {
+			return state;
+		}
+
+		public void setState(String state) {
+			this.state = state;
+		}
+
+		public String getZip() {
+			return zip;
+		}
+
+		public void setZip(String zip) {
+			this.zip = zip;
+		}
+
 	}
 
 	@ParameterizedTest
@@ -154,15 +213,39 @@ class RedisEnterpriseSinkTaskIT extends AbstractTestcontainersRedisTestBase {
 	void putJSON(RedisTestContext redis) throws JsonProcessingException {
 		String topic = "putJSON";
 		List<Person> persons = new ArrayList<>();
-		persons.add(Person.builder().id(1).name("Bodysnatch Cummerbund")
-				.address(Address.builder().city("New York").zip("10013").state("NY").street("150 Mott St").build())
-				.hobby("Fishing").hobby("Singing").build());
-		persons.add(Person.builder().id(2).name("Buffalo Custardbath").address(
-				Address.builder().city("Los Angeles").zip("90001").state("CA").street("123 Sunset Blvd").build())
-				.hobby("Surfing").hobby("Piano").build());
-		persons.add(Person.builder().id(3).name("Bumblesnuff Crimpysnitch")
-				.address(Address.builder().city("Chicago").zip("60603").state("IL").street("100 S State St").build())
-				.hobby("Skiing").hobby("Drums").build());
+		Person person1 = new Person();
+		person1.setId(1);
+		person1.setName("Bodysnitch Canderbunt");
+		person1.setHobbies(new HashSet<>(Arrays.asList("Fishing", "Singing")));
+		Address address1 = new Address();
+		address1.setCity("New York");
+		address1.setZip("10013");
+		address1.setState("NY");
+		address1.setStreet("150 Mott St");
+		person1.setAddress(address1);
+		persons.add(person1);
+		Person person2 = new Person();
+		person2.setId(2);
+		person2.setName("Buffalo Custardbath");
+		person2.setHobbies(new HashSet<>(Arrays.asList("Surfing", "Piano")));
+		Address address2 = new Address();
+		address2.setCity("Los Angeles");
+		address2.setZip("90001");
+		address2.setState("CA");
+		address2.setStreet("123 Sunset Blvd");
+		person2.setAddress(address2);
+		persons.add(person2);
+		Person person3 = new Person();
+		person3.setId(3);
+		person3.setName("Bumblesnuff Crimpysnitch");
+		person3.setHobbies(new HashSet<>(Arrays.asList("Skiing", "Drums")));
+		Address address3 = new Address();
+		address3.setCity("Chicago");
+		address3.setZip("60603");
+		address3.setState("IL");
+		address3.setStreet("100 S State St");
+		person3.setAddress(address3);
+		persons.add(person3);
 		List<SinkRecord> records = new ArrayList<>();
 		ObjectMapper mapper = new ObjectMapper();
 		for (Person person : persons) {
