@@ -629,10 +629,10 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <p><a href="#sink-tasks">Multiple tasks</a></p>
 </li>
 <li>
-<p><a href="#data-formats">Supported Data Formats</a></p>
+<p><a href="#data-structures">Redis Data Structures</a></p>
 </li>
 <li>
-<p><a href="#data-structures">Redis Data Structures</a></p>
+<p><a href="#data-formats">Supported Data Formats</a></p>
 </li>
 </ul>
 </div>
@@ -649,192 +649,21 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 </div>
 </div>
 <div class="sect3">
-<h4 id="data-formats"><a class="anchor" href="#data-formats"></a>Data Formats</h4>
-<div class="paragraph">
-<p>The Redis Enterprise Kafka Sink Connector supports different data formats for record keys and values depending on the target Redis data structure.</p>
-</div>
-<div class="sect4">
-<h5 id="kafka-record-keys"><a class="anchor" href="#kafka-record-keys"></a>Kafka Record Keys</h5>
-<div class="paragraph">
-<p>The Redis Enterprise Kafka Sink Connector expects Kafka record keys in a specific format depending on the configured target <a href="#data-structures">Redis data structure</a>:</p>
-</div>
-<table class="tableblock frame-all grid-all stretch">
-<colgroup>
-<col style="width: 33.3333%;">
-<col style="width: 33.3333%;">
-<col style="width: 33.3334%;">
-</colgroup>
-<thead>
-<tr>
-<th class="tableblock halign-left valign-top">Target</th>
-<th class="tableblock halign-left valign-top">Record Key</th>
-<th class="tableblock halign-left valign-top">Assigned To</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Stream</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Any</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">None</p></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Hash</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">String</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Key</p></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">String</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="#key-string">String</a> or <a href="#key-bytes">bytes</a></p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Key</p></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">List</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="#key-string">String</a> or <a href="#key-bytes">bytes</a></p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Member</p></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Set</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="#key-string">String</a> or <a href="#key-bytes">bytes</a></p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Member</p></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Sorted Set</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="#key-string">String</a> or <a href="#key-bytes">bytes</a></p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Member</p></td>
-</tr>
-</tbody>
-</table>
-<div class="sect5">
-<h6 id="key-string"><a class="anchor" href="#key-string"></a>StringConverter</h6>
-<div class="paragraph">
-<p>If record keys are already serialized as strings use the StringConverter:</p>
-</div>
-<div class="listingblock">
-<div class="content">
-<pre class="highlightjs highlight"><code data-lang="properties" class="language-properties hljs">key.converter=org.apache.kafka.connect.storage.StringConverter</code></pre>
-</div>
-</div>
-</div>
-<div class="sect5">
-<h6 id="key-bytes"><a class="anchor" href="#key-bytes"></a>ByteArrayConverter</h6>
-<div class="paragraph">
-<p>Use the byte array converter to use the binary serialized form of the Kafka record keys:</p>
-</div>
-<div class="listingblock">
-<div class="content">
-<pre class="highlightjs highlight"><code data-lang="properties" class="language-properties hljs">key.converter=org.apache.kafka.connect.converters.ByteArrayConverter</code></pre>
-</div>
-</div>
-</div>
-</div>
-<div class="sect4">
-<h5 id="kafka-record-values"><a class="anchor" href="#kafka-record-values"></a>Kafka Record Values</h5>
-<div class="paragraph">
-<p>Multiple data formats are supported for Kafka record values depending on the configured target <a href="#data-structures">Redis data structure</a>. Each data structure expects a specific format. If your data in Kafka is not in the format expected for a given data structure, consider using <a href="https://docs.confluent.io/platform/current/connect/transforms/overview.html">Single Message Transformations</a> to convert to a byte array, string, Struct, or map before it is written to Redis.</p>
-</div>
-<table class="tableblock frame-all grid-all stretch">
-<colgroup>
-<col style="width: 33.3333%;">
-<col style="width: 33.3333%;">
-<col style="width: 33.3334%;">
-</colgroup>
-<thead>
-<tr>
-<th class="tableblock halign-left valign-top">Target</th>
-<th class="tableblock halign-left valign-top">Record Value</th>
-<th class="tableblock halign-left valign-top">Assigned To</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Stream</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="#avro">Avro</a> or <a href="#json">JSON</a></p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Message body</p></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Hash</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="#avro">Avro</a> or <a href="#json">JSON</a></p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Fields</p></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">String</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="#value-string">String</a> or <a href="#value-bytes">bytes</a></p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Value</p></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">List</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Any</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Removal if null</p></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Set</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Any</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Removal if null</p></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Sorted Set</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Float64</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Score or removal if null</p></td>
-</tr>
-</tbody>
-</table>
-<div class="sect5">
-<h6 id="value-string"><a class="anchor" href="#value-string"></a>StringConverter</h6>
-<div class="paragraph">
-<p>If record values are already serialized as strings, use the StringConverter to store values in Redis as strings:</p>
-</div>
-<div class="listingblock">
-<div class="content">
-<pre class="highlightjs highlight"><code data-lang="properties" class="language-properties hljs">value.converter=org.apache.kafka.connect.storage.StringConverter</code></pre>
-</div>
-</div>
-</div>
-<div class="sect5">
-<h6 id="value-bytes"><a class="anchor" href="#value-bytes"></a>ByteArrayConverter</h6>
-<div class="paragraph">
-<p>Use the byte array converter to store the binary serialized form (for example, JSON, Avro, Strings, etc.) of the Kafka record values in Redis as byte arrays:</p>
-</div>
-<div class="listingblock">
-<div class="content">
-<pre class="highlightjs highlight"><code data-lang="properties" class="language-properties hljs">value.converter=org.apache.kafka.connect.converters.ByteArrayConverter</code></pre>
-</div>
-</div>
-</div>
-<div class="sect5">
-<h6 id="avro"><a class="anchor" href="#avro"></a>Avro</h6>
-<div class="listingblock">
-<div class="content">
-<pre class="highlightjs highlight"><code data-lang="properties" class="language-properties hljs">value.converter=io.confluent.connect.avro.AvroConverter
-value.converter.schema.registry.url=http://localhost:8081</code></pre>
-</div>
-</div>
-</div>
-<div class="sect5">
-<h6 id="json"><a class="anchor" href="#json"></a>JSON</h6>
-<div class="listingblock">
-<div class="content">
-<pre class="highlightjs highlight"><code data-lang="properties" class="language-properties hljs">value.converter=org.apache.kafka.connect.json.JsonConverter
-value.converter.schemas.enable=&lt;true|false&gt; <i class="conum" data-value="1"></i><b>(1)</b></code></pre>
-</div>
-</div>
-<div class="colist arabic">
-<table>
-<tr>
-<td><i class="conum" data-value="1"></i><b>1</b></td>
-<td>Set to <code>true</code> if the JSON record structure has an attached schema</td>
-</tr>
-</table>
-</div>
-</div>
-</div>
-</div>
-<div class="sect3">
 <h4 id="data-structures"><a class="anchor" href="#data-structures"></a>Redis Data Structures</h4>
 <div class="paragraph">
-<p>Record keys and values have different roles depending on the target data structure:</p>
+<p>Record keys and values have different roles depending on the target data structure.</p>
 </div>
-<div id="collection-key" class="paragraph">
-<p>For collections (stream, list, set, sorted set) a single key is used which is independent of the record key. Use the <code>redis.key</code> configuration property (default: <code>${topic}</code>) to specify a format string for the destination collection, which may contain <code>${topic}</code> as a placeholder for the originating topic name. For example <code>kafka_${topic}</code> for the topic <code>orders</code> will map to the Redis key <code>kafka_orders</code></p>
+<div class="sect4">
+<h5 id="collection-key"><a class="anchor" href="#collection-key"></a>Collections</h5>
+<div class="paragraph">
+<p>For collections (stream, list, set, sorted set, timeseries) a single key is used which is independent of the record key.</p>
+</div>
+<div class="paragraph">
+<p>Use the <code>redis.key</code> configuration property (default: <code>${topic}</code>) to specify a format string for the destination collection, which may contain <code>${topic}</code> as a placeholder for the originating topic name.</p>
+</div>
+<div class="paragraph">
+<p>For example <code>kafka_${topic}</code> for the topic <code>orders</code> will map to the Redis key <code>kafka_orders</code>.</p>
+</div>
 </div>
 <div class="sect4">
 <h5 id="stream"><a class="anchor" href="#stream"></a>Stream</h5>
@@ -997,7 +826,258 @@ key.converter=&lt;string or bytes&gt; <i class="conum" data-value="2"></i><b>(2)
 </table>
 </div>
 <div class="paragraph">
-<p>The Kafka record value should be Float64 and is used for the score. If the score is null then the member is removed from the sorted set (instead of added to the sorted set).</p>
+<p>The Kafka record value should be <code>float64</code> and is used for the score. If the score is null then the member is removed from the sorted set (instead of added to the sorted set).</p>
+</div>
+</div>
+<div class="sect4">
+<h5 id="json"><a class="anchor" href="#json"></a>JSON</h5>
+<div class="paragraph">
+<p>Use the following properties to write Kafka records as RedisJSON documents:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code data-lang="properties" class="language-properties hljs">redis.type=JSON
+key.converter=&lt;string or bytes&gt; <i class="conum" data-value="1"></i><b>(1)</b>
+value.converter=&lt;string or bytes&gt; <i class="conum" data-value="2"></i><b>(2)</b></code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td><a href="#key-string">String</a> or <a href="#key-bytes">bytes</a></td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td><a href="#value-string">String</a> or <a href="#value-bytes">bytes</a>. If value is null the key is <a href="https://redis.io/commands/del">deleted</a>.</td>
+</tr>
+</table>
+</div>
+</div>
+<div class="sect4">
+<h5 id="timeseries"><a class="anchor" href="#timeseries"></a>TimeSeries</h5>
+<div class="paragraph">
+<p>Use the following properties to write Kafka records as RedisTimeSeries samples:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code data-lang="properties" class="language-properties hljs">redis.type=TIMESERIES
+redis.key=&lt;key name&gt; <i class="conum" data-value="1"></i><b>(1)</b></code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td><a href="#collection-key">Timeseries key</a></td>
+</tr>
+</table>
+</div>
+<div class="paragraph">
+<p>The Kafka record key must be an integer (e.g. <code>int64</code>) as it is used for the sample time in milliseconds.</p>
+</div>
+<div class="paragraph">
+<p>The Kafka record value must be a number (e.g. <code>float64</code>) as it is used as the sample value.</p>
+</div>
+</div>
+</div>
+<div class="sect3">
+<h4 id="data-formats"><a class="anchor" href="#data-formats"></a>Data Formats</h4>
+<div class="paragraph">
+<p>The Redis Enterprise Kafka Sink Connector supports different data formats for record keys and values depending on the target Redis data structure.</p>
+</div>
+<div class="sect4">
+<h5 id="kafka-record-keys"><a class="anchor" href="#kafka-record-keys"></a>Kafka Record Keys</h5>
+<div class="paragraph">
+<p>The Redis Enterprise Kafka Sink Connector expects Kafka record keys in a specific format depending on the configured target <a href="#data-structures">Redis data structure</a>:</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 33.3333%;">
+<col style="width: 33.3333%;">
+<col style="width: 33.3334%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Target</th>
+<th class="tableblock halign-left valign-top">Record Key</th>
+<th class="tableblock halign-left valign-top">Assigned To</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<th class="tableblock halign-left valign-top"><p class="tableblock">Stream</p></th>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Any</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">None</p></td>
+</tr>
+<tr>
+<th class="tableblock halign-left valign-top"><p class="tableblock">Hash</p></th>
+<td class="tableblock halign-left valign-top"><p class="tableblock">String</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Key</p></td>
+</tr>
+<tr>
+<th class="tableblock halign-left valign-top"><p class="tableblock">String</p></th>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="#key-string">String</a> or <a href="#key-bytes">bytes</a></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Key</p></td>
+</tr>
+<tr>
+<th class="tableblock halign-left valign-top"><p class="tableblock">List</p></th>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="#key-string">String</a> or <a href="#key-bytes">bytes</a></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Member</p></td>
+</tr>
+<tr>
+<th class="tableblock halign-left valign-top"><p class="tableblock">Set</p></th>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="#key-string">String</a> or <a href="#key-bytes">bytes</a></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Member</p></td>
+</tr>
+<tr>
+<th class="tableblock halign-left valign-top"><p class="tableblock">Sorted Set</p></th>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="#key-string">String</a> or <a href="#key-bytes">bytes</a></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Member</p></td>
+</tr>
+<tr>
+<th class="tableblock halign-left valign-top"><p class="tableblock">JSON</p></th>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="#key-string">String</a> or <a href="#key-bytes">bytes</a></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Key</p></td>
+</tr>
+<tr>
+<th class="tableblock halign-left valign-top"><p class="tableblock">TimeSeries</p></th>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Integer</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Sample time in milliseconds</p></td>
+</tr>
+</tbody>
+</table>
+<div class="sect5">
+<h6 id="key-string"><a class="anchor" href="#key-string"></a>StringConverter</h6>
+<div class="paragraph">
+<p>If record keys are already serialized as strings use the StringConverter:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code data-lang="properties" class="language-properties hljs">key.converter=org.apache.kafka.connect.storage.StringConverter</code></pre>
+</div>
+</div>
+</div>
+<div class="sect5">
+<h6 id="key-bytes"><a class="anchor" href="#key-bytes"></a>ByteArrayConverter</h6>
+<div class="paragraph">
+<p>Use the byte array converter to use the binary serialized form of the Kafka record keys:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code data-lang="properties" class="language-properties hljs">key.converter=org.apache.kafka.connect.converters.ByteArrayConverter</code></pre>
+</div>
+</div>
+</div>
+</div>
+<div class="sect4">
+<h5 id="kafka-record-values"><a class="anchor" href="#kafka-record-values"></a>Kafka Record Values</h5>
+<div class="paragraph">
+<p>Multiple data formats are supported for Kafka record values depending on the configured target <a href="#data-structures">Redis data structure</a>. Each data structure expects a specific format. If your data in Kafka is not in the format expected for a given data structure, consider using <a href="https://docs.confluent.io/platform/current/connect/transforms/overview.html">Single Message Transformations</a> to convert to a byte array, string, Struct, or map before it is written to Redis.</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 33.3333%;">
+<col style="width: 33.3333%;">
+<col style="width: 33.3334%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Target</th>
+<th class="tableblock halign-left valign-top">Record Value</th>
+<th class="tableblock halign-left valign-top">Assigned To</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<th class="tableblock halign-left valign-top"><p class="tableblock">Stream</p></th>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="#avro">Avro</a> or <a href="#json">JSON</a></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Message body</p></td>
+</tr>
+<tr>
+<th class="tableblock halign-left valign-top"><p class="tableblock">Hash</p></th>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="#avro">Avro</a> or <a href="#json">JSON</a></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Fields</p></td>
+</tr>
+<tr>
+<th class="tableblock halign-left valign-top"><p class="tableblock">String</p></th>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="#value-string">String</a> or <a href="#value-bytes">bytes</a></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Value</p></td>
+</tr>
+<tr>
+<th class="tableblock halign-left valign-top"><p class="tableblock">List</p></th>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Any</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Removal if null</p></td>
+</tr>
+<tr>
+<th class="tableblock halign-left valign-top"><p class="tableblock">Set</p></th>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Any</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Removal if null</p></td>
+</tr>
+<tr>
+<th class="tableblock halign-left valign-top"><p class="tableblock">Sorted Set</p></th>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Number</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Score or removal if null</p></td>
+</tr>
+<tr>
+<th class="tableblock halign-left valign-top"><p class="tableblock">JSON</p></th>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="#value-string">String</a> or <a href="#value-bytes">bytes</a></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Value</p></td>
+</tr>
+<tr>
+<th class="tableblock halign-left valign-top"><p class="tableblock">TimeSeries</p></th>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Number</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Sample value</p></td>
+</tr>
+</tbody>
+</table>
+<div class="sect5">
+<h6 id="value-string"><a class="anchor" href="#value-string"></a>StringConverter</h6>
+<div class="paragraph">
+<p>If record values are already serialized as strings, use the StringConverter to store values in Redis as strings:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code data-lang="properties" class="language-properties hljs">value.converter=org.apache.kafka.connect.storage.StringConverter</code></pre>
+</div>
+</div>
+</div>
+<div class="sect5">
+<h6 id="value-bytes"><a class="anchor" href="#value-bytes"></a>ByteArrayConverter</h6>
+<div class="paragraph">
+<p>Use the byte array converter to store the binary serialized form (for example, JSON, Avro, Strings, etc.) of the Kafka record values in Redis as byte arrays:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code data-lang="properties" class="language-properties hljs">value.converter=org.apache.kafka.connect.converters.ByteArrayConverter</code></pre>
+</div>
+</div>
+</div>
+<div class="sect5">
+<h6 id="avro"><a class="anchor" href="#avro"></a>Avro</h6>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code data-lang="properties" class="language-properties hljs">value.converter=io.confluent.connect.avro.AvroConverter
+value.converter.schema.registry.url=http://localhost:8081</code></pre>
+</div>
+</div>
+</div>
+<div class="sect5">
+<h6 id="json"><a class="anchor" href="#json"></a>JSON</h6>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code data-lang="properties" class="language-properties hljs">value.converter=org.apache.kafka.connect.json.JsonConverter
+value.converter.schemas.enable=&lt;true|false&gt; <i class="conum" data-value="1"></i><b>(1)</b></code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>Set to <code>true</code> if the JSON record structure has an attached schema</td>
+</tr>
+</table>
+</div>
 </div>
 </div>
 </div>
@@ -1313,7 +1393,7 @@ xread COUNT 10 STREAMS pageviews 0</code></pre>
 <div id="footer">
 <div id="footer-text">
 Version 6.4<br>
-Last updated 2021-12-16 02:17:42 UTC
+Last updated 2022-01-12 18:23:04 UTC
 </div>
 </div>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.15.6/styles/github.min.css">
