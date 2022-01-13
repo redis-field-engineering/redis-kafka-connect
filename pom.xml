@@ -344,6 +344,14 @@
 				</dependencies>
 				<configuration>
 					<attributes>
+						<icons>font</icons>
+						<sectanchors>true</sectanchors>
+						<source-highlighter>coderay</source-highlighter>
+						<coderay-linenums-mode>table</coderay-linenums-mode>
+						<toc>left</toc>
+						<numbered>true</numbered>
+						<linkattrs>true</linkattrs>
+						<linkcss>true</linkcss>
 						<github-owner>${github.owner}</github-owner>
 						<github-repo>${github.repo}</github-repo>
 						<component-owner>${component-owner}</component-owner>
@@ -352,7 +360,6 @@
 						<project-name>${project.name}</project-name>
 						<project-version>${project.version}</project-version>
 						<sourcedir>${project.build.sourceDirectory}</sourcedir>
-						<icons>font</icons>
 					</attributes>
 				</configuration>
 				<executions>

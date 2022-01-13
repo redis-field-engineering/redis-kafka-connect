@@ -1,3 +1,4 @@
+[[sink]]
 = Sink Connector Guide
 :name: Redis Enterprise Kafka Sink Connector
 

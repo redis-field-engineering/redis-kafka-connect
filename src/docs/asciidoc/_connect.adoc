@@ -1,4 +1,5 @@
-= Connect to Redis Enterprise
+[[connect]]
+= Connect to Redis
 
 This section provides information on configuring the Redis Enterprise Kafka Source or Sink Connector to connect to Redis Enterprise.
 

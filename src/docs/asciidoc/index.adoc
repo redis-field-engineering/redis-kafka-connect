@@ -16,23 +16,18 @@ This guide provides documentation and usage information across the following top
 * <<sink,Sink Connector>>
 * <<source,Source Connector>>
 * <<docker,Docker Example>>
-* <<links,Resources>>
+* <<resources,Resources>>
 
 :leveloffset: 1
-[[install]]
+
 include::_install.adoc[]
 
-[[connect]]
 include::_connect.adoc[]
 
-[[sink]]
 include::_sink.adoc[]
 
-[[source]]
 include::_source.adoc[]
 
-[[docker]]
 include::_docker.adoc[]
 
-[[links]]
-include::_links.adoc[]
+include::_resources.adoc[]

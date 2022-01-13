@@ -1,3 +1,4 @@
+[[source]]
 = Source Connector Guide
 :name: Redis Enterprise Kafka Source Connector
 

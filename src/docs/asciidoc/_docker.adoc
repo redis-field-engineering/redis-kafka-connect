@@ -1,3 +1,4 @@
+[[docker]]
 = Quick Start with Docker
 
 This guide provides a hands-on look at the functionality of the Redis Enterprise Kafka Source and Sink Connectors:
@@ -13,7 +14,7 @@ https://docs.docker.com/get-docker/[Docker]
 
 Clone the https://github.com/{github-owner}/{github-repo}.git[{github-repo}] repository and execute `run.sh` in `docker` directory:
 
-[source,bash,subs="attributes"]
+[source,console,subs="attributes"]
 ----
 git clone https://github.com/{github-owner}/{github-repo}.git
 cd redis-enterprise-kafka/docker
@@ -44,7 +45,7 @@ include::resources/pageviews.json[]
 * The `pageviews` stream should contain the 10 change events.
 
 Examine the stream in Redis:
-[source,bash]
+[source,console]
 ----
 docker-compose exec redis /usr/local/bin/redis-cli
 xread COUNT 10 STREAMS pageviews 0
