@@ -47,7 +47,7 @@ value.converter=<Avro or JSON> <2>
 ----
 
 <1> <<collection-key,Stream key>>
-<2> <<avro,Avro>> or <<json,JSON>>
+<2> <<avro,Avro>> or <<kafka-json,JSON>>
 
 ==== Hash
 Use the following properties to write Kafka records as Redis hashes:
@@ -60,7 +60,7 @@ value.converter=<Avro or JSON> <2>
 ----
 
 <1> <<key-string,String>> or <<key-bytes,bytes>>
-<2> <<avro,Avro>> or <<json,JSON>>. If value is null the key is https://redis.io/commands/del[deleted].
+<2> <<avro,Avro>> or <<kafka-json,JSON>>. If value is null the key is https://redis.io/commands/del[deleted].
 
 ==== String
 Use the following properties to write Kafka records as Redis strings:
@@ -122,6 +122,7 @@ key.converter=<string or bytes> <2>
 
 The Kafka record value should be `float64` and is used for the score. If the score is null then the member is removed from the sorted set (instead of added to the sorted set).
 
+[[redisjson]]
 ==== JSON
 Use the following properties to write Kafka records as RedisJSON documents:
 
@@ -197,8 +198,8 @@ Multiple data formats are supported for Kafka record values depending on the con
 [options="header",cols="h,1,1"]
 |====
 |Target|Record Value|Assigned To
-|Stream|<<avro,Avro>> or <<json,JSON>>|Message body
-|Hash|<<avro,Avro>> or <<json,JSON>>|Fields
+|Stream|<<avro,Avro>> or <<kafka-json,JSON>>|Message body
+|Hash|<<avro,Avro>> or <<kafka-json,JSON>>|Fields
 |String|<<value-string,String>> or <<value-bytes,bytes>>|Value
 |List|Any|Removal if null
 |Set|Any|Removal if null
@@ -233,7 +234,7 @@ value.converter=io.confluent.connect.avro.AvroConverter
 value.converter.schema.registry.url=http://localhost:8081
 ----
 
-[[json]]
+[[kafka-json]]
 ===== JSON
 [source,properties]
 ----
