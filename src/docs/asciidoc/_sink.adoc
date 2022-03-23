@@ -20,7 +20,8 @@ The {name} guarantees that records from the Kafka topic are delivered at least o
 [[sink-tasks]]
 === Multiples tasks
 
-The {name} supports running one or more tasks. You can specify the number of tasks with the `tasks.max` configuration property.
+The {name} supports running one or more tasks.
+You can specify the number of tasks with the `tasks.max` configuration property.
 
 [[data-structures]]
 === Redis Data Structures
@@ -60,7 +61,8 @@ value.converter=<Avro or JSON> <2>
 ----
 
 <1> <<key-string,String>> or <<key-bytes,bytes>>
-<2> <<avro,Avro>> or <<kafka-json,JSON>>. If value is null the key is https://redis.io/commands/del[deleted].
+<2> <<avro,Avro>> or <<kafka-json,JSON>>.
+If value is null the key is https://redis.io/commands/del[deleted].
 
 ==== String
 Use the following properties to write Kafka records as Redis strings:
@@ -73,7 +75,8 @@ value.converter=<string or bytes> <2>
 ----
 
 <1> <<key-string,String>> or <<key-bytes,bytes>>
-<2> <<value-string,String>> or <<value-bytes,bytes>>. If value is null the key is https://redis.io/commands/del[deleted].
+<2> <<value-string,String>> or <<value-bytes,bytes>>.
+If value is null the key is https://redis.io/commands/del[deleted].
 
 ==== List
 Use the following properties to add Kafka record keys to a Redis list:
@@ -90,7 +93,8 @@ redis.push.direction=<LEFT or RIGHT> <3>
 <2> <<key-string,String>> or <<key-bytes,bytes>>: Kafka record keys to push to the list
 <3> `LEFT`: LPUSH (default), `RIGHT`: RPUSH
 
-The Kafka record value can be any format. If a value is null then the member is removed from the list (instead of pushed to the list).
+The Kafka record value can be any format.
+If a value is null then the member is removed from the list (instead of pushed to the list).
 
 ==== Set
 Use the following properties to add Kafka record keys to a Redis set:
@@ -105,7 +109,8 @@ key.converter=<string or bytes> <2>
 <1> <<collection-key,Set key>>
 <2> <<key-string,String>> or <<key-bytes,bytes>>: Kafka record keys to add to the set
 
-The Kafka record value can be any format. If a value is null then the member is removed from the set (instead of added to the set).
+The Kafka record value can be any format.
+If a value is null then the member is removed from the set (instead of added to the set).
 
 ==== Sorted Set
 Use the following properties to add Kafka record keys to a Redis sorted set:
@@ -120,7 +125,8 @@ key.converter=<string or bytes> <2>
 <1> <<collection-key,Sorted set key>>
 <2> <<key-string,String>> or <<key-bytes,bytes>>: Kafka record keys to add to the set
 
-The Kafka record value should be `float64` and is used for the score. If the score is null then the member is removed from the sorted set (instead of added to the sorted set).
+The Kafka record value should be `float64` and is used for the score.
+If the score is null then the member is removed from the sorted set (instead of added to the sorted set).
 
 [[redisjson]]
 ==== JSON
@@ -134,7 +140,8 @@ value.converter=<string or bytes> <2>
 ----
 
 <1> <<key-string,String>> or <<key-bytes,bytes>>
-<2> <<value-string,String>> or <<value-bytes,bytes>>. If value is null the key is https://redis.io/commands/del[deleted].
+<2> <<value-string,String>> or <<value-bytes,bytes>>.
+If value is null the key is https://redis.io/commands/del[deleted].
 
 ==== TimeSeries
 
@@ -193,7 +200,9 @@ key.converter=org.apache.kafka.connect.converters.ByteArrayConverter
 ----
 
 ==== Kafka Record Values
-Multiple data formats are supported for Kafka record values depending on the configured target <<data-structures,Redis data structure>>. Each data structure expects a specific format. If your data in Kafka is not in the format expected for a given data structure, consider using https://docs.confluent.io/platform/current/connect/transforms/overview.html[Single Message Transformations] to convert to a byte array, string, Struct, or map before it is written to Redis.
+Multiple data formats are supported for Kafka record values depending on the configured target <<data-structures,Redis data structure>>.
+Each data structure expects a specific format.
+If your data in Kafka is not in the format expected for a given data structure, consider using https://docs.confluent.io/platform/current/connect/transforms/overview.html[Single Message Transformations] to convert to a byte array, string, Struct, or map before it is written to Redis.
 
 [options="header",cols="h,1,1"]
 |====

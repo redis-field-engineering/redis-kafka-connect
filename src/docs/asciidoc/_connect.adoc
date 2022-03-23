@@ -14,7 +14,8 @@ redis.uri=redis://redis-12000.redis.com:12000
 
 Details on the https://github.com/lettuce-io/lettuce-core/wiki/Redis-URI-and-connection-details#uri-syntax[Redis URI syntax] can be found in the Lettuce project https://github.com/lettuce-io/lettuce-core/wiki[wiki].
 
-TLS connection URIs start with `rediss://`. To disable certificate verification for TLS connections use the following property:
+TLS connection URIs start with `rediss://`.
+To disable certificate verification for TLS connections use the following property:
 
 [source,properties]
 ----
