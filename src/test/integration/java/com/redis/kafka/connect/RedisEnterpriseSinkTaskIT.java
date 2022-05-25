@@ -108,15 +108,14 @@ class RedisEnterpriseSinkTaskIT extends AbstractTestcontainersRedisTestBase {
 	@ParameterizedTest
 	@RedisTestContextsSource
 	void putHash(RedisTestContext redis) {
-		String topic = "putHash";
+		String topic = "hash";
 		int count = 50;
 		Map<String, Map<String, String>> expected = new LinkedHashMap<>(count);
 		List<SinkRecord> records = new ArrayList<>(count);
 		for (int i = 0; i < count; i++) {
-			String key = "key" + i;
 			Map<String, String> map = map("field1", "This is field1 value" + i, "field2", "This is field2 value " + i);
-			expected.put(key, map);
-			records.add(SinkRecordHelper.write(topic, new SchemaAndValue(Schema.STRING_SCHEMA, key),
+			expected.put("hash:" + i, map);
+			records.add(SinkRecordHelper.write(topic, new SchemaAndValue(Schema.STRING_SCHEMA, i),
 					new SchemaAndValue(SchemaBuilder.map(Schema.STRING_SCHEMA, Schema.STRING_SCHEMA), map)));
 		}
 		put(topic, RedisEnterpriseSinkConfig.DataType.HASH, redis, records);
@@ -127,6 +126,7 @@ class RedisEnterpriseSinkTaskIT extends AbstractTestcontainersRedisTestBase {
 		}
 	}
 
+	@SuppressWarnings("unused")
 	private static class Person {
 		private long id;
 		private String name;
@@ -167,6 +167,7 @@ class RedisEnterpriseSinkTaskIT extends AbstractTestcontainersRedisTestBase {
 
 	}
 
+	@SuppressWarnings("unused")
 	private static class Address {
 
 		private String street;
@@ -249,13 +250,12 @@ class RedisEnterpriseSinkTaskIT extends AbstractTestcontainersRedisTestBase {
 		List<SinkRecord> records = new ArrayList<>();
 		ObjectMapper mapper = new ObjectMapper();
 		for (Person person : persons) {
-			records.add(
-					SinkRecordHelper.write(topic, new SchemaAndValue(Schema.STRING_SCHEMA, "person:" + person.getId()),
-							new SchemaAndValue(Schema.STRING_SCHEMA, mapper.writeValueAsString(person))));
+			records.add(SinkRecordHelper.write(topic, new SchemaAndValue(Schema.STRING_SCHEMA, person.getId()),
+					new SchemaAndValue(Schema.STRING_SCHEMA, mapper.writeValueAsString(person))));
 		}
 		put(topic, RedisEnterpriseSinkConfig.DataType.JSON, redis, records);
 		for (Person person : persons) {
-			String json = redis.sync().jsonGet("person:" + person.getId());
+			String json = redis.sync().jsonGet(topic + ":" + person.getId());
 			assertEquals(mapper.writeValueAsString(person), json);
 		}
 	}
@@ -368,14 +368,14 @@ class RedisEnterpriseSinkTaskIT extends AbstractTestcontainersRedisTestBase {
 	@ParameterizedTest
 	@RedisTestContextsSource
 	void putString(RedisTestContext redis) {
-		String topic = "putString";
+		String topic = "string";
 		int count = 50;
 		Map<String, String> expected = new LinkedHashMap<>(count);
 		List<SinkRecord> records = new ArrayList<>(count);
 		for (int i = 0; i < count; i++) {
-			String key = topic + i;
+			String key = String.valueOf(i);
 			String value = "This is value " + i;
-			expected.put(key, value);
+			expected.put(topic + ":" + key, value);
 			records.add(SinkRecordHelper.write(topic, new SchemaAndValue(Schema.STRING_SCHEMA, key),
 					new SchemaAndValue(Schema.STRING_SCHEMA, value)));
 		}
@@ -404,7 +404,7 @@ class RedisEnterpriseSinkTaskIT extends AbstractTestcontainersRedisTestBase {
 					new SchemaAndValue(Schema.BYTES_SCHEMA, key.getBytes(StandardCharsets.UTF_8)),
 					new SchemaAndValue(Schema.BYTES_SCHEMA, value.getBytes(StandardCharsets.UTF_8))));
 		}
-		put(topic, RedisEnterpriseSinkConfig.DataType.STRING, redis, records);
+		put(topic, RedisEnterpriseSinkConfig.DataType.STRING, redis, records, RedisEnterpriseSinkConfig.KEY_CONFIG, "");
 		String[] keys = expected.keySet().toArray(new String[0]);
 		List<KeyValue<String, String>> actual = redis.sync().mget(keys);
 		assertEquals(records.size(), actual.size());
@@ -460,10 +460,9 @@ class RedisEnterpriseSinkTaskIT extends AbstractTestcontainersRedisTestBase {
 		List<SinkRecord> records = new ArrayList<>(count);
 
 		for (int i = 0; i < count; i++) {
-			final String key = topic + i;
 			final String value = "This is value " + i;
-			records.add(SinkRecordHelper.delete(topic, new SchemaAndValue(Schema.STRING_SCHEMA, key)));
-			expected.put(key, value);
+			records.add(SinkRecordHelper.delete(topic, new SchemaAndValue(Schema.STRING_SCHEMA, i)));
+			expected.put(topic + ":" + i, value);
 		}
 		Map<String, String> values = expected.entrySet().stream()
 				.collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));

@@ -10,4 +10,10 @@ image:https://codecov.io/gh/{project-owner}/{project-name}/branch/master/graph/b
 
 Kafka Connect source and sink connectors for https://redis.com/redis-enterprise-software/overview/[Redis Enterprise]
 
+== Documentation
+
 Refer to the link:https://{project-owner}.github.io/{project-name}[documentation] for configuration and usage information.
+
+== Docker Example
+
+Run `docker/.run.sh` and follow prompts

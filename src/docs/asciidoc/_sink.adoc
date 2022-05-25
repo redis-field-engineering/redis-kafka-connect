@@ -25,31 +25,22 @@ You can specify the number of tasks with the `tasks.max` configuration property.
 
 [[data-structures]]
 === Redis Data Structures
-
-Record keys and values have different roles depending on the target data structure.
+The {name} supports the following Redis data-structure types as targets:
 
 [[collection-key]]
-==== Collections
-For collections (stream, list, set, sorted set, timeseries) a single key is used which is independent of the record key.
+* Collections: <<sync-stream,stream>>, <<sync-list,list>>, <<sync-set,set>>, <<sync-zset,sorted set>>, <<sync-timeseries,time series>>
++
+Collection keys are generated using the `redis.key` configuration property which may contain `${topic}` (default) as a placeholder for the originating topic name.
++
+For example with `redis.key = ${topic}` and topic `orders` the Redis key is `set:orders`.
 
-Use the `redis.key` configuration property (default: `${topic}`) to specify a format string for the destination collection, which may contain `${topic}` as a placeholder for the originating topic name.
+* <<sync-hash,Hash>>, <<sync-string,string>>, <<sync-json,JSON>>
++
+For other data-structures the key is in the form `<keyspace>:<record_key>` where `keyspace` is generated using the `redis.key` configuration property like above and `record_key` is the sink record key.
++
+For example with `redis.key = ${topic}`, topic `orders`, and sink record key `123` the Redis key is `orders:123`.
 
-For example `kafka_${topic}` for the topic `orders` will map to the Redis key `kafka_orders`.
-
-==== Stream
-
-Use the following properties to store Kafka records as Redis stream messages:
-
-[source,properties]
-----
-redis.type=STREAM
-redis.key=<stream key> <1>
-value.converter=<Avro or JSON> <2>
-----
-
-<1> <<collection-key,Stream key>>
-<2> <<avro,Avro>> or <<kafka-json,JSON>>
-
+[[sync-hash]]
 ==== Hash
 Use the following properties to write Kafka records as Redis hashes:
 
@@ -62,8 +53,9 @@ value.converter=<Avro or JSON> <2>
 
 <1> <<key-string,String>> or <<key-bytes,bytes>>
 <2> <<avro,Avro>> or <<kafka-json,JSON>>.
-If value is null the key is https://redis.io/commands/del[deleted].
+If value is null the key is deleted.
 
+[[sync-string]]
 ==== String
 Use the following properties to write Kafka records as Redis strings:
 
@@ -76,8 +68,38 @@ value.converter=<string or bytes> <2>
 
 <1> <<key-string,String>> or <<key-bytes,bytes>>
 <2> <<value-string,String>> or <<value-bytes,bytes>>.
-If value is null the key is https://redis.io/commands/del[deleted].
+If value is null the key is deleted.
 
+[[sync-json]]
+==== JSON
+Use the following properties to write Kafka records as RedisJSON documents:
+
+[source,properties]
+----
+redis.type=JSON
+key.converter=<string or bytes> <1>
+value.converter=<string or bytes> <2>
+----
+
+<1> <<key-string,String>> or <<key-bytes,bytes>>
+<2> <<value-string,String>> or <<value-bytes,bytes>>.
+If value is null the key is deleted.
+
+[[sync-stream]]
+==== Stream
+Use the following properties to store Kafka records as Redis stream messages:
+
+[source,properties]
+----
+redis.type=STREAM
+redis.key=<stream key> <1>
+value.converter=<Avro or JSON> <2>
+----
+
+<1> <<collection-key,Stream key>>
+<2> <<avro,Avro>> or <<kafka-json,JSON>>
+
+[[sync-list]]
 ==== List
 Use the following properties to add Kafka record keys to a Redis list:
 
@@ -96,6 +118,7 @@ redis.push.direction=<LEFT or RIGHT> <3>
 The Kafka record value can be any format.
 If a value is null then the member is removed from the list (instead of pushed to the list).
 
+[[sync-set]]
 ==== Set
 Use the following properties to add Kafka record keys to a Redis set:
 
@@ -112,6 +135,7 @@ key.converter=<string or bytes> <2>
 The Kafka record value can be any format.
 If a value is null then the member is removed from the set (instead of added to the set).
 
+[[sync-zset]]
 ==== Sorted Set
 Use the following properties to add Kafka record keys to a Redis sorted set:
 
@@ -128,22 +152,8 @@ key.converter=<string or bytes> <2>
 The Kafka record value should be `float64` and is used for the score.
 If the score is null then the member is removed from the sorted set (instead of added to the sorted set).
 
-[[redisjson]]
-==== JSON
-Use the following properties to write Kafka records as RedisJSON documents:
-
-[source,properties]
-----
-redis.type=JSON
-key.converter=<string or bytes> <1>
-value.converter=<string or bytes> <2>
-----
-
-<1> <<key-string,String>> or <<key-bytes,bytes>>
-<2> <<value-string,String>> or <<value-bytes,bytes>>.
-If value is null the key is https://redis.io/commands/del[deleted].
-
-==== TimeSeries
+[[sync-timeseries]]
+==== Time Series
 
 Use the following properties to write Kafka records as RedisTimeSeries samples:
 

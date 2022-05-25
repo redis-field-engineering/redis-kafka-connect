@@ -16,7 +16,6 @@
 package com.redis.kafka.connect.sink;
 
 import java.io.IOException;
-import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -72,7 +71,6 @@ public class RedisEnterpriseSinkTask extends SinkTask {
 
 	private RedisModulesClient client;
 	private RedisEnterpriseSinkConfig config;
-	private Charset charset;
 	private RedisItemWriter<byte[], byte[], SinkRecord> writer;
 	private StatefulRedisConnection<String, String> connection;
 
@@ -86,7 +84,6 @@ public class RedisEnterpriseSinkTask extends SinkTask {
 		config = new RedisEnterpriseSinkConfig(props);
 		client = RedisModulesClient.create(config.getRedisURI());
 		connection = client.connect();
-		charset = config.getCharset();
 		writer = writer(client).build();
 		writer.open(new ExecutionContext());
 		final java.util.Set<TopicPartition> assignment = this.context.assignment();
@@ -143,34 +140,34 @@ public class RedisEnterpriseSinkTask extends SinkTask {
 		case HASH:
 			return Hset.<byte[], byte[], SinkRecord>key(this::key).map(this::map).del(this::isDelete).build();
 		case JSON:
-			return JsonSet.<byte[], byte[], SinkRecord>key(this::key).path(".".getBytes(charset)).value(this::value)
-					.del(this::isDelete).build();
+			return JsonSet.<byte[], byte[], SinkRecord>key(this::key).path(".".getBytes(config.getCharset()))
+					.value(this::value).del(this::isDelete).build();
 		case STRING:
 			return Set.<byte[], byte[], SinkRecord>key(this::key).value(this::value).del(this::isDelete).build();
 		case LIST:
 			if (config.getPushDirection() == RedisEnterpriseSinkConfig.PushDirection.LEFT) {
-				return Lpush.<byte[], byte[], SinkRecord>key(this::collectionKey).member(this::key).build();
+				return Lpush.<byte[], byte[], SinkRecord>key(this::collectionKey).member(this::member).build();
 			}
-			return Rpush.<byte[], byte[], SinkRecord>key(this::collectionKey).member(this::key).build();
+			return Rpush.<byte[], byte[], SinkRecord>key(this::collectionKey).member(this::member).build();
 		case SET:
-			return Sadd.<byte[], byte[], SinkRecord>key(this::collectionKey).member(this::key).build();
+			return Sadd.<byte[], byte[], SinkRecord>key(this::collectionKey).member(this::member).build();
 		case TIMESERIES:
 			return TsAdd.<byte[], byte[], SinkRecord>key(this::collectionKey)
-					.sample(new SampleConverter<>(this::longKey, this::doubleValue)).build();
+					.sample(new SampleConverter<>(this::longMember, this::doubleValue)).build();
 		case ZSET:
 			return Zadd.<byte[], byte[], SinkRecord>key(this::collectionKey)
-					.value(new ScoredValueConverter<>(this::key, this::doubleValue)).build();
+					.value(new ScoredValueConverter<>(this::member, this::doubleValue)).build();
 		default:
 			throw new ConfigException(RedisEnterpriseSinkConfig.TYPE_CONFIG, config.getType());
 		}
 	}
 
-	private byte[] value(SinkRecord sinkRecord) {
-		return bytes("value", sinkRecord.value());
+	private byte[] value(SinkRecord record) {
+		return bytes("value", record.value());
 	}
 
-	private Long longKey(SinkRecord sinkRecord) {
-		Object key = sinkRecord.key();
+	private Long longMember(SinkRecord record) {
+		Object key = record.key();
 		if (key == null) {
 			return null;
 		}
@@ -181,8 +178,8 @@ public class RedisEnterpriseSinkTask extends SinkTask {
 				"The key for the record must be a number. Consider using a single message transformation to transform the data before it is written to Redis.");
 	}
 
-	private Double doubleValue(SinkRecord sinkRecord) {
-		Object value = sinkRecord.value();
+	private Double doubleValue(SinkRecord record) {
+		Object value = record.value();
 		if (value == null) {
 			return null;
 		}
@@ -193,12 +190,25 @@ public class RedisEnterpriseSinkTask extends SinkTask {
 				"The value for the record must be a number. Consider using a single message transformation to transform the data before it is written to Redis.");
 	}
 
-	private boolean isDelete(SinkRecord sinkRecord) {
-		return sinkRecord.value() == null;
+	private boolean isDelete(SinkRecord record) {
+		return record.value() == null;
 	}
 
-	private byte[] key(SinkRecord sinkRecord) {
-		return bytes("key", sinkRecord.key());
+	private byte[] key(SinkRecord record) {
+		if (config.getKeyspace().isEmpty()) {
+			return bytes("key", record.key());
+		}
+		String keyspace = keyspace(record);
+		String key = keyspace + config.getSeparator() + String.valueOf(record.key());
+		return key.getBytes(config.getCharset());
+	}
+
+	private byte[] member(SinkRecord record) {
+		return bytes("key", record.key());
+	}
+
+	private String keyspace(SinkRecord record) {
+		return config.getKeyspace().replace(RedisEnterpriseSinkConfig.TOKEN_TOPIC, record.topic());
 	}
 
 	private byte[] bytes(String source, Object input) {
@@ -209,21 +219,20 @@ public class RedisEnterpriseSinkTask extends SinkTask {
 			return (byte[]) input;
 		}
 		if (input instanceof String) {
-			return ((String) input).getBytes(charset);
+			return ((String) input).getBytes(config.getCharset());
 		}
 		throw new DataException(String.format(
 				"The %s for the record must be a string or byte array. Consider using the StringConverter or ByteArrayConverter if the data is stored in Kafka in the format needed in Redis.",
 				source));
 	}
 
-	private byte[] collectionKey(SinkRecord sinkRecord) {
-		return config.getKeyFormat().replace(RedisEnterpriseSinkConfig.TOKEN_TOPIC, sinkRecord.topic())
-				.getBytes(charset);
+	private byte[] collectionKey(SinkRecord record) {
+		return keyspace(record).getBytes(config.getCharset());
 	}
 
 	@SuppressWarnings("unchecked")
-	private Map<byte[], byte[]> map(SinkRecord sinkRecord) {
-		Object value = sinkRecord.value();
+	private Map<byte[], byte[]> map(SinkRecord record) {
+		Object value = record.value();
 		if (value == null) {
 			return null;
 		}
@@ -232,8 +241,8 @@ public class RedisEnterpriseSinkTask extends SinkTask {
 			Struct struct = (Struct) value;
 			for (Field field : struct.schema().fields()) {
 				Object fieldValue = struct.get(field);
-				body.put(field.name().getBytes(charset),
-						fieldValue == null ? null : fieldValue.toString().getBytes(charset));
+				body.put(field.name().getBytes(config.getCharset()),
+						fieldValue == null ? null : fieldValue.toString().getBytes(config.getCharset()));
 			}
 			return body;
 		}
@@ -241,11 +250,12 @@ public class RedisEnterpriseSinkTask extends SinkTask {
 			Map<String, Object> map = (Map<String, Object>) value;
 			Map<byte[], byte[]> body = new LinkedHashMap<>();
 			for (Map.Entry<String, Object> e : map.entrySet()) {
-				body.put(e.getKey().getBytes(charset), String.valueOf(e.getValue()).getBytes(charset));
+				body.put(e.getKey().getBytes(config.getCharset()),
+						String.valueOf(e.getValue()).getBytes(config.getCharset()));
 			}
 			return body;
 		}
-		throw new ConnectException("Unsupported source value type: " + sinkRecord.valueSchema().type().name());
+		throw new ConnectException("Unsupported source value type: " + record.valueSchema().type().name());
 	}
 
 	@Override

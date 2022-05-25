@@ -48,9 +48,14 @@ public class RedisEnterpriseSinkConfig extends RedisEnterpriseConfig {
 
 	public static final String KEY_CONFIG = "redis.key";
 	public static final String KEY_DEFAULT = TOKEN_TOPIC;
-	public static final String KEY_DOC = "A format string for the destination stream/set/zset/list key, which may contain '"
-			+ TOKEN_TOPIC + "' as a placeholder for the originating topic name.\nFor example, ``kafka_" + TOKEN_TOPIC
-			+ "`` for the topic 'orders' will map to the Redis key " + "'kafka_orders'.";
+	public static final String KEY_DOC = "A format string for destination key space, which may contain '" + TOKEN_TOPIC
+			+ "' as a placeholder for the originating topic name.\nFor example, ``kafka_" + TOKEN_TOPIC
+			+ "`` for the topic 'orders' will map to the Redis key space "
+			+ "'kafka_orders'.\nLeave empty for passthrough (only applicable to non-collection data structures).";
+
+	public static final String SEPARATOR_CONFIG = "redis.separator";
+	public static final String SEPARATOR_DEFAULT = ":";
+	public static final String SEPARATOR_DOC = "Separator for non-collection destination keys.";
 
 	public static final String MULTIEXEC_CONFIG = "redis.multiexec";
 	public static final String MULTIEXEC_DEFAULT = "false";
@@ -78,7 +83,8 @@ public class RedisEnterpriseSinkConfig extends RedisEnterpriseConfig {
 
 	private final Charset charset;
 	private final DataType type;
-	private final String keyFormat;
+	private final String keyspace;
+	private final String separator;
 	private final PushDirection pushDirection;
 	private final boolean multiexec;
 	private final int waitReplicas;
@@ -89,7 +95,8 @@ public class RedisEnterpriseSinkConfig extends RedisEnterpriseConfig {
 		String charsetName = getString(CHARSET_CONFIG).trim();
 		charset = Charset.forName(charsetName);
 		type = ConfigUtils.getEnum(DataType.class, this, TYPE_CONFIG);
-		keyFormat = getString(KEY_CONFIG).trim();
+		keyspace = getString(KEY_CONFIG).trim();
+		separator = getString(SEPARATOR_CONFIG).trim();
 		pushDirection = ConfigUtils.getEnum(PushDirection.class, this, PUSH_DIRECTION_CONFIG);
 		multiexec = Boolean.TRUE.equals(getBoolean(MULTIEXEC_CONFIG));
 		waitReplicas = getInt(WAIT_REPLICAS_CONFIG);
@@ -104,8 +111,12 @@ public class RedisEnterpriseSinkConfig extends RedisEnterpriseConfig {
 		return type;
 	}
 
-	public String getKeyFormat() {
-		return keyFormat;
+	public String getKeyspace() {
+		return keyspace;
+	}
+
+	public String getSeparator() {
+		return separator;
 	}
 
 	public PushDirection getPushDirection() {
@@ -138,10 +149,13 @@ public class RedisEnterpriseSinkConfig extends RedisEnterpriseConfig {
 		private void define() {
 			define(ConfigKeyBuilder.of(CHARSET_CONFIG, ConfigDef.Type.STRING).documentation(CHARSET_DOC)
 					.defaultValue(CHARSET_DEFAULT).importance(ConfigDef.Importance.HIGH).build());
-			define(ConfigKeyBuilder.of(TYPE_CONFIG, ConfigDef.Type.STRING).documentation(TYPE_DOC).defaultValue(TYPE_DEFAULT)
-					.importance(ConfigDef.Importance.HIGH).validator(Validators.validEnum(DataType.class)).build());
-			define(ConfigKeyBuilder.of(KEY_CONFIG, ConfigDef.Type.STRING).documentation(KEY_DOC).defaultValue(KEY_DEFAULT)
-					.importance(ConfigDef.Importance.MEDIUM).build());
+			define(ConfigKeyBuilder.of(TYPE_CONFIG, ConfigDef.Type.STRING).documentation(TYPE_DOC)
+					.defaultValue(TYPE_DEFAULT).importance(ConfigDef.Importance.HIGH)
+					.validator(Validators.validEnum(DataType.class)).build());
+			define(ConfigKeyBuilder.of(KEY_CONFIG, ConfigDef.Type.STRING).documentation(KEY_DOC)
+					.defaultValue(KEY_DEFAULT).importance(ConfigDef.Importance.MEDIUM).build());
+			define(ConfigKeyBuilder.of(SEPARATOR_CONFIG, ConfigDef.Type.STRING).documentation(SEPARATOR_DOC)
+					.defaultValue(SEPARATOR_DEFAULT).importance(ConfigDef.Importance.MEDIUM).build());
 			define(ConfigKeyBuilder.of(PUSH_DIRECTION_CONFIG, ConfigDef.Type.STRING).documentation(PUSH_DIRECTION_DOC)
 					.defaultValue(PUSH_DIRECTION_DEFAULT).importance(ConfigDef.Importance.MEDIUM).build());
 			define(ConfigKeyBuilder.of(MULTIEXEC_CONFIG, ConfigDef.Type.BOOLEAN).documentation(MULTIEXEC_DOC)
@@ -186,7 +200,7 @@ public class RedisEnterpriseSinkConfig extends RedisEnterpriseConfig {
 		final int prime = 31;
 		int result = super.hashCode();
 		result = prime * result
-				+ Objects.hash(charset, keyFormat, multiexec, pushDirection, type, waitReplicas, waitTimeout);
+				+ Objects.hash(charset, keyspace, separator, multiexec, pushDirection, type, waitReplicas, waitTimeout);
 		return result;
 	}
 
@@ -199,9 +213,10 @@ public class RedisEnterpriseSinkConfig extends RedisEnterpriseConfig {
 		if (getClass() != obj.getClass())
 			return false;
 		RedisEnterpriseSinkConfig other = (RedisEnterpriseSinkConfig) obj;
-		return Objects.equals(charset, other.charset) && Objects.equals(keyFormat, other.keyFormat)
-				&& multiexec == other.multiexec && pushDirection == other.pushDirection && type == other.type
-				&& waitReplicas == other.waitReplicas && waitTimeout == other.waitTimeout;
+		return Objects.equals(charset, other.charset) && Objects.equals(keyspace, other.keyspace)
+				&& Objects.equals(separator, other.separator) && multiexec == other.multiexec
+				&& pushDirection == other.pushDirection && type == other.type && waitReplicas == other.waitReplicas
+				&& waitTimeout == other.waitTimeout;
 	}
 
 }

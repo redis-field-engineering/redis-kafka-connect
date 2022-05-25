@@ -12,7 +12,7 @@ echo "Building the Redis Enterprise Kafka Connector"
 (
 cd ..
 ./mvnw clean package
-find ./target/components/packages -type d -name "redis-redis-enterprise-kafka-5.*" -mindepth 2 -maxdepth 2 -exec mv {} ./target/components/packages/redis-enterprise-kafka \;
+find ./target/components/packages -mindepth 2 -maxdepth 2 -type d -name "redis-redis-enterprise-kafka-5.*" -exec mv {} ./target/components/packages/redis-enterprise-kafka \;
 )
 
 echo "Starting docker ."
@@ -150,7 +150,7 @@ The `pageviews` stream in Redis should contain the sunk page views: redis-cli xl
 Examine the Redis database:
   - In your shell run: docker-compose exec redis /usr/local/bin/redis-cli
   - List some RedisJSON keys: SCAN 0 TYPE ReJSON-RL
-  - Show the JSON value of a given key: JSON.GET 971
+  - Show the JSON value of a given key: JSON.GET pageviews:971
 ==============================================================================================================
 
 Use <ctrl>-c to quit'''
