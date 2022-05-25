@@ -8,79 +8,43 @@ project:
   license: Apache-2.0
   extraProperties:
     inceptionYear: 2021
+  tags:
+    - 'kafka'
+    - 'connect'
+    - 'redis'
 
 release:
   github:
     overwrite: true
-    sign: true
     changelog:
       formatted: ALWAYS
+      preset: conventional-commits
       format: '- {{commitShortHash}} {{commitTitle}}'
       contributors:
         enabled: false
       labelers:
-        - label: 'merge_pull'
-          title: 'Merge pull'
-        - label: 'merge_branch'
-          title: 'Merge branch'
-        - label: 'translation'
-          title: '[translation]'
-        - label: 'task'
-          title: '[chore]'
         - label: 'dependencies'
-          title: '[deps]'
-        - label: 'feature'
-          title: 'Resolves #'
-          body: 'Resolves #'
-        - label: 'issue'
-          title: 'Fixes #'
-          body: 'Fixes #'
-        - label: 'issue'
-          title: 'Relates to #'
-          body: 'Relates to #'
+          title: 'regex:^(?:deps(?:\(.*\))?!?):\s.*'
+          order: 130
       categories:
         - title: 'Merge'
           labels:
             - 'merge_pull'
             - 'merge_branch'
-        - title: '🚀 Features'
-          labels:
-            - 'feature'
-        - title: '✅ Issues'
-          labels:
-            - 'issue'
-        - title: '🧰 Tasks'
-          labels:
-            - 'task'
-        - title: '🌐 Translation'
-          labels:
-            - 'translation'
         - title: '⚙️  Dependencies'
+          key: 'dependencies'
+          order: 80
           labels:
             - 'dependencies'
       hide:
         categories:
           - 'Merge'
-        contributors:
-          - 'GitHub'
-      replacers:
-        - search: '\[chore\] '
-        - search: '\[deps\] '
-        - search: '\[translation\] '
-
-signing:
-  active: always
-  armored: true
-  files: false
-
-checksum:
-  files: false
 
 announce:
   slack:
     active: release
     channel: '#field-engineering-announcements'
-    message: '🚀 Redis Enterprise Kafka Connector {{projectVersion}} has been released! {{releaseNotesUrl}}'
+    message: '🔗 Redis Enterprise Kafka Connector {{projectVersion}} has been released! {{releaseNotesUrl}}'
 
 distributions:
   redis-redis-enterprise-kafka-5:
