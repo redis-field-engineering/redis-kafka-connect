@@ -10,7 +10,7 @@ jobs:
     if: startsWith(github.event.head_commit.message, 'Releasing version') != true
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       - name: Set up Java
         uses: actions/setup-java@v1
