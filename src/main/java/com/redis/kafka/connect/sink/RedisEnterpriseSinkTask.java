@@ -135,8 +135,6 @@ public class RedisEnterpriseSinkTask extends SinkTask {
 
 	private RedisOperation<byte[], byte[], SinkRecord> operation() {
 		switch (config.getType()) {
-		case STREAM:
-			return Xadd.<byte[], byte[], SinkRecord>key(this::collectionKey).body(this::map).build();
 		case HASH:
 			return Hset.<byte[], byte[], SinkRecord>key(this::key).map(this::map).del(this::isDelete).build();
 		case JSON:
@@ -144,6 +142,8 @@ public class RedisEnterpriseSinkTask extends SinkTask {
 					.value(this::value).del(this::isDelete).build();
 		case STRING:
 			return Set.<byte[], byte[], SinkRecord>key(this::key).value(this::value).del(this::isDelete).build();
+		case STREAM:
+			return Xadd.<byte[], byte[], SinkRecord>key(this::collectionKey).body(this::map).build();
 		case LIST:
 			if (config.getPushDirection() == RedisEnterpriseSinkConfig.PushDirection.LEFT) {
 				return Lpush.<byte[], byte[], SinkRecord>key(this::collectionKey).member(this::member).build();
