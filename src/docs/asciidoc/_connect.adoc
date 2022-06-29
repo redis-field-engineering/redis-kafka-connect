@@ -21,3 +21,11 @@ To disable certificate verification for TLS connections use the following proper
 ----
 redis.insecure=true
 ----
+
+Username and password can be specified in the URI or separately with the following properties:
+
+[source,properties]
+----
+redis.username=user1
+redis.password=pass
+----
