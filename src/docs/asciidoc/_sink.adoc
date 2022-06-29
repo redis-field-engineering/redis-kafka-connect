@@ -77,12 +77,12 @@ Use the following properties to write Kafka records as RedisJSON documents:
 [source,properties]
 ----
 redis.type=JSON
-key.converter=<string or bytes> <1>
-value.converter=<string or bytes> <2>
+key.converter=<string, bytes, or Avro> <1>
+value.converter=<string, bytes, or Avro> <2>
 ----
 
-<1> <<key-string,String>> or <<key-bytes,bytes>>
-<2> <<value-string,String>> or <<value-bytes,bytes>>.
+<1> <<key-string,String>>, <<key-bytes,bytes>>, or <<avro,Avro>>
+<2> <<value-string,String>>, <<value-bytes,bytes>>, or <<avro,Avro>>.
 If value is null the key is deleted.
 
 [[sync-stream]]
