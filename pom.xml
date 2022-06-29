@@ -6,7 +6,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>com.redis</groupId>
 	<artifactId>redis-enterprise-kafka</artifactId>
-	<version>6.6-SNAPSHOT</version>
+	<version>6.6</version>
 	<name>Redis Enterprise Kafka Connector</name>
 	<description>Kafka Connect source and sink connectors for Redis Enterprise</description>
 	<url>https://github.com/${github.owner}/${github.repo}</url>
