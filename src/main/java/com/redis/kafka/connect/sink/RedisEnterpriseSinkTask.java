@@ -18,6 +18,7 @@ package com.redis.kafka.connect.sink;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -28,11 +29,14 @@ import java.util.stream.Collectors;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.config.ConfigException;
 import org.apache.kafka.connect.data.Field;
+import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.errors.DataException;
+import org.apache.kafka.connect.json.JsonConverter;
 import org.apache.kafka.connect.sink.SinkRecord;
 import org.apache.kafka.connect.sink.SinkTask;
+import org.apache.kafka.connect.storage.Converter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.batch.item.ExecutionContext;
@@ -73,6 +77,7 @@ public class RedisEnterpriseSinkTask extends SinkTask {
 	private RedisEnterpriseSinkConfig config;
 	private RedisItemWriter<byte[], byte[], SinkRecord> writer;
 	private StatefulRedisConnection<String, String> connection;
+	private Converter jsonConverter;
 
 	@Override
 	public String version() {
@@ -84,6 +89,8 @@ public class RedisEnterpriseSinkTask extends SinkTask {
 		config = new RedisEnterpriseSinkConfig(props);
 		client = RedisModulesClient.create(config.getRedisURI());
 		connection = client.connect();
+		jsonConverter = new JsonConverter();
+	    jsonConverter.configure(Collections.singletonMap("schemas.enable", "false"), false);
 		writer = writer(client).build();
 		writer.open(new ExecutionContext());
 		final java.util.Set<TopicPartition> assignment = this.context.assignment();
@@ -139,7 +146,7 @@ public class RedisEnterpriseSinkTask extends SinkTask {
 			return Hset.<byte[], byte[], SinkRecord>key(this::key).map(this::map).del(this::isDelete).build();
 		case JSON:
 			return JsonSet.<byte[], byte[], SinkRecord>key(this::key).path(".".getBytes(config.getCharset()))
-					.value(this::value).del(this::isDelete).build();
+					.value(this::jsonValue).del(this::isDelete).build();
 		case STRING:
 			return Set.<byte[], byte[], SinkRecord>key(this::key).value(this::value).del(this::isDelete).build();
 		case STREAM:
@@ -164,6 +171,16 @@ public class RedisEnterpriseSinkTask extends SinkTask {
 
 	private byte[] value(SinkRecord record) {
 		return bytes("value", record.value());
+	}
+
+	private byte[] jsonValue(SinkRecord record) {
+		if (record.value() == null) {
+			return null;
+		}
+		Schema schema = record.valueSchema();
+		Object value = record.value();
+
+		return jsonConverter.fromConnectData(record.topic(), schema, value);
 	}
 
 	private Long longMember(SinkRecord record) {
