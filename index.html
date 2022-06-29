@@ -313,19 +313,19 @@ If value is null the key is deleted.</td>
 <div class="listingblock">
 <div class="content">
 <pre class="highlightjs highlight"><code data-lang="properties" class="language-properties hljs">redis.type=JSON
-key.converter=&lt;string or bytes&gt; <i class="conum" data-value="1"></i><b>(1)</b>
-value.converter=&lt;string or bytes&gt; <i class="conum" data-value="2"></i><b>(2)</b></code></pre>
+key.converter=&lt;string, bytes, or Avro&gt; <i class="conum" data-value="1"></i><b>(1)</b>
+value.converter=&lt;string, bytes, or Avro&gt; <i class="conum" data-value="2"></i><b>(2)</b></code></pre>
 </div>
 </div>
 <div class="colist arabic">
 <table>
 <tr>
 <td><i class="conum" data-value="1"></i><b>1</b></td>
-<td><a href="#key-string">String</a> or <a href="#key-bytes">bytes</a></td>
+<td><a href="#key-string">String</a>, <a href="#key-bytes">bytes</a>, or <a href="#avro">Avro</a></td>
 </tr>
 <tr>
 <td><i class="conum" data-value="2"></i><b>2</b></td>
-<td><a href="#value-string">String</a> or <a href="#value-bytes">bytes</a>.
+<td><a href="#value-string">String</a>, <a href="#value-bytes">bytes</a>, or <a href="#avro">Avro</a>.
 If value is null the key is deleted.</td>
 </tr>
 </table>
@@ -1000,7 +1000,7 @@ xread COUNT 10 STREAMS pageviews 0</code></pre>
 <div id="footer">
 <div id="footer-text">
 Version 6.6<br>
-Last updated 2022-06-29 04:31:32 UTC
+Last updated 2022-06-29 05:31:20 UTC
 </div>
 </div>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.15.6/styles/github.min.css">
