@@ -16,7 +16,7 @@
 <h1>Redis Enterprise Kafka Connector</h1>
 <div class="details">
 <span id="author" class="author">Julien Ruaux &lt;julien@redis.com&gt;</span><br>
-<span id="revnumber">version 6.6</span>
+<span id="revnumber">version 6.7</span>
 </div>
 <div id="toc" class="toc2">
 <div id="toctitle">Table of Contents</div>
@@ -122,10 +122,10 @@
 <div class="ulist">
 <ul>
 <li>
-<p>Confluent Platform 5.0+: <code>redis-redis-enterprise-kafka-<strong>5</strong>.6.6.zip</code></p>
+<p>Confluent Platform 5.0+: <code>redis-redis-enterprise-kafka-<strong>5</strong>.6.7.zip</code></p>
 </li>
 <li>
-<p>Confluent Platform 6.0+: <code>redis-redis-enterprise-kafka-<strong>6</strong>.6.6.zip</code></p>
+<p>Confluent Platform 6.0+: <code>redis-redis-enterprise-kafka-<strong>6</strong>.6.7.zip</code></p>
 </li>
 </ul>
 </div>
@@ -181,6 +181,15 @@ To disable certificate verification for TLS connections use the following proper
 <div class="listingblock">
 <div class="content">
 <pre class="highlightjs highlight"><code data-lang="properties" class="language-properties hljs">redis.insecure=true</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Username and password can be specified in the URI or separately with the following properties:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code data-lang="properties" class="language-properties hljs">redis.username=user1
+redis.password=pass</code></pre>
 </div>
 </div>
 </div>
@@ -999,8 +1008,8 @@ xread COUNT 10 STREAMS pageviews 0</code></pre>
 </div>
 <div id="footer">
 <div id="footer-text">
-Version 6.6<br>
-Last updated 2022-06-29 05:31:20 UTC
+Version 6.7<br>
+Last updated 2022-07-09 00:55:01 UTC
 </div>
 </div>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.15.6/styles/github.min.css">
