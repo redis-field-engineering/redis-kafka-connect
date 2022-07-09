@@ -14,6 +14,7 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -37,8 +38,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.jcustenborder.kafka.connect.utils.SinkRecordHelper;
 import com.redis.kafka.connect.sink.RedisEnterpriseSinkConfig;
 import com.redis.kafka.connect.sink.RedisEnterpriseSinkTask;
-import com.redis.lettucemod.timeseries.RangeOptions;
 import com.redis.lettucemod.timeseries.Sample;
+import com.redis.lettucemod.timeseries.TimeRange;
 import com.redis.testcontainers.RedisModulesContainer;
 import com.redis.testcontainers.RedisServer;
 import com.redis.testcontainers.junit.jupiter.AbstractTestcontainersRedisTestBase;
@@ -126,8 +127,8 @@ class RedisEnterpriseSinkTaskIT extends AbstractTestcontainersRedisTestBase {
 		}
 	}
 
-	@SuppressWarnings("unused")
-	private static class Person {
+	public static class Person {
+
 		private long id;
 		private String name;
 		private Set<String> hobbies = new HashSet<>();
@@ -165,10 +166,27 @@ class RedisEnterpriseSinkTaskIT extends AbstractTestcontainersRedisTestBase {
 			this.address = address;
 		}
 
+		@Override
+		public int hashCode() {
+			return Objects.hash(address, hobbies, id, name);
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			if (this == obj)
+				return true;
+			if (obj == null)
+				return false;
+			if (getClass() != obj.getClass())
+				return false;
+			Person other = (Person) obj;
+			return Objects.equals(address, other.address) && Objects.equals(hobbies, other.hobbies) && id == other.id
+					&& Objects.equals(name, other.name);
+		}
+
 	}
 
-	@SuppressWarnings("unused")
-	private static class Address {
+	public static class Address {
 
 		private String street;
 		private String city;
@@ -205,6 +223,24 @@ class RedisEnterpriseSinkTaskIT extends AbstractTestcontainersRedisTestBase {
 
 		public void setZip(String zip) {
 			this.zip = zip;
+		}
+
+		@Override
+		public int hashCode() {
+			return Objects.hash(city, state, street, zip);
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			if (this == obj)
+				return true;
+			if (obj == null)
+				return false;
+			if (getClass() != obj.getClass())
+				return false;
+			Address other = (Address) obj;
+			return Objects.equals(city, other.city) && Objects.equals(state, other.state)
+					&& Objects.equals(street, other.street) && Objects.equals(zip, other.zip);
 		}
 
 	}
@@ -250,13 +286,14 @@ class RedisEnterpriseSinkTaskIT extends AbstractTestcontainersRedisTestBase {
 		List<SinkRecord> records = new ArrayList<>();
 		ObjectMapper mapper = new ObjectMapper();
 		for (Person person : persons) {
+			String json = mapper.writeValueAsString(person);
 			records.add(SinkRecordHelper.write(topic, new SchemaAndValue(Schema.STRING_SCHEMA, person.getId()),
-					new SchemaAndValue(Schema.STRING_SCHEMA, mapper.writeValueAsString(person))));
+					new SchemaAndValue(Schema.STRING_SCHEMA, json)));
 		}
 		put(topic, RedisEnterpriseSinkConfig.DataType.JSON, redis, records);
 		for (Person person : persons) {
 			String json = redis.sync().jsonGet(topic + ":" + person.getId());
-			assertEquals(mapper.writeValueAsString(person), json);
+			assertEquals(person, mapper.readValue(json, Person.class));
 		}
 	}
 
@@ -276,7 +313,7 @@ class RedisEnterpriseSinkTaskIT extends AbstractTestcontainersRedisTestBase {
 					new SchemaAndValue(Schema.FLOAT64_SCHEMA, value)));
 		}
 		put(topic, RedisEnterpriseSinkConfig.DataType.TIMESERIES, redis, records);
-		List<Sample> actualSamples = redis.sync().range(topic, RangeOptions.from(0).to(0).build());
+		List<Sample> actualSamples = redis.sync().range(topic, TimeRange.unbounded());
 		assertEquals(expectedSamples.size(), actualSamples.size());
 		for (int index = 0; index < expectedSamples.size(); index++) {
 			Sample expectedSample = expectedSamples.get(index);

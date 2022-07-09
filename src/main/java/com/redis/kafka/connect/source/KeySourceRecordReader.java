@@ -12,9 +12,10 @@ import org.apache.kafka.connect.source.SourceRecord;
 import org.springframework.batch.item.ExecutionContext;
 
 import com.redis.lettucemod.RedisModulesClient;
+import com.redis.spring.batch.DataStructure;
+import com.redis.spring.batch.DataStructure.Type;
 import com.redis.spring.batch.RedisItemReader;
-import com.redis.spring.batch.support.DataStructure;
-import com.redis.spring.batch.support.LiveRedisItemReader;
+import com.redis.spring.batch.reader.LiveRedisItemReader;
 
 public class KeySourceRecordReader extends AbstractSourceRecordReader<DataStructure<String>> {
 
@@ -38,7 +39,7 @@ public class KeySourceRecordReader extends AbstractSourceRecordReader<DataStruct
 
 	@Override
 	protected void open(RedisModulesClient client) throws Exception {
-		reader = RedisItemReader.client(client).dataStructure().inMemoryJobs().live().idleTimeout(idleTimeout)
+		reader = RedisItemReader.client(client).string().dataStructure().live().idleTimeout(idleTimeout)
 				.keyPatterns(sourceConfig.getKeyPatterns().toArray(new String[0])).build();
 		reader.open(new ExecutionContext());
 	}
@@ -61,7 +62,7 @@ public class KeySourceRecordReader extends AbstractSourceRecordReader<DataStruct
 	}
 
 	private Schema schema(DataStructure<String> input) {
-		if (DataStructure.HASH.equals(input.getType())) {
+		if (Type.HASH.name().equalsIgnoreCase(input.getType())) {
 			return HASH_VALUE_SCHEMA;
 		}
 		return STRING_VALUE_SCHEMA;

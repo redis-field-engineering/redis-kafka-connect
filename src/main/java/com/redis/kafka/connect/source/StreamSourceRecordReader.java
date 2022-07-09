@@ -15,7 +15,7 @@ import org.springframework.batch.item.ExecutionContext;
 
 import com.redis.lettucemod.RedisModulesClient;
 import com.redis.spring.batch.RedisItemReader;
-import com.redis.spring.batch.support.StreamItemReader;
+import com.redis.spring.batch.reader.StreamItemReader;
 
 import io.lettuce.core.StreamMessage;
 
@@ -45,7 +45,7 @@ public class StreamSourceRecordReader extends AbstractSourceRecordReader<StreamM
 
 	@Override
 	protected void open(RedisModulesClient client) {
-		reader = RedisItemReader.client(client).stream(sourceConfig.getStreamName())
+		reader = RedisItemReader.client(client).string().stream(sourceConfig.getStreamName())
 				.offset(sourceConfig.getStreamOffset()).block(Duration.ofMillis(sourceConfig.getStreamBlock()))
 				.count(sourceConfig.getBatchSize()).consumerGroup(sourceConfig.getStreamConsumerGroup())
 				.consumer(consumer).build();

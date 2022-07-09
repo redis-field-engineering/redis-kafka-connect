@@ -16,6 +16,7 @@
 package com.redis.kafka.connect.sink;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -29,7 +30,6 @@ import java.util.stream.Collectors;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.config.ConfigException;
 import org.apache.kafka.connect.data.Field;
-import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.errors.DataException;
@@ -49,20 +49,20 @@ import com.google.common.base.Strings;
 import com.redis.kafka.connect.RedisEnterpriseSinkConnector;
 import com.redis.lettucemod.RedisModulesClient;
 import com.redis.spring.batch.RedisItemWriter;
-import com.redis.spring.batch.RedisItemWriter.OperationItemWriterBuilder;
-import com.redis.spring.batch.RedisItemWriter.RedisItemWriterBuilder;
-import com.redis.spring.batch.support.RedisOperation;
-import com.redis.spring.batch.support.convert.SampleConverter;
-import com.redis.spring.batch.support.convert.ScoredValueConverter;
-import com.redis.spring.batch.support.operation.Hset;
-import com.redis.spring.batch.support.operation.JsonSet;
-import com.redis.spring.batch.support.operation.Lpush;
-import com.redis.spring.batch.support.operation.Rpush;
-import com.redis.spring.batch.support.operation.Sadd;
-import com.redis.spring.batch.support.operation.Set;
-import com.redis.spring.batch.support.operation.TsAdd;
-import com.redis.spring.batch.support.operation.Xadd;
-import com.redis.spring.batch.support.operation.Zadd;
+import com.redis.spring.batch.RedisItemWriter.OperationBuilder;
+import com.redis.spring.batch.RedisItemWriter.WaitForReplication;
+import com.redis.spring.batch.convert.SampleConverter;
+import com.redis.spring.batch.convert.ScoredValueConverter;
+import com.redis.spring.batch.writer.RedisOperation;
+import com.redis.spring.batch.writer.operation.Hset;
+import com.redis.spring.batch.writer.operation.JsonSet;
+import com.redis.spring.batch.writer.operation.Lpush;
+import com.redis.spring.batch.writer.operation.Rpush;
+import com.redis.spring.batch.writer.operation.Sadd;
+import com.redis.spring.batch.writer.operation.Set;
+import com.redis.spring.batch.writer.operation.TsAdd;
+import com.redis.spring.batch.writer.operation.Xadd;
+import com.redis.spring.batch.writer.operation.Zadd;
 
 import io.lettuce.core.KeyValue;
 import io.lettuce.core.api.StatefulRedisConnection;
@@ -90,7 +90,7 @@ public class RedisEnterpriseSinkTask extends SinkTask {
 		client = RedisModulesClient.create(config.getRedisURI());
 		connection = client.connect();
 		jsonConverter = new JsonConverter();
-	    jsonConverter.configure(Collections.singletonMap("schemas.enable", "false"), false);
+		jsonConverter.configure(Collections.singletonMap("schemas.enable", "false"), false);
 		writer = writer(client).build();
 		writer.open(new ExecutionContext());
 		final java.util.Set<TopicPartition> assignment = this.context.assignment();
@@ -124,14 +124,15 @@ public class RedisEnterpriseSinkTask extends SinkTask {
 		return offsetStates;
 	}
 
-	private RedisItemWriterBuilder<byte[], byte[], SinkRecord> writer(RedisModulesClient client) {
-		RedisItemWriterBuilder<byte[], byte[], SinkRecord> builder = new OperationItemWriterBuilder<>(client,
+	private RedisItemWriter.Builder<byte[], byte[], SinkRecord> writer(RedisModulesClient client) {
+		RedisItemWriter.Builder<byte[], byte[], SinkRecord> builder = new OperationBuilder<>(client,
 				new ByteArrayCodec()).operation(operation());
 		if (Boolean.TRUE.equals(config.isMultiexec())) {
 			builder.multiExec();
 		}
 		if (config.getWaitReplicas() > 0) {
-			builder.waitForReplication(config.getWaitReplicas(), config.getWaitTimeout());
+			builder.waitForReplication(WaitForReplication.builder().replicas(config.getWaitReplicas())
+					.timeout(Duration.ofMillis(config.getWaitTimeout())).build());
 		}
 		return builder;
 	}
@@ -169,22 +170,26 @@ public class RedisEnterpriseSinkTask extends SinkTask {
 		}
 	}
 
-	private byte[] value(SinkRecord record) {
-		return bytes("value", record.value());
+	private byte[] value(SinkRecord sinkRecord) {
+		return bytes("value", sinkRecord.value());
 	}
 
-	private byte[] jsonValue(SinkRecord record) {
-		if (record.value() == null) {
+	private byte[] jsonValue(SinkRecord sinkRecord) {
+		Object value = sinkRecord.value();
+		if (value == null) {
 			return null;
 		}
-		Schema schema = record.valueSchema();
-		Object value = record.value();
-
-		return jsonConverter.fromConnectData(record.topic(), schema, value);
+		if (value instanceof byte[]) {
+			return (byte[]) value;
+		}
+		if (value instanceof String) {
+			return ((String) value).getBytes(config.getCharset());
+		}
+		return jsonConverter.fromConnectData(sinkRecord.topic(), sinkRecord.valueSchema(), value);
 	}
 
-	private Long longMember(SinkRecord record) {
-		Object key = record.key();
+	private Long longMember(SinkRecord sinkRecord) {
+		Object key = sinkRecord.key();
 		if (key == null) {
 			return null;
 		}
@@ -195,8 +200,8 @@ public class RedisEnterpriseSinkTask extends SinkTask {
 				"The key for the record must be a number. Consider using a single message transformation to transform the data before it is written to Redis.");
 	}
 
-	private Double doubleValue(SinkRecord record) {
-		Object value = record.value();
+	private Double doubleValue(SinkRecord sinkRecord) {
+		Object value = sinkRecord.value();
 		if (value == null) {
 			return null;
 		}
@@ -207,25 +212,25 @@ public class RedisEnterpriseSinkTask extends SinkTask {
 				"The value for the record must be a number. Consider using a single message transformation to transform the data before it is written to Redis.");
 	}
 
-	private boolean isDelete(SinkRecord record) {
-		return record.value() == null;
+	private boolean isDelete(SinkRecord sinkRecord) {
+		return sinkRecord.value() == null;
 	}
 
-	private byte[] key(SinkRecord record) {
+	private byte[] key(SinkRecord sinkRecord) {
 		if (config.getKeyspace().isEmpty()) {
-			return bytes("key", record.key());
+			return bytes("key", sinkRecord.key());
 		}
-		String keyspace = keyspace(record);
-		String key = keyspace + config.getSeparator() + String.valueOf(record.key());
+		String keyspace = keyspace(sinkRecord);
+		String key = keyspace + config.getSeparator() + String.valueOf(sinkRecord.key());
 		return key.getBytes(config.getCharset());
 	}
 
-	private byte[] member(SinkRecord record) {
-		return bytes("key", record.key());
+	private byte[] member(SinkRecord sinkRecord) {
+		return bytes("key", sinkRecord.key());
 	}
 
-	private String keyspace(SinkRecord record) {
-		return config.getKeyspace().replace(RedisEnterpriseSinkConfig.TOKEN_TOPIC, record.topic());
+	private String keyspace(SinkRecord sinkRecord) {
+		return config.getKeyspace().replace(RedisEnterpriseSinkConfig.TOKEN_TOPIC, sinkRecord.topic());
 	}
 
 	private byte[] bytes(String source, Object input) {
@@ -243,13 +248,13 @@ public class RedisEnterpriseSinkTask extends SinkTask {
 				source));
 	}
 
-	private byte[] collectionKey(SinkRecord record) {
-		return keyspace(record).getBytes(config.getCharset());
+	private byte[] collectionKey(SinkRecord sinkRecord) {
+		return keyspace(sinkRecord).getBytes(config.getCharset());
 	}
 
 	@SuppressWarnings("unchecked")
-	private Map<byte[], byte[]> map(SinkRecord record) {
-		Object value = record.value();
+	private Map<byte[], byte[]> map(SinkRecord sinkRecord) {
+		Object value = sinkRecord.value();
 		if (value == null) {
 			return null;
 		}
@@ -272,7 +277,7 @@ public class RedisEnterpriseSinkTask extends SinkTask {
 			}
 			return body;
 		}
-		throw new ConnectException("Unsupported source value type: " + record.valueSchema().type().name());
+		throw new ConnectException("Unsupported source value type: " + sinkRecord.valueSchema().type().name());
 	}
 
 	@Override

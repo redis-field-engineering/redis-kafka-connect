@@ -67,7 +67,7 @@ public class RedisEnterpriseSinkConfig extends RedisEnterpriseConfig {
 
 	public static final String WAIT_TIMEOUT_CONFIG = "redis.wait.timeout";
 	public static final String WAIT_TIMEOUT_DEFAULT = "1000";
-	public static final String WAIT_TIMEOUT_DOC = "Timeout for WAIT command.";
+	public static final String WAIT_TIMEOUT_DOC = "Timeout in millis for WAIT command.";
 
 	public static final String TYPE_CONFIG = "redis.type";
 	public static final String TYPE_DEFAULT = DataType.STREAM.name();
