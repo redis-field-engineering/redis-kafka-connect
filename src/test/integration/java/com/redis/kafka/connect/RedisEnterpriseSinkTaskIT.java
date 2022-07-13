@@ -28,6 +28,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.springframework.util.Assert;
+import org.springframework.util.unit.DataSize;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.shaded.com.google.common.collect.ImmutableList;
 import org.testcontainers.shaded.com.google.common.collect.ImmutableMap;
@@ -36,15 +37,18 @@ import org.testcontainers.shaded.com.google.common.collect.ImmutableSet;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.jcustenborder.kafka.connect.utils.SinkRecordHelper;
+import com.redis.enterprise.Database;
+import com.redis.enterprise.RedisModule;
 import com.redis.kafka.connect.sink.RedisEnterpriseSinkConfig;
 import com.redis.kafka.connect.sink.RedisEnterpriseSinkTask;
 import com.redis.lettucemod.timeseries.Sample;
 import com.redis.lettucemod.timeseries.TimeRange;
+import com.redis.testcontainers.RedisEnterpriseContainer;
 import com.redis.testcontainers.RedisModulesContainer;
 import com.redis.testcontainers.RedisServer;
-import com.redis.testcontainers.junit.jupiter.AbstractTestcontainersRedisTestBase;
-import com.redis.testcontainers.junit.jupiter.RedisTestContext;
-import com.redis.testcontainers.junit.jupiter.RedisTestContextsSource;
+import com.redis.testcontainers.junit.AbstractTestcontainersRedisTestBase;
+import com.redis.testcontainers.junit.RedisTestContext;
+import com.redis.testcontainers.junit.RedisTestContextsSource;
 
 import io.lettuce.core.KeyValue;
 import io.lettuce.core.Range;
@@ -57,9 +61,15 @@ class RedisEnterpriseSinkTaskIT extends AbstractTestcontainersRedisTestBase {
 	private static final RedisModulesContainer REDIS = new RedisModulesContainer(
 			RedisModulesContainer.DEFAULT_IMAGE_NAME.withTag(RedisModulesContainer.DEFAULT_TAG));
 
+	@Container
+	private static final RedisEnterpriseContainer REDIS_ENTERPRISE = new RedisEnterpriseContainer(
+			RedisEnterpriseContainer.DEFAULT_IMAGE_NAME.withTag(RedisEnterpriseContainer.DEFAULT_TAG))
+			.withDatabase(Database.name("RedisEnterpriseKafkaTests").memory(DataSize.ofMegabytes(100)).ossCluster(true)
+					.modules(RedisModule.SEARCH, RedisModule.JSON, RedisModule.TIMESERIES).build());
+
 	@Override
-	protected Collection<RedisServer> servers() {
-		return Arrays.asList(REDIS);
+	protected Collection<RedisServer> redisServers() {
+		return Arrays.asList(REDIS, REDIS_ENTERPRISE);
 	}
 
 	protected Map<String, String> map(String... args) {

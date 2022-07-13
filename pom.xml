@@ -31,10 +31,7 @@
 		<spring-batch-redis.version>2.30.3</spring-batch-redis.version>
 		<spring-batch.version>4.3.6</spring-batch.version>
 		<slf4j.version>1.7.36</slf4j.version>
-		<testcontainers-redis.version>1.4.6</testcontainers-redis.version>
-		<testcontainers.version>1.15.3</testcontainers.version>
-		<component-owner>redis</component-owner>
-		<component-name>redis-enterprise-kafka</component-name>
+		<testcontainers-redis.version>1.6.0</testcontainers-redis.version>
 	</properties>
 	<licenses>
 		<license>
@@ -125,7 +122,7 @@
 		</dependency>
 		<dependency>
 			<groupId>com.redis.testcontainers</groupId>
-			<artifactId>testcontainers-redis-junit-jupiter</artifactId>
+			<artifactId>testcontainers-redis-junit</artifactId>
 			<version>${testcontainers-redis.version}</version>
 			<scope>test</scope>
 		</dependency>
@@ -360,8 +357,8 @@
 						<linkcss>true</linkcss>
 						<github-owner>${github.owner}</github-owner>
 						<github-repo>${github.repo}</github-repo>
-						<component-owner>${component-owner}</component-owner>
-						<component-name>${component-name}</component-name>
+						<component-owner>redis</component-owner>
+						<component-name>redis-enterprise-kafka</component-name>
 						<project-artifact>${project.artifactId}</project-artifact>
 						<project-name>${project.name}</project-name>
 						<project-version>${project.version}</project-version>

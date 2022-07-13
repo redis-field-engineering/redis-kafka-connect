@@ -26,9 +26,9 @@ import com.redis.spring.batch.DataStructure;
 import com.redis.spring.batch.reader.LiveRedisItemReader;
 import com.redis.testcontainers.RedisContainer;
 import com.redis.testcontainers.RedisServer;
-import com.redis.testcontainers.junit.jupiter.AbstractTestcontainersRedisTestBase;
-import com.redis.testcontainers.junit.jupiter.RedisTestContext;
-import com.redis.testcontainers.junit.jupiter.RedisTestContextsSource;
+import com.redis.testcontainers.junit.AbstractTestcontainersRedisTestBase;
+import com.redis.testcontainers.junit.RedisTestContext;
+import com.redis.testcontainers.junit.RedisTestContextsSource;
 
 class RedisEnterpriseSourceTaskIT extends AbstractTestcontainersRedisTestBase {
 
@@ -39,7 +39,7 @@ class RedisEnterpriseSourceTaskIT extends AbstractTestcontainersRedisTestBase {
 			RedisContainer.DEFAULT_IMAGE_NAME.withTag(RedisContainer.DEFAULT_TAG)).withKeyspaceNotifications();
 
 	@Override
-	protected Collection<RedisServer> servers() {
+	protected Collection<RedisServer> redisServers() {
 		return Arrays.asList(REDIS);
 	}
 
