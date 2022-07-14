@@ -7,7 +7,7 @@ on:
 jobs:
   earlyaccess:
     name: EarlyAccess
-    if: github.repository == 'redis-field-engineering/redis-enterprise-kafka' && startsWith(github.event.head_commit.message, 'Releasing version') != true
+    if: startsWith(github.event.head_commit.message, 'Releasing version') != true
     runs-on: ubuntu-18.04
     steps:
       - name: Checkout

@@ -8,7 +8,7 @@ if lsof -Pi :6379 -sTCP:LISTEN -t >/dev/null ; then
 fi
 )
 
-echo "Building the Redis Enterprise Kafka Connector"
+echo "Building the Redis Kafka Connector"
 (
 ./mvnw clean package -DskipTests
 mv target/components/packages/redis-redis-enterprise-kafka-6.*.zip target/components/packages/redis-enterprise-kafka.zip
@@ -20,8 +20,8 @@ docker-compose up -d --build
 function clean_up {
     echo -e "\n\nSHUTTING DOWN\n\n"
     curl --output /dev/null -X DELETE http://localhost:8083/connectors/datagen-pageviews || true
-    curl --output /dev/null -X DELETE http://localhost:8083/connectors/redis-enterprise-sink || true
-    curl --output /dev/null -X DELETE http://localhost:8083/connectors/redis-enterprise-source || true
+    curl --output /dev/null -X DELETE http://localhost:8083/connectors/redis-sink || true
+    curl --output /dev/null -X DELETE http://localhost:8083/connectors/redis-source || true
     docker-compose down
     if [ -z "$1" ]
     then
@@ -84,9 +84,9 @@ sleep 5
 
 echo -e "\nAdding Redis Enteprise Kafka Sink Connector for the 'pageviews' topic into the 'pageviews' stream:"
 curl -X POST -H "Content-Type: application/json" --data '
-  {"name": "redis-enterprise-sink",
+  {"name": "redis-sink",
    "config": {
-     "connector.class":"com.redis.kafka.connect.RedisEnterpriseSinkConnector",
+     "connector.class":"com.redis.kafka.connect.RedisSinkConnector",
      "tasks.max":"1",
      "topics":"pageviews",
      "redis.uri":"redis://redis:6379",
@@ -96,11 +96,11 @@ curl -X POST -H "Content-Type: application/json" --data '
 }}' http://localhost:8083/connectors -w "\n"
 
 sleep 2
-echo -e "\nAdding Redis Enterprise Kafka Sink Connector for the 'pageviews' topic into RedisJSON:"
+echo -e "\nAdding Redis Kafka Sink Connector for the 'pageviews' topic into RedisJSON:"
 curl -X POST -H "Content-Type: application/json" --data '
-  {"name": "redis-enterprise-sink-json",
+  {"name": "redis-sink-json",
    "config": {
-     "connector.class":"com.redis.kafka.connect.RedisEnterpriseSinkConnector",
+     "connector.class":"com.redis.kafka.connect.RedisSinkConnector",
      "tasks.max":"1",
      "topics":"pageviews",
      "redis.uri":"redis://redis:6379",
@@ -114,12 +114,12 @@ curl -X POST -H "Content-Type: application/json" --data '
 }}' http://localhost:8083/connectors -w "\n"
 
 sleep 2
-echo -e "\nAdding Redis Enterprise Kafka Source Connector for the 'mystream' stream:"
+echo -e "\nAdding Redis Kafka Source Connector for the 'mystream' stream:"
 curl -X POST -H "Content-Type: application/json" --data '
-  {"name": "redis-enterprise-source",
+  {"name": "redis-source",
    "config": {
      "tasks.max":"1",
-     "connector.class":"com.redis.kafka.connect.RedisEnterpriseSourceConnector",
+     "connector.class":"com.redis.kafka.connect.RedisSourceConnector",
      "redis.uri":"redis://redis:6379",
      "redis.stream.name":"mystream",
      "topic": "mystream"

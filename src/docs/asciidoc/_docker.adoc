@@ -1,10 +1,10 @@
 [[docker]]
 = Quick Start with Docker
 
-This guide provides a hands-on look at the functionality of the Redis Enterprise Kafka Source and Sink Connectors:
+This guide provides a hands-on look at the functionality of the Redis Kafka Source and Sink Connectors:
 
-* The *redis-enterprise-sink* connector reads data from a Kafka topic and writes it to a Redis stream
-* The *redis-enterprise-source* connector reads data from a Redis stream and writes it to a Kafka topic
+* The *redis-sink* connector reads data from a Kafka topic and writes it to a Redis stream
+* The *redis-source* connector reads data from a Redis stream and writes it to a Kafka topic
 
 == Requirements
 
@@ -17,7 +17,6 @@ Clone the https://github.com/{github-owner}/{github-repo}.git[{github-repo}] rep
 [source,console,subs="attributes"]
 ----
 git clone https://github.com/{github-owner}/{github-repo}.git
-cd redis-enterprise-kafka/docker
 ./run.sh
 ----
 
@@ -26,8 +25,8 @@ This will:
 * Run `docker-compose up`
 * Wait for Redis, Kafka, and Kafka Connect to be ready
 * Register the Confluent Datagen Connector
-* Register the Redis Enterprise Kafka Sink Connector
-* Register the Redis Enterprise Kafka Source Connector
+* Register the Redis Kafka Sink Connector
+* Register the Redis Kafka Source Connector
 * Publish some events to Kafka via the Datagen connector
 * Write the events to Redis
 * Send messages to a Redis stream

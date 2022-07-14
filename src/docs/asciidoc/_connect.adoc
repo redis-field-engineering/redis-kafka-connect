@@ -1,7 +1,7 @@
 [[connect]]
 = Connect to Redis
 
-This section provides information on configuring the Redis Enterprise Kafka Source or Sink Connector to connect to Redis Enterprise.
+This section provides information on configuring the Redis Kafka Source or Sink Connector.
 
 == Configuration
 

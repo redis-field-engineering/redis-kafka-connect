@@ -12,8 +12,8 @@
  */
 package com.redis.kafka.connect;
 
-import com.redis.kafka.connect.source.RedisEnterpriseSourceConfig;
-import com.redis.kafka.connect.source.RedisEnterpriseSourceTask;
+import com.redis.kafka.connect.source.RedisSourceConfig;
+import com.redis.kafka.connect.source.RedisSourceTask;
 import org.apache.kafka.common.config.ConfigDef;
 import org.apache.kafka.common.config.ConfigException;
 import org.apache.kafka.common.utils.AppInfoParser;
@@ -28,16 +28,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-public class RedisEnterpriseSourceConnector extends SourceConnector {
+public class RedisSourceConnector extends SourceConnector {
 
     private Map<String, String> props;
-    private RedisEnterpriseSourceConfig config;
+    private RedisSourceConfig config;
 
     @Override
     public void start(Map<String, String> props) {
         this.props = props;
         try {
-            this.config = new RedisEnterpriseSourceConfig(props);
+            this.config = new RedisSourceConfig(props);
         } catch (ConfigException configException) {
             throw new ConnectException(configException);
         }
@@ -45,12 +45,12 @@ public class RedisEnterpriseSourceConnector extends SourceConnector {
 
     @Override
     public Class<? extends Task> taskClass() {
-        return RedisEnterpriseSourceTask.class;
+        return RedisSourceTask.class;
     }
 
     @Override
     public List<Map<String, String>> taskConfigs(int maxTasks) {
-        if (this.config.getReaderType() == RedisEnterpriseSourceConfig.ReaderType.KEYS) {
+        if (this.config.getReaderType() == RedisSourceConfig.ReaderType.KEYS) {
             // Partition the configs based on channels
             final List<List<String>> partitionedPatterns = ConnectorUtils
                     .groupPartitions(this.config.getKeyPatterns(), Math.min(this.config.getKeyPatterns().size(), maxTasks));
@@ -61,7 +61,7 @@ public class RedisEnterpriseSourceConnector extends SourceConnector {
         List<Map<String, String>> taskConfigs = new ArrayList<>();
         for (int i = 0; i < maxTasks; i++) {
             Map<String, String> taskConfig = new HashMap<>(this.props);
-            taskConfig.put(RedisEnterpriseSourceTask.TASK_ID, Integer.toString(i));
+            taskConfig.put(RedisSourceTask.TASK_ID, Integer.toString(i));
             taskConfigs.add(taskConfig);
         }
         return taskConfigs;
@@ -69,7 +69,7 @@ public class RedisEnterpriseSourceConnector extends SourceConnector {
 
     private Map<String, String> taskConfig(List<String> patterns) {
         final Map<String, String> taskConfig = new HashMap<>(this.config.originalsStrings());
-        taskConfig.put(RedisEnterpriseSourceConfig.KEY_PATTERNS_CONFIG, String.join(",", patterns));
+        taskConfig.put(RedisSourceConfig.KEY_PATTERNS_CONFIG, String.join(",", patterns));
         return taskConfig;
     }
 
@@ -79,7 +79,7 @@ public class RedisEnterpriseSourceConnector extends SourceConnector {
 
     @Override
     public ConfigDef config() {
-        return new RedisEnterpriseSourceConfig.RedisEnterpriseSourceConfigDef();
+        return new RedisSourceConfig.RedisSourceConfigDef();
     }
 
     @Override

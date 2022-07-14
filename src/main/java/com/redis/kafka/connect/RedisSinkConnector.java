@@ -15,8 +15,8 @@
  */
 package com.redis.kafka.connect;
 
-import com.redis.kafka.connect.sink.RedisEnterpriseSinkConfig;
-import com.redis.kafka.connect.sink.RedisEnterpriseSinkTask;
+import com.redis.kafka.connect.sink.RedisSinkConfig;
+import com.redis.kafka.connect.sink.RedisSinkTask;
 import org.apache.kafka.common.config.ConfigDef;
 import org.apache.kafka.common.utils.AppInfoParser;
 import org.apache.kafka.connect.connector.Task;
@@ -26,7 +26,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
-public class RedisEnterpriseSinkConnector extends SinkConnector {
+public class RedisSinkConnector extends SinkConnector {
 
     private Map<String, String> props;
 
@@ -37,7 +37,7 @@ public class RedisEnterpriseSinkConnector extends SinkConnector {
 
     @Override
     public Class<? extends Task> taskClass() {
-        return RedisEnterpriseSinkTask.class;
+        return RedisSinkTask.class;
     }
 
     @Override
@@ -51,7 +51,7 @@ public class RedisEnterpriseSinkConnector extends SinkConnector {
 
     @Override
     public ConfigDef config() {
-        return new RedisEnterpriseSinkConfig.RedisEnterpriseSinkConfigDef();
+        return new RedisSinkConfig.RedisSinkConfigDef();
     }
 
 

@@ -20,8 +20,8 @@ import org.springframework.util.Assert;
 import org.testcontainers.junit.jupiter.Container;
 
 import com.redis.kafka.connect.source.KeySourceRecordReader;
-import com.redis.kafka.connect.source.RedisEnterpriseSourceConfig;
-import com.redis.kafka.connect.source.RedisEnterpriseSourceTask;
+import com.redis.kafka.connect.source.RedisSourceConfig;
+import com.redis.kafka.connect.source.RedisSourceTask;
 import com.redis.spring.batch.DataStructure;
 import com.redis.spring.batch.reader.LiveRedisItemReader;
 import com.redis.testcontainers.RedisContainer;
@@ -30,9 +30,9 @@ import com.redis.testcontainers.junit.AbstractTestcontainersRedisTestBase;
 import com.redis.testcontainers.junit.RedisTestContext;
 import com.redis.testcontainers.junit.RedisTestContextsSource;
 
-class RedisEnterpriseSourceTaskIT extends AbstractTestcontainersRedisTestBase {
+class RedisSourceTaskIT extends AbstractTestcontainersRedisTestBase {
 
-	private static final Logger log = LoggerFactory.getLogger(RedisEnterpriseSourceTaskIT.class);
+	private static final Logger log = LoggerFactory.getLogger(RedisSourceTaskIT.class);
 
 	@Container
 	private static final RedisContainer REDIS = new RedisContainer(
@@ -43,16 +43,16 @@ class RedisEnterpriseSourceTaskIT extends AbstractTestcontainersRedisTestBase {
 		return Arrays.asList(REDIS);
 	}
 
-	private RedisEnterpriseSourceTask task;
+	private RedisSourceTask task;
 
 	@BeforeEach
 	public void createTask() {
-		task = new RedisEnterpriseSourceTask();
+		task = new RedisSourceTask();
 	}
 
 	private void startTask(RedisTestContext redis, String... props) {
 		Map<String, String> config = map(props);
-		config.put(RedisEnterpriseSourceConfig.REDIS_URI_CONFIG, redis.getServer().getRedisURI());
+		config.put(RedisSourceConfig.URI_CONFIG, redis.getServer().getRedisURI());
 		task.start(config);
 	}
 
@@ -76,9 +76,9 @@ class RedisEnterpriseSourceTaskIT extends AbstractTestcontainersRedisTestBase {
 	void pollStream(RedisTestContext redis) throws InterruptedException {
 		final String stream = "stream1";
 		final String topicPrefix = "testprefix-";
-		startTask(redis, RedisEnterpriseSourceConfig.TOPIC_CONFIG,
-				topicPrefix + RedisEnterpriseSourceConfig.TOKEN_STREAM, RedisEnterpriseSourceConfig.READER_CONFIG,
-				RedisEnterpriseSourceConfig.ReaderType.STREAM.name(), RedisEnterpriseSourceConfig.STREAM_NAME_CONFIG,
+		startTask(redis, RedisSourceConfig.TOPIC_CONFIG,
+				topicPrefix + RedisSourceConfig.TOKEN_STREAM, RedisSourceConfig.READER_CONFIG,
+				RedisSourceConfig.ReaderType.STREAM.name(), RedisSourceConfig.STREAM_NAME_CONFIG,
 				stream);
 		String field1 = "field1";
 		String value1 = "value1";
@@ -109,9 +109,9 @@ class RedisEnterpriseSourceTaskIT extends AbstractTestcontainersRedisTestBase {
 	@RedisTestContextsSource
 	void pollKeys(RedisTestContext redis) throws InterruptedException {
 		String topic = "mytopic";
-		startTask(redis, RedisEnterpriseSourceConfig.READER_CONFIG, RedisEnterpriseSourceConfig.ReaderType.KEYS.name(),
-				RedisEnterpriseSourceConfig.STREAM_NAME_CONFIG, "dummy", RedisEnterpriseSourceConfig.TOPIC_CONFIG,
-				topic, RedisEnterpriseSourceTask.KEYS_IDLE_TIMEOUT, "3000");
+		startTask(redis, RedisSourceConfig.READER_CONFIG, RedisSourceConfig.ReaderType.KEYS.name(),
+				RedisSourceConfig.STREAM_NAME_CONFIG, "dummy", RedisSourceConfig.TOPIC_CONFIG,
+				topic, RedisSourceTask.KEYS_IDLE_TIMEOUT, "3000");
 		LiveRedisItemReader<String, DataStructure<String>> reader = ((KeySourceRecordReader) task.getReader())
 				.getReader();
 		Awaitility.await().until(reader::isOpen);

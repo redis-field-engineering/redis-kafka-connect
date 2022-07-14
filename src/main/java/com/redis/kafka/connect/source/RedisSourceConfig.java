@@ -15,17 +15,18 @@
  */
 package com.redis.kafka.connect.source;
 
-import com.github.jcustenborder.kafka.connect.utils.config.ConfigKeyBuilder;
-import com.github.jcustenborder.kafka.connect.utils.config.ConfigUtils;
-import com.github.jcustenborder.kafka.connect.utils.config.validators.Validators;
-import com.redis.kafka.connect.common.RedisEnterpriseConfig;
-import org.apache.kafka.common.config.ConfigDef;
-
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-public class RedisEnterpriseSourceConfig extends RedisEnterpriseConfig {
+import org.apache.kafka.common.config.ConfigDef;
+
+import com.github.jcustenborder.kafka.connect.utils.config.ConfigKeyBuilder;
+import com.github.jcustenborder.kafka.connect.utils.config.ConfigUtils;
+import com.github.jcustenborder.kafka.connect.utils.config.validators.Validators;
+import com.redis.kafka.connect.common.RedisConfig;
+
+public class RedisSourceConfig extends RedisConfig {
 
 	public enum ReaderType {
 		KEYS, STREAM
@@ -41,7 +42,7 @@ public class RedisEnterpriseSourceConfig extends RedisEnterpriseConfig {
 			TOKEN_STREAM, TOKEN_STREAM);
 
 	public static final String READER_CONFIG = "redis.reader";
-	public static final String READER_DEFAULT = ReaderType.STREAM.name();
+	public static final ReaderType READER_DEFAULT = ReaderType.STREAM;
 	public static final String READER_DOC = "Source from which to read Redis records. " + ReaderType.KEYS
 			+ ": generate records from key events and respective values generated from write operations in the Redis database. "
 			+ ReaderType.STREAM + ": read messages from a Redis stream";
@@ -85,8 +86,8 @@ public class RedisEnterpriseSourceConfig extends RedisEnterpriseConfig {
 	private final Long streamBlock;
 	private final String topicName;
 
-	public RedisEnterpriseSourceConfig(Map<?, ?> originals) {
-		super(new RedisEnterpriseSourceConfigDef(), originals);
+	public RedisSourceConfig(Map<?, ?> originals) {
+		super(new RedisSourceConfigDef(), originals);
 		this.topicName = getString(TOPIC_CONFIG);
 		this.readerType = ConfigUtils.getEnum(ReaderType.class, this, READER_CONFIG);
 		this.batchSize = getLong(BATCH_SIZE_CONFIG);
@@ -134,13 +135,13 @@ public class RedisEnterpriseSourceConfig extends RedisEnterpriseConfig {
 		return topicName;
 	}
 
-	public static class RedisEnterpriseSourceConfigDef extends RedisEnterpriseConfigDef {
+	public static class RedisSourceConfigDef extends RedisConfigDef {
 
-		public RedisEnterpriseSourceConfigDef() {
+		public RedisSourceConfigDef() {
 			define();
 		}
 
-		public RedisEnterpriseSourceConfigDef(ConfigDef base) {
+		public RedisSourceConfigDef(ConfigDef base) {
 			super(base);
 			define();
 		}
@@ -152,7 +153,7 @@ public class RedisEnterpriseSourceConfig extends RedisEnterpriseConfig {
 					.importance(ConfigDef.Importance.LOW).documentation(BATCH_SIZE_DOC)
 					.validator(ConfigDef.Range.atLeast(1L)).build());
 			define(ConfigKeyBuilder.of(READER_CONFIG, ConfigDef.Type.STRING).documentation(READER_DOC)
-					.defaultValue(READER_DEFAULT).importance(ConfigDef.Importance.HIGH)
+					.defaultValue(READER_DEFAULT.name()).importance(ConfigDef.Importance.HIGH)
 					.validator(Validators.validEnum(ReaderType.class)).internalConfig(true).build());
 			define(ConfigKeyBuilder.of(KEY_PATTERNS_CONFIG, Type.LIST).documentation(KEY_PATTERNS_DOC)
 					.defaultValue(KEY_PATTERNS_DEFAULT).importance(Importance.MEDIUM).internalConfig(true).build());
@@ -190,7 +191,7 @@ public class RedisEnterpriseSourceConfig extends RedisEnterpriseConfig {
 			return false;
 		if (getClass() != obj.getClass())
 			return false;
-		RedisEnterpriseSourceConfig other = (RedisEnterpriseSourceConfig) obj;
+		RedisSourceConfig other = (RedisSourceConfig) obj;
 		return Objects.equals(batchSize, other.batchSize) && Objects.equals(keyPatterns, other.keyPatterns)
 				&& readerType == other.readerType && Objects.equals(streamBlock, other.streamBlock)
 				&& Objects.equals(streamConsumerGroup, other.streamConsumerGroup)

@@ -23,9 +23,9 @@ import org.apache.kafka.connect.errors.RetriableException;
 import org.apache.kafka.connect.source.SourceRecord;
 import org.apache.kafka.connect.source.SourceTask;
 
-import com.redis.kafka.connect.RedisEnterpriseSourceConnector;
+import com.redis.kafka.connect.RedisSourceConnector;
 
-public class RedisEnterpriseSourceTask extends SourceTask {
+public class RedisSourceTask extends SourceTask {
 
 	public static final String TASK_ID = "task.id";
 	public static final String KEYS_IDLE_TIMEOUT = "keys.idletimeout";
@@ -34,7 +34,7 @@ public class RedisEnterpriseSourceTask extends SourceTask {
 
 	@Override
 	public String version() {
-		return new RedisEnterpriseSourceConnector().version();
+		return new RedisSourceConnector().version();
 	}
 
 	public SourceRecordReader getReader() {
@@ -52,8 +52,8 @@ public class RedisEnterpriseSourceTask extends SourceTask {
 	}
 
 	private SourceRecordReader reader(Map<String, String> props) {
-		RedisEnterpriseSourceConfig sourceConfig = new RedisEnterpriseSourceConfig(props);
-		if (sourceConfig.getReaderType() == RedisEnterpriseSourceConfig.ReaderType.STREAM) {
+		RedisSourceConfig sourceConfig = new RedisSourceConfig(props);
+		if (sourceConfig.getReaderType() == RedisSourceConfig.ReaderType.STREAM) {
 			String taskIdString = props.get(TASK_ID);
 			int taskId = taskIdString == null ? 0 : Integer.parseInt(taskIdString);
 			return new StreamSourceRecordReader(sourceConfig, taskId);

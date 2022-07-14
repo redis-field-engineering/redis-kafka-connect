@@ -1,8 +1,8 @@
 [[sink]]
 = Sink Connector Guide
-:name: Redis Enterprise Kafka Sink Connector
+:name: Redis Kafka Sink Connector
 
-The {name} consumes records from a Kafka topic and writes the data to a Redis Enterprise database.
+The {name} consumes records from a Kafka topic and writes the data to Redis.
 
 == Features
 

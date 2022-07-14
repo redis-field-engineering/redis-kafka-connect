@@ -1,6 +1,6 @@
 package com.redis.kafka.connect;
 
-import com.redis.kafka.connect.sink.RedisEnterpriseSinkTask;
+import com.redis.kafka.connect.sink.RedisSinkTask;
 import org.apache.kafka.common.config.ConfigDef;
 import org.apache.kafka.common.utils.AppInfoParser;
 import org.junit.jupiter.api.Assertions;
@@ -8,22 +8,22 @@ import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
 
-class RedisEnterpriseSinkConnectorTest {
+class RedisSinkConnectorTest {
 
 	@Test
 	void testConfig() {
-		ConfigDef config = new RedisEnterpriseSinkConnector().config();
+		ConfigDef config = new RedisSinkConnector().config();
 		Assertions.assertNotNull(config);
 	}
 
 	@Test
 	void testTask() {
-		Assertions.assertEquals(RedisEnterpriseSinkTask.class, new RedisEnterpriseSinkConnector().taskClass());
+		Assertions.assertEquals(RedisSinkTask.class, new RedisSinkConnector().taskClass());
 	}
 
 	@Test
 	void testTaskConfigs() {
-		RedisEnterpriseSinkConnector connector = new RedisEnterpriseSinkConnector();
+		RedisSinkConnector connector = new RedisSinkConnector();
 		HashMap<String, String> props = new HashMap<>();
 		props.put("field1", "value1");
 		connector.start(props);
@@ -32,7 +32,7 @@ class RedisEnterpriseSinkConnectorTest {
 
 	@Test
 	void testVersion() {
-		Assertions.assertEquals(AppInfoParser.getVersion(), new RedisEnterpriseSinkConnector().version());
+		Assertions.assertEquals(AppInfoParser.getVersion(), new RedisSinkConnector().version());
 	}
 
 }

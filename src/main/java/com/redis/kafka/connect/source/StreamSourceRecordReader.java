@@ -13,10 +13,10 @@ import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.source.SourceRecord;
 import org.springframework.batch.item.ExecutionContext;
 
-import com.redis.lettucemod.RedisModulesClient;
 import com.redis.spring.batch.RedisItemReader;
 import com.redis.spring.batch.reader.StreamItemReader;
 
+import io.lettuce.core.AbstractRedisClient;
 import io.lettuce.core.StreamMessage;
 
 public class StreamSourceRecordReader extends AbstractSourceRecordReader<StreamMessage<String, String>> {
@@ -35,16 +35,15 @@ public class StreamSourceRecordReader extends AbstractSourceRecordReader<StreamM
 
 	private StreamItemReader<String, String> reader;
 
-	public StreamSourceRecordReader(RedisEnterpriseSourceConfig sourceConfig, int taskId) {
+	public StreamSourceRecordReader(RedisSourceConfig sourceConfig, int taskId) {
 		super(sourceConfig);
-		this.topic = sourceConfig.getTopicName().replace(RedisEnterpriseSourceConfig.TOKEN_STREAM,
-				sourceConfig.getStreamName());
-		this.consumer = sourceConfig.getStreamConsumerName().replace(RedisEnterpriseSourceConfig.TOKEN_TASK,
+		this.topic = sourceConfig.getTopicName().replace(RedisSourceConfig.TOKEN_STREAM, sourceConfig.getStreamName());
+		this.consumer = sourceConfig.getStreamConsumerName().replace(RedisSourceConfig.TOKEN_TASK,
 				String.valueOf(taskId));
 	}
 
 	@Override
-	protected void open(RedisModulesClient client) {
+	protected void open(AbstractRedisClient client) {
 		reader = RedisItemReader.client(client).string().stream(sourceConfig.getStreamName())
 				.offset(sourceConfig.getStreamOffset()).block(Duration.ofMillis(sourceConfig.getStreamBlock()))
 				.count(sourceConfig.getBatchSize()).consumerGroup(sourceConfig.getStreamConsumerGroup())

@@ -46,8 +46,9 @@ import com.github.jcustenborder.kafka.connect.utils.data.SinkOffsetState;
 import com.github.jcustenborder.kafka.connect.utils.jackson.ObjectMapperFactory;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
-import com.redis.kafka.connect.RedisEnterpriseSinkConnector;
+import com.redis.kafka.connect.RedisSinkConnector;
 import com.redis.lettucemod.RedisModulesClient;
+import com.redis.lettucemod.cluster.RedisModulesClusterClient;
 import com.redis.spring.batch.RedisItemWriter;
 import com.redis.spring.batch.RedisItemWriter.OperationBuilder;
 import com.redis.spring.batch.RedisItemWriter.WaitForReplication;
@@ -64,31 +65,33 @@ import com.redis.spring.batch.writer.operation.TsAdd;
 import com.redis.spring.batch.writer.operation.Xadd;
 import com.redis.spring.batch.writer.operation.Zadd;
 
+import io.lettuce.core.AbstractRedisClient;
 import io.lettuce.core.KeyValue;
 import io.lettuce.core.api.StatefulRedisConnection;
 import io.lettuce.core.codec.ByteArrayCodec;
 
-public class RedisEnterpriseSinkTask extends SinkTask {
+public class RedisSinkTask extends SinkTask {
 
-	private static final Logger log = LoggerFactory.getLogger(RedisEnterpriseSinkTask.class);
+	private static final Logger log = LoggerFactory.getLogger(RedisSinkTask.class);
 	private static final String OFFSET_KEY_FORMAT = "com.redis.kafka.connect.sink.offset.%s.%s";
 
-	private RedisModulesClient client;
-	private RedisEnterpriseSinkConfig config;
+	private AbstractRedisClient client;
+	private RedisSinkConfig config;
 	private RedisItemWriter<byte[], byte[], SinkRecord> writer;
 	private StatefulRedisConnection<String, String> connection;
 	private Converter jsonConverter;
 
 	@Override
 	public String version() {
-		return new RedisEnterpriseSinkConnector().version();
+		return new RedisSinkConnector().version();
 	}
 
 	@Override
 	public void start(final Map<String, String> props) {
-		config = new RedisEnterpriseSinkConfig(props);
-		client = RedisModulesClient.create(config.getRedisURI());
-		connection = client.connect();
+		config = new RedisSinkConfig(props);
+		client = config.redisClient();
+		connection = client instanceof RedisModulesClusterClient ? ((RedisModulesClusterClient) client).connect()
+				: ((RedisModulesClient) client).connect();
 		jsonConverter = new JsonConverter();
 		jsonConverter.configure(Collections.singletonMap("schemas.enable", "false"), false);
 		writer = writer(client).build();
@@ -124,7 +127,7 @@ public class RedisEnterpriseSinkTask extends SinkTask {
 		return offsetStates;
 	}
 
-	private RedisItemWriter.Builder<byte[], byte[], SinkRecord> writer(RedisModulesClient client) {
+	private RedisItemWriter.Builder<byte[], byte[], SinkRecord> writer(AbstractRedisClient client) {
 		RedisItemWriter.Builder<byte[], byte[], SinkRecord> builder = new OperationBuilder<>(client,
 				new ByteArrayCodec()).operation(operation());
 		if (Boolean.TRUE.equals(config.isMultiexec())) {
@@ -153,7 +156,7 @@ public class RedisEnterpriseSinkTask extends SinkTask {
 		case STREAM:
 			return Xadd.<byte[], byte[], SinkRecord>key(this::collectionKey).body(this::map).build();
 		case LIST:
-			if (config.getPushDirection() == RedisEnterpriseSinkConfig.PushDirection.LEFT) {
+			if (config.getPushDirection() == RedisSinkConfig.PushDirection.LEFT) {
 				return Lpush.<byte[], byte[], SinkRecord>key(this::collectionKey).member(this::member).build();
 			}
 			return Rpush.<byte[], byte[], SinkRecord>key(this::collectionKey).member(this::member).build();
@@ -166,7 +169,7 @@ public class RedisEnterpriseSinkTask extends SinkTask {
 			return Zadd.<byte[], byte[], SinkRecord>key(this::collectionKey)
 					.value(new ScoredValueConverter<>(this::member, this::doubleValue)).build();
 		default:
-			throw new ConfigException(RedisEnterpriseSinkConfig.TYPE_CONFIG, config.getType());
+			throw new ConfigException(RedisSinkConfig.TYPE_CONFIG, config.getType());
 		}
 	}
 
@@ -230,7 +233,7 @@ public class RedisEnterpriseSinkTask extends SinkTask {
 	}
 
 	private String keyspace(SinkRecord sinkRecord) {
-		return config.getKeyspace().replace(RedisEnterpriseSinkConfig.TOKEN_TOPIC, sinkRecord.topic());
+		return config.getKeyspace().replace(RedisSinkConfig.TOKEN_TOPIC, sinkRecord.topic());
 	}
 
 	private byte[] bytes(String source, Object input) {

@@ -1,8 +1,8 @@
 [[source]]
 = Source Connector Guide
-:name: Redis Enterprise Kafka Source Connector
+:name: Redis Kafka Source Connector
 
-The {name} reads from a Redis Enterprise stream and publishes messages to a Kafka topic.
+The {name} reads from a Redis stream and publishes messages to a Kafka topic.
 
 == Features
 

@@ -28,9 +28,9 @@ import org.apache.kafka.common.config.ConfigValue;
 import com.github.jcustenborder.kafka.connect.utils.config.ConfigKeyBuilder;
 import com.github.jcustenborder.kafka.connect.utils.config.ConfigUtils;
 import com.github.jcustenborder.kafka.connect.utils.config.validators.Validators;
-import com.redis.kafka.connect.common.RedisEnterpriseConfig;
+import com.redis.kafka.connect.common.RedisConfig;
 
-public class RedisEnterpriseSinkConfig extends RedisEnterpriseConfig {
+public class RedisSinkConfig extends RedisConfig {
 
 	public enum DataType {
 		HASH, JSON, TIMESERIES, STRING, STREAM, LIST, SET, ZSET
@@ -70,7 +70,7 @@ public class RedisEnterpriseSinkConfig extends RedisEnterpriseConfig {
 	public static final String WAIT_TIMEOUT_DOC = "Timeout in millis for WAIT command.";
 
 	public static final String TYPE_CONFIG = "redis.type";
-	public static final String TYPE_DEFAULT = DataType.STREAM.name();
+	public static final DataType TYPE_DEFAULT = DataType.STREAM;
 	public static final String TYPE_DOC = "Destination data structure: " + ConfigUtils.enumValues(DataType.class);
 
 	protected static final Set<DataType> MULTI_EXEC_TYPES = new HashSet<>(
@@ -90,8 +90,8 @@ public class RedisEnterpriseSinkConfig extends RedisEnterpriseConfig {
 	private final int waitReplicas;
 	private final long waitTimeout;
 
-	public RedisEnterpriseSinkConfig(Map<?, ?> originals) {
-		super(new RedisEnterpriseSinkConfigDef(), originals);
+	public RedisSinkConfig(Map<?, ?> originals) {
+		super(new RedisSinkConfigDef(), originals);
 		String charsetName = getString(CHARSET_CONFIG).trim();
 		charset = Charset.forName(charsetName);
 		type = ConfigUtils.getEnum(DataType.class, this, TYPE_CONFIG);
@@ -135,13 +135,13 @@ public class RedisEnterpriseSinkConfig extends RedisEnterpriseConfig {
 		return waitTimeout;
 	}
 
-	public static class RedisEnterpriseSinkConfigDef extends RedisEnterpriseConfigDef {
+	public static class RedisSinkConfigDef extends RedisConfigDef {
 
-		public RedisEnterpriseSinkConfigDef() {
+		public RedisSinkConfigDef() {
 			define();
 		}
 
-		public RedisEnterpriseSinkConfigDef(ConfigDef base) {
+		public RedisSinkConfigDef(ConfigDef base) {
 			super(base);
 			define();
 		}
@@ -150,7 +150,7 @@ public class RedisEnterpriseSinkConfig extends RedisEnterpriseConfig {
 			define(ConfigKeyBuilder.of(CHARSET_CONFIG, ConfigDef.Type.STRING).documentation(CHARSET_DOC)
 					.defaultValue(CHARSET_DEFAULT).importance(ConfigDef.Importance.HIGH).build());
 			define(ConfigKeyBuilder.of(TYPE_CONFIG, ConfigDef.Type.STRING).documentation(TYPE_DOC)
-					.defaultValue(TYPE_DEFAULT).importance(ConfigDef.Importance.HIGH)
+					.defaultValue(TYPE_DEFAULT.name()).importance(ConfigDef.Importance.HIGH)
 					.validator(Validators.validEnum(DataType.class)).build());
 			define(ConfigKeyBuilder.of(KEY_CONFIG, ConfigDef.Type.STRING).documentation(KEY_DOC)
 					.defaultValue(KEY_DEFAULT).importance(ConfigDef.Importance.MEDIUM).build());
@@ -190,7 +190,7 @@ public class RedisEnterpriseSinkConfig extends RedisEnterpriseConfig {
 		}
 
 		private DataType dataType(Map<String, String> props) {
-			return DataType.valueOf(props.getOrDefault(TYPE_CONFIG, TYPE_DEFAULT));
+			return DataType.valueOf(props.getOrDefault(TYPE_CONFIG, TYPE_DEFAULT.name()));
 		}
 
 	}
@@ -212,7 +212,7 @@ public class RedisEnterpriseSinkConfig extends RedisEnterpriseConfig {
 			return false;
 		if (getClass() != obj.getClass())
 			return false;
-		RedisEnterpriseSinkConfig other = (RedisEnterpriseSinkConfig) obj;
+		RedisSinkConfig other = (RedisSinkConfig) obj;
 		return Objects.equals(charset, other.charset) && Objects.equals(keyspace, other.keyspace)
 				&& Objects.equals(separator, other.separator) && multiexec == other.multiexec
 				&& pushDirection == other.pushDirection && type == other.type && waitReplicas == other.waitReplicas

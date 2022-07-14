@@ -11,11 +11,12 @@ import org.apache.kafka.connect.data.SchemaBuilder;
 import org.apache.kafka.connect.source.SourceRecord;
 import org.springframework.batch.item.ExecutionContext;
 
-import com.redis.lettucemod.RedisModulesClient;
 import com.redis.spring.batch.DataStructure;
 import com.redis.spring.batch.DataStructure.Type;
 import com.redis.spring.batch.RedisItemReader;
 import com.redis.spring.batch.reader.LiveRedisItemReader;
+
+import io.lettuce.core.AbstractRedisClient;
 
 public class KeySourceRecordReader extends AbstractSourceRecordReader<DataStructure<String>> {
 
@@ -30,7 +31,7 @@ public class KeySourceRecordReader extends AbstractSourceRecordReader<DataStruct
 	private LiveRedisItemReader<String, DataStructure<String>> reader;
 	private final Duration idleTimeout;
 
-	public KeySourceRecordReader(RedisEnterpriseSourceConfig sourceConfig, Duration idleTimeout) {
+	public KeySourceRecordReader(RedisSourceConfig sourceConfig, Duration idleTimeout) {
 		super(sourceConfig);
 		this.topic = sourceConfig.getTopicName();
 		this.batchSize = Math.toIntExact(sourceConfig.getBatchSize());
@@ -38,7 +39,7 @@ public class KeySourceRecordReader extends AbstractSourceRecordReader<DataStruct
 	}
 
 	@Override
-	protected void open(RedisModulesClient client) throws Exception {
+	protected void open(AbstractRedisClient client) throws Exception {
 		reader = RedisItemReader.client(client).string().dataStructure().live().idleTimeout(idleTimeout)
 				.keyPatterns(sourceConfig.getKeyPatterns().toArray(new String[0])).build();
 		reader.open(new ExecutionContext());

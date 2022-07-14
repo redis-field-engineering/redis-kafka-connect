@@ -5,14 +5,14 @@
 
 == Introduction
 
-The {project-name} is used to import and export data between Apache Kafka and Redis Enterprise.
+The {project-name} is used to import and export data between Apache Kafka and Redis.
 
-image:images/redis-enterprise-kafka-connector.svg[]
+image:images/redis-kafka-connector.svg[]
 
 This guide provides documentation and usage information across the following topics:
 
 * <<install,Install>>
-* <<connect,Connect to Redis Enterprise>>
+* <<connect,Connect to Redis>>
 * <<sink,Sink Connector>>
 * <<source,Source Connector>>
 * <<docker,Docker Example>>

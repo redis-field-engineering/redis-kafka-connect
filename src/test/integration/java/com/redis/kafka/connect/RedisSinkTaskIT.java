@@ -29,7 +29,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.springframework.util.Assert;
 import org.springframework.util.unit.DataSize;
-import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.shaded.com.google.common.collect.ImmutableList;
 import org.testcontainers.shaded.com.google.common.collect.ImmutableMap;
 import org.testcontainers.shaded.com.google.common.collect.ImmutableSet;
@@ -39,8 +38,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.jcustenborder.kafka.connect.utils.SinkRecordHelper;
 import com.redis.enterprise.Database;
 import com.redis.enterprise.RedisModule;
-import com.redis.kafka.connect.sink.RedisEnterpriseSinkConfig;
-import com.redis.kafka.connect.sink.RedisEnterpriseSinkTask;
+import com.redis.kafka.connect.sink.RedisSinkConfig;
+import com.redis.kafka.connect.sink.RedisSinkTask;
 import com.redis.lettucemod.timeseries.Sample;
 import com.redis.lettucemod.timeseries.TimeRange;
 import com.redis.testcontainers.RedisEnterpriseContainer;
@@ -55,21 +54,19 @@ import io.lettuce.core.Range;
 import io.lettuce.core.ScoredValue;
 import io.lettuce.core.StreamMessage;
 
-class RedisEnterpriseSinkTaskIT extends AbstractTestcontainersRedisTestBase {
+class RedisSinkTaskIT extends AbstractTestcontainersRedisTestBase {
 
-	@Container
-	private static final RedisModulesContainer REDIS = new RedisModulesContainer(
-			RedisModulesContainer.DEFAULT_IMAGE_NAME.withTag(RedisModulesContainer.DEFAULT_TAG));
-
-	@Container
-	private static final RedisEnterpriseContainer REDIS_ENTERPRISE = new RedisEnterpriseContainer(
-			RedisEnterpriseContainer.DEFAULT_IMAGE_NAME.withTag(RedisEnterpriseContainer.DEFAULT_TAG))
-			.withDatabase(Database.name("RedisEnterpriseKafkaTests").memory(DataSize.ofMegabytes(100)).ossCluster(true)
-					.modules(RedisModule.SEARCH, RedisModule.JSON, RedisModule.TIMESERIES).build());
-
+	@SuppressWarnings("resource")
 	@Override
 	protected Collection<RedisServer> redisServers() {
-		return Arrays.asList(REDIS, REDIS_ENTERPRISE);
+		return Arrays.asList(
+				new RedisModulesContainer(
+						RedisModulesContainer.DEFAULT_IMAGE_NAME.withTag(RedisModulesContainer.DEFAULT_TAG)),
+				new RedisEnterpriseContainer(
+						RedisEnterpriseContainer.DEFAULT_IMAGE_NAME.withTag(RedisEnterpriseContainer.DEFAULT_TAG))
+						.withDatabase(Database.name("RedisEnterpriseKafkaTests").memory(DataSize.ofMegabytes(100))
+								.ossCluster(true).modules(RedisModule.SEARCH, RedisModule.JSON, RedisModule.TIMESERIES)
+								.build()));
 	}
 
 	protected Map<String, String> map(String... args) {
@@ -82,11 +79,11 @@ class RedisEnterpriseSinkTaskIT extends AbstractTestcontainersRedisTestBase {
 		return body;
 	}
 
-	private RedisEnterpriseSinkTask task;
+	private RedisSinkTask task;
 
 	@BeforeEach
 	public void createTask() {
-		task = new RedisEnterpriseSinkTask();
+		task = new RedisSinkTask();
 	}
 
 	@AfterEach
@@ -102,7 +99,7 @@ class RedisEnterpriseSinkTaskIT extends AbstractTestcontainersRedisTestBase {
 		SinkTaskContext taskContext = mock(SinkTaskContext.class);
 		when(taskContext.assignment()).thenReturn(ImmutableSet.of());
 		this.task.initialize(taskContext);
-		this.task.start(ImmutableMap.of(RedisEnterpriseSinkConfig.REDIS_URI_CONFIG, context.getServer().getRedisURI()));
+		this.task.start(ImmutableMap.of(RedisSinkConfig.URI_CONFIG, context.getServer().getRedisURI()));
 	}
 
 	@ParameterizedTest
@@ -112,7 +109,7 @@ class RedisEnterpriseSinkTaskIT extends AbstractTestcontainersRedisTestBase {
 		SinkTaskContext context = mock(SinkTaskContext.class);
 		when(context.assignment()).thenReturn(ImmutableSet.of(new TopicPartition(topic, 1)));
 		this.task.initialize(context);
-		this.task.start(ImmutableMap.of(RedisEnterpriseSinkConfig.REDIS_URI_CONFIG, redis.getServer().getRedisURI()));
+		this.task.start(ImmutableMap.of(RedisSinkConfig.URI_CONFIG, redis.getServer().getRedisURI()));
 		this.task.put(ImmutableList.of());
 	}
 
@@ -129,7 +126,7 @@ class RedisEnterpriseSinkTaskIT extends AbstractTestcontainersRedisTestBase {
 			records.add(SinkRecordHelper.write(topic, new SchemaAndValue(Schema.STRING_SCHEMA, i),
 					new SchemaAndValue(SchemaBuilder.map(Schema.STRING_SCHEMA, Schema.STRING_SCHEMA), map)));
 		}
-		put(topic, RedisEnterpriseSinkConfig.DataType.HASH, redis, records);
+		put(topic, RedisSinkConfig.DataType.HASH, redis, records);
 		for (String key : expected.keySet()) {
 			Map<String, String> hash = expected.get(key);
 			Map<String, String> actual = redis.sync().hgetall(key);
@@ -300,7 +297,7 @@ class RedisEnterpriseSinkTaskIT extends AbstractTestcontainersRedisTestBase {
 			records.add(SinkRecordHelper.write(topic, new SchemaAndValue(Schema.STRING_SCHEMA, person.getId()),
 					new SchemaAndValue(Schema.STRING_SCHEMA, json)));
 		}
-		put(topic, RedisEnterpriseSinkConfig.DataType.JSON, redis, records);
+		put(topic, RedisSinkConfig.DataType.JSON, redis, records);
 		for (Person person : persons) {
 			String json = redis.sync().jsonGet(topic + ":" + person.getId());
 			assertEquals(person, mapper.readValue(json, Person.class));
@@ -322,7 +319,7 @@ class RedisEnterpriseSinkTaskIT extends AbstractTestcontainersRedisTestBase {
 			records.add(SinkRecordHelper.write(topic, new SchemaAndValue(Schema.INT64_SCHEMA, timestamp),
 					new SchemaAndValue(Schema.FLOAT64_SCHEMA, value)));
 		}
-		put(topic, RedisEnterpriseSinkConfig.DataType.TIMESERIES, redis, records);
+		put(topic, RedisSinkConfig.DataType.TIMESERIES, redis, records);
 		List<Sample> actualSamples = redis.sync().range(topic, TimeRange.unbounded());
 		assertEquals(expectedSamples.size(), actualSamples.size());
 		for (int index = 0; index < expectedSamples.size(); index++) {
@@ -346,7 +343,7 @@ class RedisEnterpriseSinkTaskIT extends AbstractTestcontainersRedisTestBase {
 			records.add(SinkRecordHelper.write(topic, new SchemaAndValue(Schema.STRING_SCHEMA, member),
 					new SchemaAndValue(Schema.STRING_SCHEMA, member)));
 		}
-		put(topic, RedisEnterpriseSinkConfig.DataType.LIST, redis, records);
+		put(topic, RedisSinkConfig.DataType.LIST, redis, records);
 		List<String> actual = redis.sync().lrange(topic, 0, -1);
 		Collections.reverse(actual);
 		assertEquals(expected, actual);
@@ -365,8 +362,8 @@ class RedisEnterpriseSinkTaskIT extends AbstractTestcontainersRedisTestBase {
 			records.add(SinkRecordHelper.write(topic, new SchemaAndValue(Schema.STRING_SCHEMA, member),
 					new SchemaAndValue(Schema.STRING_SCHEMA, member)));
 		}
-		put(topic, RedisEnterpriseSinkConfig.DataType.LIST, redis, records,
-				RedisEnterpriseSinkConfig.PUSH_DIRECTION_CONFIG, RedisEnterpriseSinkConfig.PushDirection.RIGHT.name());
+		put(topic, RedisSinkConfig.DataType.LIST, redis, records,
+				RedisSinkConfig.PUSH_DIRECTION_CONFIG, RedisSinkConfig.PushDirection.RIGHT.name());
 		List<String> actual = redis.sync().lrange(topic, 0, -1);
 		assertEquals(expected, actual);
 	}
@@ -384,7 +381,7 @@ class RedisEnterpriseSinkTaskIT extends AbstractTestcontainersRedisTestBase {
 			records.add(SinkRecordHelper.write(topic, new SchemaAndValue(Schema.STRING_SCHEMA, member),
 					new SchemaAndValue(Schema.STRING_SCHEMA, member)));
 		}
-		put(topic, RedisEnterpriseSinkConfig.DataType.SET, redis, records);
+		put(topic, RedisSinkConfig.DataType.SET, redis, records);
 		Set<String> members = redis.sync().smembers(topic);
 		assertEquals(expected, members);
 	}
@@ -402,7 +399,7 @@ class RedisEnterpriseSinkTaskIT extends AbstractTestcontainersRedisTestBase {
 			records.add(SinkRecordHelper.write(topic, new SchemaAndValue(Schema.STRING_SCHEMA, "key" + i),
 					new SchemaAndValue(SchemaBuilder.map(Schema.STRING_SCHEMA, Schema.STRING_SCHEMA), body)));
 		}
-		put(topic, RedisEnterpriseSinkConfig.DataType.STREAM, redis, records);
+		put(topic, RedisSinkConfig.DataType.STREAM, redis, records);
 		List<StreamMessage<String, String>> messages = redis.sync().xrange(topic, Range.unbounded());
 		assertEquals(records.size(), messages.size());
 		for (int index = 0; index < messages.size(); index++) {
@@ -426,7 +423,7 @@ class RedisEnterpriseSinkTaskIT extends AbstractTestcontainersRedisTestBase {
 			records.add(SinkRecordHelper.write(topic, new SchemaAndValue(Schema.STRING_SCHEMA, key),
 					new SchemaAndValue(Schema.STRING_SCHEMA, value)));
 		}
-		put(topic, RedisEnterpriseSinkConfig.DataType.STRING, redis, records);
+		put(topic, RedisSinkConfig.DataType.STRING, redis, records);
 		String[] keys = expected.keySet().toArray(new String[0]);
 		List<KeyValue<String, String>> actual = redis.sync().mget(keys);
 		assertEquals(records.size(), actual.size());
@@ -451,7 +448,7 @@ class RedisEnterpriseSinkTaskIT extends AbstractTestcontainersRedisTestBase {
 					new SchemaAndValue(Schema.BYTES_SCHEMA, key.getBytes(StandardCharsets.UTF_8)),
 					new SchemaAndValue(Schema.BYTES_SCHEMA, value.getBytes(StandardCharsets.UTF_8))));
 		}
-		put(topic, RedisEnterpriseSinkConfig.DataType.STRING, redis, records, RedisEnterpriseSinkConfig.KEY_CONFIG, "");
+		put(topic, RedisSinkConfig.DataType.STRING, redis, records, RedisSinkConfig.KEY_CONFIG, "");
 		String[] keys = expected.keySet().toArray(new String[0]);
 		List<KeyValue<String, String>> actual = redis.sync().mget(keys);
 		assertEquals(records.size(), actual.size());
@@ -474,19 +471,19 @@ class RedisEnterpriseSinkTaskIT extends AbstractTestcontainersRedisTestBase {
 			records.add(SinkRecordHelper.write(topic, new SchemaAndValue(Schema.STRING_SCHEMA, value),
 					new SchemaAndValue(Schema.FLOAT64_SCHEMA, i)));
 		}
-		put(topic, RedisEnterpriseSinkConfig.DataType.ZSET, context, records);
+		put(topic, RedisSinkConfig.DataType.ZSET, context, records);
 		List<ScoredValue<String>> actual = context.sync().zrangeWithScores(topic, 0, -1);
 		expected.sort(Comparator.comparing(ScoredValue::getScore));
 		assertEquals(expected, actual);
 	}
 
-	public void put(String topic, RedisEnterpriseSinkConfig.DataType type, RedisTestContext context,
+	public void put(String topic, RedisSinkConfig.DataType type, RedisTestContext context,
 			List<SinkRecord> records, String... props) {
 		SinkTaskContext taskContext = mock(SinkTaskContext.class);
 		when(taskContext.assignment()).thenReturn(ImmutableSet.of(new TopicPartition(topic, 1)));
 		task.initialize(taskContext);
-		Map<String, String> propsMap = map(RedisEnterpriseSinkConfig.REDIS_URI_CONFIG,
-				context.getServer().getRedisURI(), RedisEnterpriseSinkConfig.TYPE_CONFIG, type.name());
+		Map<String, String> propsMap = map(RedisSinkConfig.URI_CONFIG,
+				context.getServer().getRedisURI(), RedisSinkConfig.TYPE_CONFIG, type.name());
 		propsMap.putAll(map(props));
 		task.start(propsMap);
 		task.put(records);
@@ -499,8 +496,8 @@ class RedisEnterpriseSinkTaskIT extends AbstractTestcontainersRedisTestBase {
 		SinkTaskContext taskContext = mock(SinkTaskContext.class);
 		when(taskContext.assignment()).thenReturn(ImmutableSet.of(new TopicPartition(topic, 1)));
 		this.task.initialize(taskContext);
-		this.task.start(ImmutableMap.of(RedisEnterpriseSinkConfig.REDIS_URI_CONFIG, context.getServer().getRedisURI(),
-				RedisEnterpriseSinkConfig.TYPE_CONFIG, RedisEnterpriseSinkConfig.DataType.STRING.name()));
+		this.task.start(ImmutableMap.of(RedisSinkConfig.URI_CONFIG, context.getServer().getRedisURI(),
+				RedisSinkConfig.TYPE_CONFIG, RedisSinkConfig.DataType.STRING.name()));
 
 		int count = 50;
 		Map<String, String> expected = new LinkedHashMap<>(count);
