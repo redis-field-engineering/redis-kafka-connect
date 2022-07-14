@@ -41,7 +41,7 @@ jobs:
           git push origin master
 
       - name: Build
-        run: ./mvnw --no-transfer-progress -B --file pom.xml package
+        run: ./mvnw --no-transfer-progress -B --file pom.xml verify
 
       - name: Show Reports
         uses: actions/upload-artifact@v1
