@@ -16,4 +16,4 @@ Refer to the link:https://{project-owner}.github.io/{project-name}[documentation
 
 == Docker Example
 
-Run `docker/.run.sh` and follow prompts
+Run `run.sh` and follow prompts
