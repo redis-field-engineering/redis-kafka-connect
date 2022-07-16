@@ -25,10 +25,10 @@
 		<awaitility.version>4.2.0</awaitility.version>
 		<jruby.version>9.2.17.0</jruby.version>
 		<junit.version>5.8.1</junit.version>
-		<lettucemod.version>2.19.3</lettucemod.version>
+		<lettucemod.version>3.0.0</lettucemod.version>
 		<mockito.version>4.6.1</mockito.version>
-		<reactor.version>3.4.19</reactor.version>
-		<spring-batch-redis.version>2.30.3</spring-batch-redis.version>
+		<reactor.version>3.4.21</reactor.version>
+		<spring-batch-redis.version>2.31.0</spring-batch-redis.version>
 		<spring-batch.version>4.3.6</spring-batch.version>
 		<slf4j.version>1.7.36</slf4j.version>
 		<testcontainers-redis.version>1.6.0</testcontainers-redis.version>

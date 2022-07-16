@@ -320,7 +320,7 @@ class RedisSinkTaskIT extends AbstractTestcontainersRedisTestBase {
 					new SchemaAndValue(Schema.FLOAT64_SCHEMA, value)));
 		}
 		put(topic, RedisSinkConfig.DataType.TIMESERIES, redis, records);
-		List<Sample> actualSamples = redis.sync().range(topic, TimeRange.unbounded());
+		List<Sample> actualSamples = redis.sync().tsRange(topic, TimeRange.unbounded());
 		assertEquals(expectedSamples.size(), actualSamples.size());
 		for (int index = 0; index < expectedSamples.size(); index++) {
 			Sample expectedSample = expectedSamples.get(index);
@@ -362,8 +362,8 @@ class RedisSinkTaskIT extends AbstractTestcontainersRedisTestBase {
 			records.add(SinkRecordHelper.write(topic, new SchemaAndValue(Schema.STRING_SCHEMA, member),
 					new SchemaAndValue(Schema.STRING_SCHEMA, member)));
 		}
-		put(topic, RedisSinkConfig.DataType.LIST, redis, records,
-				RedisSinkConfig.PUSH_DIRECTION_CONFIG, RedisSinkConfig.PushDirection.RIGHT.name());
+		put(topic, RedisSinkConfig.DataType.LIST, redis, records, RedisSinkConfig.PUSH_DIRECTION_CONFIG,
+				RedisSinkConfig.PushDirection.RIGHT.name());
 		List<String> actual = redis.sync().lrange(topic, 0, -1);
 		assertEquals(expected, actual);
 	}
@@ -477,13 +477,13 @@ class RedisSinkTaskIT extends AbstractTestcontainersRedisTestBase {
 		assertEquals(expected, actual);
 	}
 
-	public void put(String topic, RedisSinkConfig.DataType type, RedisTestContext context,
-			List<SinkRecord> records, String... props) {
+	public void put(String topic, RedisSinkConfig.DataType type, RedisTestContext context, List<SinkRecord> records,
+			String... props) {
 		SinkTaskContext taskContext = mock(SinkTaskContext.class);
 		when(taskContext.assignment()).thenReturn(ImmutableSet.of(new TopicPartition(topic, 1)));
 		task.initialize(taskContext);
-		Map<String, String> propsMap = map(RedisSinkConfig.URI_CONFIG,
-				context.getServer().getRedisURI(), RedisSinkConfig.TYPE_CONFIG, type.name());
+		Map<String, String> propsMap = map(RedisSinkConfig.URI_CONFIG, context.getServer().getRedisURI(),
+				RedisSinkConfig.TYPE_CONFIG, type.name());
 		propsMap.putAll(map(props));
 		task.start(propsMap);
 		task.put(records);
