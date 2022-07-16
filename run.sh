@@ -11,7 +11,7 @@ fi
 echo "Building the Redis Kafka Connector"
 (
 ./mvnw clean package -DskipTests
-mv target/components/packages/redis-redis-enterprise-kafka-6.*.zip target/components/packages/redis-enterprise-kafka.zip
+mv target/components/packages/redis-redis-kafka-connect-6.*.zip target/components/packages/redis-kafka-connect.zip
 )
 
 echo "Starting docker ."

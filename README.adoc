@@ -1,7 +1,7 @@
 = Redis Kafka Connector
 :linkattrs:
 :project-owner:   redis-field-engineering
-:project-name:    redis-enterprise-kafka
+:project-name:    redis-kafka-connect
 :project-group:   com.redis
 :project-version: 6.8
 

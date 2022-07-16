@@ -1,8 +1,8 @@
 project:
-  name: redis-enterprise-kafka
-  description: Kafka Connector for Redis
+  name: redis-kafka-connect
+  description: Kafka Connector (Source and Sink) by Redis
   longDescription: Kafka Connect source and sink connectors for Redis
-  website: https://github.com/redis-field-engineering/redis-enterprise-kafka
+  website: https://github.com/redis-field-engineering/redis-kafka-connect
   authors:
     - Julien Ruaux
   license: Apache-2.0
@@ -46,15 +46,15 @@ announce:
   slack:
     active: release
     channel: '#field-engineering-announcements'
-    message: '🔗 Redis Enterprise Kafka Connector {{projectVersion}} has been released! {{releaseNotesUrl}}'
+    message: '🔗 Redis Kafka Connect {{projectVersion}} has been released! {{releaseNotesUrl}}'
 
 distributions:
-  redis-redis-enterprise-kafka-5:
+  redis-redis-kafka-connect-5:
     type: binary
     artifacts:
       - path: target/components/packages/{{distributionName}}.{{projectVersion}}.zip
         transform: '{{distributionName}}.{{projectEffectiveVersion}}.zip'
-  redis-redis-enterprise-kafka-6:
+  redis-redis-kafka-connect-6:
     type: binary
     artifacts:
       - path: target/components/packages/{{distributionName}}.{{projectVersion}}.zip
@@ -62,5 +62,5 @@ distributions:
 
 files:
   artifacts:
-    - path: target/generated-docs/redis-enterprise-kafka-{{projectVersion}}.pdf
-      transform: 'redis-enterprise-kafka-{{projectEffectiveVersion}}.pdf'
+    - path: target/generated-docs/redis-kafka-connect-{{projectVersion}}.pdf
+      transform: 'redis-kafka-connect-{{projectEffectiveVersion}}.pdf'

@@ -5,7 +5,7 @@
 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>com.redis</groupId>
-	<artifactId>redis-enterprise-kafka</artifactId>
+	<artifactId>redis-kafka-connect</artifactId>
 	<version>6.9-SNAPSHOT</version>
 	<name>Redis Kafka Connector</name>
 	<description>Kafka Connect source and sink connectors for Redis</description>
@@ -13,7 +13,7 @@
 	<inceptionYear>2021</inceptionYear>
 	<properties>
 		<github.owner>redis-field-engineering</github.owner>
-		<github.repo>redis-enterprise-kafka</github.repo>
+		<github.repo>redis-kafka-connect</github.repo>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 		<java.version>8</java.version>
@@ -282,7 +282,7 @@
 					<sourceUrl>${project.scm.url}</sourceUrl>
 					<supportProviderName>Redis</supportProviderName>
 					<supportSummary>
-                        <![CDATA[Contact us on the <a href="https://forum.redis.com">Redis Forum</a> or create an issue on <a href="https://github.com/redis-field-engineering/redis-enterprise-kafka">Github</a> where we provide support on a good faith effort basis.]]>
+                        <![CDATA[Contact us on the <a href="https://forum.redis.com">Redis Forum</a> or create an issue on <a href="https://github.com/redis-field-engineering/redis-kafka-connect">Github</a> where we provide support on a good faith effort basis.]]>
 					</supportSummary>
 					<supportUrl>${project.issueManagement.url}</supportUrl>
 					<confluentControlCenterIntegration>true</confluentControlCenterIntegration>
@@ -356,7 +356,7 @@
 						<github-owner>${github.owner}</github-owner>
 						<github-repo>${github.repo}</github-repo>
 						<component-owner>redis</component-owner>
-						<component-name>redis-enterprise-kafka</component-name>
+						<component-name>redis-kafka-connect</component-name>
 						<project-artifact>${project.artifactId}</project-artifact>
 						<project-name>${project.name}</project-name>
 						<project-version>${project.version}</project-version>
@@ -391,7 +391,7 @@
 						</goals>
 						<configuration>
 							<backend>pdf</backend>
-							<outputFile>redis-enterprise-kafka-${project.version}.pdf</outputFile>
+							<outputFile>redis-kafka-connect-${project.version}.pdf</outputFile>
 							<attributes>
 								<doctype>book</doctype>
 								<title-page></title-page>
