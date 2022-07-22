@@ -62,8 +62,7 @@ class RedisSinkTaskIT extends AbstractTestcontainersRedisTestBase {
 		return Arrays.asList(
 				new RedisModulesContainer(
 						RedisModulesContainer.DEFAULT_IMAGE_NAME.withTag(RedisModulesContainer.DEFAULT_TAG)),
-				new RedisEnterpriseContainer(
-						RedisEnterpriseContainer.DEFAULT_IMAGE_NAME.withTag(RedisEnterpriseContainer.DEFAULT_TAG))
+				new RedisEnterpriseContainer(RedisEnterpriseContainer.DEFAULT_IMAGE_NAME.withTag("latest"))
 						.withDatabase(Database.name("RedisKafkaConnectTests").memory(DataSize.ofMegabytes(100))
 								.ossCluster(true).modules(RedisModule.SEARCH, RedisModule.JSON, RedisModule.TIMESERIES)
 								.build()));
