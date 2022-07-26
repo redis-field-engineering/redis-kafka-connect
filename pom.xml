@@ -276,11 +276,13 @@
 					<title>Redis Connector (Source and Sink) by Redis</title>
 					<ownerUsername>redis</ownerUsername>
 					<documentationUrl>https://${github.owner}.github.io/${github.repo}/</documentationUrl>
-					<ownerLogo>src/docs/asciidoc/images/redis_logo.png</ownerLogo>
+					<logo>src/docs/asciidoc/images/redis-cube.png</logo>
+					<ownerLogo>src/docs/asciidoc/images/redis.png</ownerLogo>
 					<ownerName>Redis</ownerName>
 					<ownerUrl>https://redis.com</ownerUrl>
 					<sourceUrl>${project.scm.url}</sourceUrl>
 					<supportProviderName>Redis</supportProviderName>
+					<supportLogo>src/docs/asciidoc/images/redis.png</supportLogo>
 					<supportSummary>
                         <![CDATA[Contact us on the <a href="https://forum.redis.com">Redis Forum</a> or create an issue on <a href="https://github.com/redis-field-engineering/redis-kafka-connect">Github</a> where we provide support on a good faith effort basis.]]>
 					</supportSummary>
