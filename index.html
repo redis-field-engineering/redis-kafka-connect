@@ -16,7 +16,7 @@
 <h1>Redis Kafka Connector</h1>
 <div class="details">
 <span id="author" class="author">Julien Ruaux &lt;julien@redis.com&gt;</span><br>
-<span id="revnumber">version 6.8</span>
+<span id="revnumber">version 7.0</span>
 </div>
 <div id="toc" class="toc2">
 <div id="toctitle">Table of Contents</div>
@@ -106,7 +106,7 @@
 <div class="sect2">
 <h3 id="download"><a class="anchor" href="#download"></a>2.1. Download</h3>
 <div class="paragraph">
-<p>Download the latest release archive from <a href="https://github.com/redis-field-engineering/redis-enterprise-kafka/releases">here</a>.</p>
+<p>Download the latest release archive from <a href="https://github.com/redis-field-engineering/redis-kafka-connect/releases">here</a>.</p>
 </div>
 <div class="admonitionblock important">
 <table>
@@ -122,10 +122,10 @@
 <div class="ulist">
 <ul>
 <li>
-<p>Confluent Platform 5.0+: <code>redis-redis-enterprise-kafka-<strong>5</strong>.6.8.zip</code></p>
+<p>Confluent Platform 5.0+: <code>redis-redis-kafka-connect-<strong>5</strong>.7.0.zip</code></p>
 </li>
 <li>
-<p>Confluent Platform 6.0+: <code>redis-redis-enterprise-kafka-<strong>6</strong>.6.8.zip</code></p>
+<p>Confluent Platform 6.0+: <code>redis-redis-kafka-connect-<strong>6</strong>.7.0.zip</code></p>
 </li>
 </ul>
 </div>
@@ -857,11 +857,11 @@ For example, <code>redis_${stream}</code> and stream <code>orders</code> &#8658;
 <div class="sect2">
 <h3 id="run-the-example"><a class="anchor" href="#run-the-example"></a>6.2. Run the example</h3>
 <div class="paragraph">
-<p>Clone the <a href="https://github.com/redis-field-engineering/redis-enterprise-kafka.git">redis-enterprise-kafka</a> repository and execute <code>run.sh</code> in <code>docker</code> directory:</p>
+<p>Clone the <a href="https://github.com/redis-field-engineering/redis-kafka-connect.git">redis-kafka-connect</a> repository and execute <code>run.sh</code> in <code>docker</code> directory:</p>
 </div>
 <div class="listingblock">
 <div class="content">
-<pre class="highlightjs highlight"><code data-lang="console" class="language-console hljs">git clone https://github.com/redis-field-engineering/redis-enterprise-kafka.git
+<pre class="highlightjs highlight"><code data-lang="console" class="language-console hljs">git clone https://github.com/redis-field-engineering/redis-kafka-connect.git
 ./run.sh</code></pre>
 </div>
 </div>
@@ -1007,8 +1007,8 @@ xread COUNT 10 STREAMS pageviews 0</code></pre>
 </div>
 <div id="footer">
 <div id="footer-text">
-Version 6.8<br>
-Last updated 2022-07-14 03:31:28 UTC
+Version 7.0<br>
+Last updated 2022-07-26 17:17:14 UTC
 </div>
 </div>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.15.6/styles/github.min.css">
