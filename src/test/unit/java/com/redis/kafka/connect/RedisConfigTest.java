@@ -15,6 +15,7 @@ import com.redis.kafka.connect.source.RedisSourceConfig;
 import com.redis.lettucemod.cluster.RedisModulesClusterClient;
 
 import io.lettuce.core.AbstractRedisClient;
+import io.lettuce.core.RedisCredentials;
 import io.lettuce.core.RedisURI;
 
 class RedisConfigTest {
@@ -66,8 +67,9 @@ class RedisConfigTest {
 		String password = "password";
 		props.put(RedisConfig.PASSWORD_CONFIG, password);
 		RedisURI redisURI = new RedisConfig(new RedisConfigDef(), props).getRedisURI();
-		assertEquals(username, redisURI.getUsername());
-		Assertions.assertArrayEquals(password.toCharArray(), redisURI.getPassword());
+		RedisCredentials credentials = redisURI.getCredentialsProvider().resolveCredentials().block();
+		assertEquals(username, credentials.getUsername());
+		Assertions.assertArrayEquals(password.toCharArray(), credentials.getPassword());
 		Assertions.assertFalse(redisURI.isSsl());
 		props.put(RedisConfig.TLS_CONFIG, "true");
 		redisURI = new RedisConfig(new RedisConfigDef(), props).getRedisURI();

@@ -17,7 +17,7 @@
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 		<java.version>8</java.version>
-		<kafka.version>3.2.0</kafka.version>
+		<kafka.version>3.2.1</kafka.version>
 		<connect-utils.version>[0.7.166,0.7.2000)</connect-utils.version>
 		<asciidoctor.maven.plugin.version>2.1.0</asciidoctor.maven.plugin.version>
 		<asciidoctorj.version>2.5.1</asciidoctorj.version>
@@ -25,13 +25,13 @@
 		<awaitility.version>4.2.0</awaitility.version>
 		<jruby.version>9.2.17.0</jruby.version>
 		<junit.version>5.8.1</junit.version>
-		<lettucemod.version>3.0.0</lettucemod.version>
-		<mockito.version>4.6.1</mockito.version>
-		<reactor.version>3.4.21</reactor.version>
-		<spring-batch-redis.version>2.31.0</spring-batch-redis.version>
+		<lettucemod.version>3.0.4</lettucemod.version>
+		<mockito.version>4.7.0</mockito.version>
+		<reactor.version>3.4.22</reactor.version>
 		<spring-batch.version>4.3.6</spring-batch.version>
+		<spring-batch-redis.version>2.34.1</spring-batch-redis.version>
 		<slf4j.version>1.7.36</slf4j.version>
-		<testcontainers-redis.version>1.6.0</testcontainers-redis.version>
+		<testcontainers-redis.version>1.6.2</testcontainers-redis.version>
 	</properties>
 	<licenses>
 		<license>

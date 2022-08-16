@@ -40,7 +40,7 @@ public class KeySourceRecordReader extends AbstractSourceRecordReader<DataStruct
 
 	@Override
 	protected void open(AbstractRedisClient client) throws Exception {
-		reader = RedisItemReader.client(client).string().dataStructure().live().idleTimeout(idleTimeout)
+		reader = RedisItemReader.dataStructure(client).live().idleTimeout(idleTimeout)
 				.keyPatterns(sourceConfig.getKeyPatterns().toArray(new String[0])).build();
 		reader.open(new ExecutionContext());
 	}
@@ -63,7 +63,7 @@ public class KeySourceRecordReader extends AbstractSourceRecordReader<DataStruct
 	}
 
 	private Schema schema(DataStructure<String> input) {
-		if (Type.HASH.name().equalsIgnoreCase(input.getType())) {
+		if (input.getType() == Type.HASH) {
 			return HASH_VALUE_SCHEMA;
 		}
 		return STRING_VALUE_SCHEMA;

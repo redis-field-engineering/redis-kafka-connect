@@ -17,6 +17,7 @@ package com.redis.kafka.connect.common;
 
 import java.time.Duration;
 import java.util.Map;
+import java.util.Optional;
 
 import org.apache.kafka.common.config.AbstractConfig;
 import org.apache.kafka.common.config.ConfigDef;
@@ -75,6 +76,7 @@ public class RedisConfig extends AbstractConfig {
 		super(config, originals);
 	}
 
+	@SuppressWarnings("deprecation")
 	public RedisURI getRedisURI() {
 		RedisURI uri = uri();
 		if (Boolean.TRUE.equals(getBoolean(INSECURE_CONFIG))) {
@@ -83,22 +85,29 @@ public class RedisConfig extends AbstractConfig {
 		if (Boolean.TRUE.equals(getBoolean(TLS_CONFIG))) {
 			uri.setSsl(true);
 		}
-		String username = getString(USERNAME_CONFIG);
-		if (!Strings.isNullOrEmpty(username)) {
-			uri.setUsername(username);
-		}
-		Password password = getPassword(PASSWORD_CONFIG);
-		if (password != null) {
-			String passwordValue = password.value();
-			if (!Strings.isNullOrEmpty(passwordValue)) {
-				uri.setPassword(passwordValue.toCharArray());
-			}
-		}
+		username().ifPresent(uri::setUsername);
+		password().ifPresent(uri::setPassword);
 		Long timeout = getLong(TIMEOUT_CONFIG);
 		if (timeout != null) {
 			uri.setTimeout(Duration.ofSeconds(timeout));
 		}
 		return uri;
+	}
+
+	private Optional<String> password() {
+		Password password = getPassword(PASSWORD_CONFIG);
+		if (password == null || Strings.isNullOrEmpty(password.value())) {
+			return Optional.empty();
+		}
+		return Optional.of(password.value());
+	}
+
+	private Optional<String> username() {
+		String username = getString(USERNAME_CONFIG);
+		if (Strings.isNullOrEmpty(username)) {
+			return Optional.empty();
+		}
+		return Optional.of(username);
 	}
 
 	private RedisURI uri() {

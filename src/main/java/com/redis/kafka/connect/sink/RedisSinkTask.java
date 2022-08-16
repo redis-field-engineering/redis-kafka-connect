@@ -50,11 +50,10 @@ import com.redis.kafka.connect.RedisSinkConnector;
 import com.redis.lettucemod.RedisModulesClient;
 import com.redis.lettucemod.cluster.RedisModulesClusterClient;
 import com.redis.spring.batch.RedisItemWriter;
-import com.redis.spring.batch.RedisItemWriter.OperationBuilder;
 import com.redis.spring.batch.RedisItemWriter.WaitForReplication;
 import com.redis.spring.batch.convert.SampleConverter;
 import com.redis.spring.batch.convert.ScoredValueConverter;
-import com.redis.spring.batch.writer.RedisOperation;
+import com.redis.spring.batch.writer.Operation;
 import com.redis.spring.batch.writer.operation.Hset;
 import com.redis.spring.batch.writer.operation.JsonSet;
 import com.redis.spring.batch.writer.operation.Lpush;
@@ -128,14 +127,14 @@ public class RedisSinkTask extends SinkTask {
 	}
 
 	private RedisItemWriter.Builder<byte[], byte[], SinkRecord> writer(AbstractRedisClient client) {
-		RedisItemWriter.Builder<byte[], byte[], SinkRecord> builder = new OperationBuilder<>(client,
-				new ByteArrayCodec()).operation(operation());
+		RedisItemWriter.Builder<byte[], byte[], SinkRecord> builder = RedisItemWriter.operation(client,
+				ByteArrayCodec.INSTANCE, operation());
 		if (Boolean.TRUE.equals(config.isMultiexec())) {
 			builder.multiExec();
 		}
 		if (config.getWaitReplicas() > 0) {
-			builder.waitForReplication(WaitForReplication.builder().replicas(config.getWaitReplicas())
-					.timeout(Duration.ofMillis(config.getWaitTimeout())).build());
+			builder.waitForReplication(
+					WaitForReplication.of(config.getWaitReplicas(), Duration.ofMillis(config.getWaitTimeout())));
 		}
 		return builder;
 	}
@@ -144,30 +143,30 @@ public class RedisSinkTask extends SinkTask {
 		return String.format(OFFSET_KEY_FORMAT, topic, partition);
 	}
 
-	private RedisOperation<byte[], byte[], SinkRecord> operation() {
+	private Operation<byte[], byte[], SinkRecord> operation() {
 		switch (config.getType()) {
 		case HASH:
-			return Hset.<byte[], byte[], SinkRecord>key(this::key).map(this::map).del(this::isDelete).build();
+			return Hset.key(this::key).map(this::map).del(this::isDelete).build();
 		case JSON:
-			return JsonSet.<byte[], byte[], SinkRecord>key(this::key).path(".".getBytes(config.getCharset()))
-					.value(this::jsonValue).del(this::isDelete).build();
+			return JsonSet.key(this::key).path(".".getBytes(config.getCharset())).value(this::jsonValue)
+					.del(this::isDelete).build();
 		case STRING:
-			return Set.<byte[], byte[], SinkRecord>key(this::key).value(this::value).del(this::isDelete).build();
+			return Set.key(this::key).value(this::value).del(this::isDelete).build();
 		case STREAM:
-			return Xadd.<byte[], byte[], SinkRecord>key(this::collectionKey).body(this::map).build();
+			return Xadd.key(this::collectionKey).body(this::map).build();
 		case LIST:
 			if (config.getPushDirection() == RedisSinkConfig.PushDirection.LEFT) {
-				return Lpush.<byte[], byte[], SinkRecord>key(this::collectionKey).member(this::member).build();
+				return Lpush.key(this::collectionKey).member(this::member).build();
 			}
-			return Rpush.<byte[], byte[], SinkRecord>key(this::collectionKey).member(this::member).build();
+			return Rpush.key(this::collectionKey).member(this::member).build();
 		case SET:
-			return Sadd.<byte[], byte[], SinkRecord>key(this::collectionKey).member(this::member).build();
+			return Sadd.key(this::collectionKey).member(this::member).build();
 		case TIMESERIES:
-			return TsAdd.<byte[], byte[], SinkRecord>key(this::collectionKey)
-					.sample(new SampleConverter<>(this::longMember, this::doubleValue)).build();
+			return TsAdd.key(this::collectionKey)
+					.<byte[]>sample(new SampleConverter<>(this::longMember, this::doubleValue)).build();
 		case ZSET:
-			return Zadd.<byte[], byte[], SinkRecord>key(this::collectionKey)
-					.value(new ScoredValueConverter<>(this::member, this::doubleValue)).build();
+			return Zadd.key(this::collectionKey).value(new ScoredValueConverter<>(this::member, this::doubleValue))
+					.build();
 		default:
 			throw new ConfigException(RedisSinkConfig.TYPE_CONFIG, config.getType());
 		}

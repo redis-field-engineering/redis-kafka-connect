@@ -44,10 +44,9 @@ public class StreamSourceRecordReader extends AbstractSourceRecordReader<StreamM
 
 	@Override
 	protected void open(AbstractRedisClient client) {
-		reader = RedisItemReader.client(client).string().stream(sourceConfig.getStreamName())
-				.offset(sourceConfig.getStreamOffset()).block(Duration.ofMillis(sourceConfig.getStreamBlock()))
-				.count(sourceConfig.getBatchSize()).consumerGroup(sourceConfig.getStreamConsumerGroup())
-				.consumer(consumer).build();
+		reader = RedisItemReader.stream(client, sourceConfig.getStreamName()).offset(sourceConfig.getStreamOffset())
+				.block(Duration.ofMillis(sourceConfig.getStreamBlock())).count(sourceConfig.getBatchSize())
+				.consumerGroup(sourceConfig.getStreamConsumerGroup()).consumer(consumer).build();
 		reader.open(new ExecutionContext());
 	}
 
