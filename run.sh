@@ -11,7 +11,7 @@ fi
 echo "Building the Redis Kafka Connector"
 (
 ./mvnw clean package -DskipTests
-mv target/components/packages/redis-redis-kafka-connect-6.*.zip target/components/packages/redis-kafka-connect.zip
+mv target/components/packages/redis-redis-enterprise-kafka-6.*.zip target/components/packages/redis-redis-enterprise-kafka-6.zip
 )
 
 echo "Starting docker ."
@@ -82,7 +82,7 @@ curl -X POST -H "Content-Type: application/json" --data '
 
 sleep 5
 
-echo -e "\nAdding Redis Enteprise Kafka Sink Connector for the 'pageviews' topic into the 'pageviews' stream:"
+echo -e "\nAdding Redis Kafka Sink Connector for the 'pageviews' topic into the 'pageviews' stream:"
 curl -X POST -H "Content-Type: application/json" --data '
   {"name": "redis-sink",
    "config": {

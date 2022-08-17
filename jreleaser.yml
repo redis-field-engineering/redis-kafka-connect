@@ -49,16 +49,16 @@ announce:
     message: '🔗 Redis Kafka Connect {{projectVersion}} has been released! {{releaseNotesUrl}}'
 
 distributions:
-  redis-redis-kafka-connect-5:
+  redis-redis-enterprise-kafka-5:
     type: binary
     artifacts:
       - path: target/components/packages/{{distributionName}}.{{projectVersion}}.zip
-        transform: '{{distributionName}}.{{projectEffectiveVersion}}.zip'
-  redis-redis-kafka-connect-6:
+        transform: 'redis-kafka-connect-5.{{projectEffectiveVersion}}.zip'
+  redis-redis-enterprise-kafka-6:
     type: binary
     artifacts:
       - path: target/components/packages/{{distributionName}}.{{projectVersion}}.zip
-        transform: '{{distributionName}}.{{projectEffectiveVersion}}.zip'
+        transform: 'redis-kafka-connect-6.{{projectEffectiveVersion}}.zip'
 
 files:
   artifacts:
