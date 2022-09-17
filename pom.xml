@@ -1,8 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project
-	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd"
-	xmlns="http://maven.apache.org/POM/4.0.0"
-	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>com.redis</groupId>
 	<artifactId>redis-kafka-connect</artifactId>
@@ -16,20 +13,21 @@
 		<github.repo>redis-kafka-connect</github.repo>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-		<java.version>8</java.version>
-		<kafka.version>3.2.1</kafka.version>
-		<connect-utils.version>[0.7.166,0.7.2000)</connect-utils.version>
 		<asciidoctor.maven.plugin.version>2.1.0</asciidoctor.maven.plugin.version>
 		<asciidoctorj.version>2.5.1</asciidoctorj.version>
-		<asciidoctorj.pdf.version>2.1.4</asciidoctorj.pdf.version>
+		<asciidoctorj.pdf.version>2.3.0</asciidoctorj.pdf.version>
 		<awaitility.version>4.2.0</awaitility.version>
+		<commons-pool2.version>2.11.1</commons-pool2.version>
+		<connect-utils.version>[0.7.166,0.7.2000)</connect-utils.version>
 		<jruby.version>9.2.17.0</jruby.version>
+		<java.version>8</java.version>
 		<junit.version>5.8.1</junit.version>
-		<lettucemod.version>3.0.4</lettucemod.version>
-		<mockito.version>4.7.0</mockito.version>
+		<kafka.version>3.2.1</kafka.version>
+		<lettucemod.version>3.1.5</lettucemod.version>
+		<mockito.version>4.8.0</mockito.version>
 		<reactor.version>3.4.22</reactor.version>
 		<spring-batch.version>4.3.6</spring-batch.version>
-		<spring-batch-redis.version>2.34.1</spring-batch-redis.version>
+		<spring-batch-redis.version>3.0.2-SNAPSHOT</spring-batch-redis.version>
 		<slf4j.version>1.7.36</slf4j.version>
 		<testcontainers-redis.version>1.6.2</testcontainers-redis.version>
 	</properties>
@@ -93,6 +91,11 @@
 			<groupId>com.redis</groupId>
 			<artifactId>lettucemod</artifactId>
 			<version>${lettucemod.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.commons</groupId>
+			<artifactId>commons-pool2</artifactId>
+			<version>${commons-pool2.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.slf4j</groupId>
@@ -201,7 +204,22 @@
 			<plugin>
 				<groupId>org.jacoco</groupId>
 				<artifactId>jacoco-maven-plugin</artifactId>
-				<version>0.8.7</version>
+				<version>0.8.8</version>
+				<executions>
+					<execution>
+						<id>prepare-agent</id>
+						<goals>
+							<goal>prepare-agent</goal>
+						</goals>
+					</execution>
+					<execution>
+						<id>report</id>
+						<phase>test</phase>
+						<goals>
+							<goal>report</goal>
+						</goals>
+					</execution>
+				</executions>
 			</plugin>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
@@ -285,7 +303,7 @@
 					<supportProviderName>Redis</supportProviderName>
 					<supportLogo>src/docs/asciidoc/images/redis.png</supportLogo>
 					<supportSummary>
-                        <![CDATA[Contact us on the <a href="https://forum.redis.com">Redis Forum</a> or create an issue on <a href="https://github.com/redis-field-engineering/redis-kafka-connect">Github</a> where we provide support on a good faith effort basis.]]>
+						<![CDATA[Contact us on the <a href="https://forum.redis.com">Redis Forum</a> or create an issue on <a href="https://github.com/redis-field-engineering/redis-kafka-connect">Github</a> where we provide support on a good faith effort basis.]]>
 					</supportSummary>
 					<supportUrl>${project.issueManagement.url}</supportUrl>
 					<confluentControlCenterIntegration>true</confluentControlCenterIntegration>

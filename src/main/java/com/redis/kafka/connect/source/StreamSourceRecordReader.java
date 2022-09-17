@@ -7,6 +7,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.commons.pool2.impl.GenericObjectPool;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.SchemaBuilder;
 import org.apache.kafka.connect.data.Struct;
@@ -15,9 +16,13 @@ import org.springframework.batch.item.ExecutionContext;
 
 import com.redis.spring.batch.RedisItemReader;
 import com.redis.spring.batch.reader.StreamItemReader;
+import com.redis.spring.batch.reader.StreamReaderOptions;
 
 import io.lettuce.core.AbstractRedisClient;
+import io.lettuce.core.Consumer;
+import io.lettuce.core.RedisURI;
 import io.lettuce.core.StreamMessage;
+import io.lettuce.core.api.StatefulConnection;
 
 public class StreamSourceRecordReader extends AbstractSourceRecordReader<StreamMessage<String, String>> {
 
@@ -34,6 +39,8 @@ public class StreamSourceRecordReader extends AbstractSourceRecordReader<StreamM
 	private final String consumer;
 
 	private StreamItemReader<String, String> reader;
+	private AbstractRedisClient client;
+	private GenericObjectPool<StatefulConnection<String, String>> pool;
 
 	public StreamSourceRecordReader(RedisSourceConfig sourceConfig, int taskId) {
 		super(sourceConfig);
@@ -43,10 +50,15 @@ public class StreamSourceRecordReader extends AbstractSourceRecordReader<StreamM
 	}
 
 	@Override
-	protected void open(AbstractRedisClient client) {
-		reader = RedisItemReader.stream(client, sourceConfig.getStreamName()).offset(sourceConfig.getStreamOffset())
-				.block(Duration.ofMillis(sourceConfig.getStreamBlock())).count(sourceConfig.getBatchSize())
-				.consumerGroup(sourceConfig.getStreamConsumerGroup()).consumer(consumer).build();
+	public void open() throws Exception {
+		RedisURI uri = config.uri();
+		this.client = config.client(uri);
+		this.pool = config.pool(client);
+		this.reader = RedisItemReader
+				.stream(pool, config.getStreamName(), Consumer.from(config.getStreamConsumerGroup(), consumer))
+				.options(StreamReaderOptions.builder().offset(config.getStreamOffset())
+						.block(Duration.ofMillis(config.getStreamBlock())).count(config.getBatchSize()).build())
+				.build();
 		reader.open(new ExecutionContext());
 	}
 
@@ -56,9 +68,19 @@ public class StreamSourceRecordReader extends AbstractSourceRecordReader<StreamM
 	}
 
 	@Override
-	protected void doClose() {
+	public void close() {
 		if (reader != null) {
 			reader.close();
+			reader = null;
+		}
+		if (pool != null) {
+			pool.close();
+			pool = null;
+		}
+		if (client != null) {
+			client.shutdown();
+			client.getResources().shutdown();
+			client = null;
 		}
 	}
 

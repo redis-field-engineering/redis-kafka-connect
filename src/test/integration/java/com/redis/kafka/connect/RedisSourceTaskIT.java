@@ -22,7 +22,7 @@ import org.testcontainers.junit.jupiter.Container;
 import com.redis.kafka.connect.source.KeySourceRecordReader;
 import com.redis.kafka.connect.source.RedisSourceConfig;
 import com.redis.kafka.connect.source.RedisSourceTask;
-import com.redis.spring.batch.DataStructure;
+import com.redis.spring.batch.common.DataStructure;
 import com.redis.spring.batch.reader.LiveRedisItemReader;
 import com.redis.testcontainers.RedisContainer;
 import com.redis.testcontainers.RedisServer;

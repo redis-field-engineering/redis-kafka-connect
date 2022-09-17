@@ -66,16 +66,16 @@ class RedisConfigTest {
 		props.put(RedisConfig.USERNAME_CONFIG, username);
 		String password = "password";
 		props.put(RedisConfig.PASSWORD_CONFIG, password);
-		RedisURI redisURI = new RedisConfig(new RedisConfigDef(), props).getRedisURI();
+		RedisURI redisURI = new RedisConfig(new RedisConfigDef(), props).uri();
 		RedisCredentials credentials = redisURI.getCredentialsProvider().resolveCredentials().block();
 		assertEquals(username, credentials.getUsername());
 		Assertions.assertArrayEquals(password.toCharArray(), credentials.getPassword());
 		Assertions.assertFalse(redisURI.isSsl());
 		props.put(RedisConfig.TLS_CONFIG, "true");
-		redisURI = new RedisConfig(new RedisConfigDef(), props).getRedisURI();
+		redisURI = new RedisConfig(new RedisConfigDef(), props).uri();
 		Assertions.assertTrue(redisURI.isSsl());
-		props.put(RedisConfig.CLIENT_MODE_CONFIG, "cluster");
-		AbstractRedisClient client = new RedisConfig(new RedisConfigDef(), props).redisClient();
+		props.put(RedisConfig.CLUSTER_CONFIG, "true");
+		AbstractRedisClient client = new RedisConfig(new RedisConfigDef(), props).client();
 		Assertions.assertInstanceOf(RedisModulesClusterClient.class, client);
 
 	}

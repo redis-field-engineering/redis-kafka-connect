@@ -8,27 +8,16 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.util.Assert;
 
-import io.lettuce.core.AbstractRedisClient;
-
 public abstract class AbstractSourceRecordReader<T> implements SourceRecordReader {
 
 	private static final Logger log = LoggerFactory.getLogger(AbstractSourceRecordReader.class);
 
-	protected final RedisSourceConfig sourceConfig;
-	private AbstractRedisClient client;
+	protected final RedisSourceConfig config;
 
 	protected AbstractSourceRecordReader(RedisSourceConfig sourceConfig) {
 		Assert.notNull(sourceConfig, "Source connector config must not be null");
-		this.sourceConfig = sourceConfig;
+		this.config = sourceConfig;
 	}
-
-	@Override
-	public void open() throws Exception {
-		this.client = sourceConfig.redisClient();
-		open(client);
-	}
-
-	protected abstract void open(AbstractRedisClient client) throws Exception;
 
 	@Override
 	public List<SourceRecord> poll() {
@@ -46,12 +35,4 @@ public abstract class AbstractSourceRecordReader<T> implements SourceRecordReade
 
 	protected abstract SourceRecord convert(T input);
 
-	@Override
-	public void close() {
-		doClose();
-		client.shutdown();
-		client.getResources().shutdown();
-	}
-
-	protected abstract void doClose();
 }

@@ -16,10 +16,12 @@
 package com.redis.kafka.connect.sink;
 
 import java.nio.charset.Charset;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 
 import org.apache.kafka.common.config.ConfigDef;
@@ -29,6 +31,8 @@ import com.github.jcustenborder.kafka.connect.utils.config.ConfigKeyBuilder;
 import com.github.jcustenborder.kafka.connect.utils.config.ConfigUtils;
 import com.github.jcustenborder.kafka.connect.utils.config.validators.Validators;
 import com.redis.kafka.connect.common.RedisConfig;
+import com.redis.spring.batch.writer.WaitForReplication;
+import com.redis.spring.batch.writer.WriterOptions;
 
 public class RedisSinkConfig extends RedisConfig {
 
@@ -217,6 +221,17 @@ public class RedisSinkConfig extends RedisConfig {
 				&& Objects.equals(separator, other.separator) && multiexec == other.multiexec
 				&& pushDirection == other.pushDirection && type == other.type && waitReplicas == other.waitReplicas
 				&& waitTimeout == other.waitTimeout;
+	}
+
+	public WriterOptions writerOptions() {
+		return WriterOptions.builder().multiExec(isMultiexec()).waitForReplication(waitForReplication()).build();
+	}
+
+	private Optional<WaitForReplication> waitForReplication() {
+		if (waitReplicas > 0) {
+			return Optional.of(WaitForReplication.of(waitReplicas, Duration.ofMillis(waitTimeout)));
+		}
+		return Optional.empty();
 	}
 
 }

@@ -16,7 +16,6 @@
 package com.redis.kafka.connect.sink;
 
 import java.io.IOException;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -27,6 +26,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
+import org.apache.commons.pool2.impl.GenericObjectPool;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.config.ConfigException;
 import org.apache.kafka.connect.data.Field;
@@ -47,10 +47,8 @@ import com.github.jcustenborder.kafka.connect.utils.jackson.ObjectMapperFactory;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.redis.kafka.connect.RedisSinkConnector;
-import com.redis.lettucemod.RedisModulesClient;
-import com.redis.lettucemod.cluster.RedisModulesClusterClient;
+import com.redis.lettucemod.util.RedisModulesUtils;
 import com.redis.spring.batch.RedisItemWriter;
-import com.redis.spring.batch.RedisItemWriter.WaitForReplication;
 import com.redis.spring.batch.convert.SampleConverter;
 import com.redis.spring.batch.convert.ScoredValueConverter;
 import com.redis.spring.batch.writer.Operation;
@@ -66,6 +64,7 @@ import com.redis.spring.batch.writer.operation.Zadd;
 
 import io.lettuce.core.AbstractRedisClient;
 import io.lettuce.core.KeyValue;
+import io.lettuce.core.api.StatefulConnection;
 import io.lettuce.core.api.StatefulRedisConnection;
 import io.lettuce.core.codec.ByteArrayCodec;
 
@@ -74,11 +73,12 @@ public class RedisSinkTask extends SinkTask {
 	private static final Logger log = LoggerFactory.getLogger(RedisSinkTask.class);
 	private static final String OFFSET_KEY_FORMAT = "com.redis.kafka.connect.sink.offset.%s.%s";
 
-	private AbstractRedisClient client;
 	private RedisSinkConfig config;
-	private RedisItemWriter<byte[], byte[], SinkRecord> writer;
+	private AbstractRedisClient client;
 	private StatefulRedisConnection<String, String> connection;
+	private RedisItemWriter<byte[], byte[], SinkRecord> writer;
 	private Converter jsonConverter;
+	private GenericObjectPool<StatefulConnection<byte[], byte[]>> pool;
 
 	@Override
 	public String version() {
@@ -88,12 +88,12 @@ public class RedisSinkTask extends SinkTask {
 	@Override
 	public void start(final Map<String, String> props) {
 		config = new RedisSinkConfig(props);
-		client = config.redisClient();
-		connection = client instanceof RedisModulesClusterClient ? ((RedisModulesClusterClient) client).connect()
-				: ((RedisModulesClient) client).connect();
+		client = config.client();
+		connection = RedisModulesUtils.connection(client);
+		pool = config.pool(client, ByteArrayCodec.INSTANCE);
 		jsonConverter = new JsonConverter();
 		jsonConverter.configure(Collections.singletonMap("schemas.enable", "false"), false);
-		writer = writer(client).build();
+		writer = RedisItemWriter.operation(pool, operation()).options(config.writerOptions()).build();
 		writer.open(new ExecutionContext());
 		final java.util.Set<TopicPartition> assignment = this.context.assignment();
 		if (!assignment.isEmpty()) {
@@ -126,19 +126,6 @@ public class RedisSinkTask extends SinkTask {
 		return offsetStates;
 	}
 
-	private RedisItemWriter.Builder<byte[], byte[], SinkRecord> writer(AbstractRedisClient client) {
-		RedisItemWriter.Builder<byte[], byte[], SinkRecord> builder = RedisItemWriter.operation(client,
-				ByteArrayCodec.INSTANCE, operation());
-		if (Boolean.TRUE.equals(config.isMultiexec())) {
-			builder.multiExec();
-		}
-		if (config.getWaitReplicas() > 0) {
-			builder.waitForReplication(
-					WaitForReplication.of(config.getWaitReplicas(), Duration.ofMillis(config.getWaitTimeout())));
-		}
-		return builder;
-	}
-
 	private String offsetKey(String topic, Integer partition) {
 		return String.format(OFFSET_KEY_FORMAT, topic, partition);
 	}
@@ -148,8 +135,7 @@ public class RedisSinkTask extends SinkTask {
 		case HASH:
 			return Hset.key(this::key).map(this::map).del(this::isDelete).build();
 		case JSON:
-			return JsonSet.key(this::key).path(".".getBytes(config.getCharset())).value(this::jsonValue)
-					.del(this::isDelete).build();
+			return JsonSet.key(this::key).value(this::jsonValue).del(this::isDelete).build();
 		case STRING:
 			return Set.key(this::key).value(this::value).del(this::isDelete).build();
 		case STREAM:
@@ -286,9 +272,15 @@ public class RedisSinkTask extends SinkTask {
 	public void stop() {
 		if (writer != null) {
 			writer.close();
+			writer = null;
 		}
 		if (connection != null) {
 			connection.close();
+			connection = null;
+		}
+		if (pool != null) {
+			pool.close();
+			pool = null;
 		}
 		if (client != null) {
 			client.shutdown();

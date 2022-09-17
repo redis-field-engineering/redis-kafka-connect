@@ -6,17 +6,25 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.commons.pool2.impl.GenericObjectPool;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.SchemaBuilder;
 import org.apache.kafka.connect.source.SourceRecord;
 import org.springframework.batch.item.ExecutionContext;
 
-import com.redis.spring.batch.DataStructure;
-import com.redis.spring.batch.DataStructure.Type;
+import com.redis.lettucemod.util.RedisModulesUtils;
 import com.redis.spring.batch.RedisItemReader;
+import com.redis.spring.batch.common.DataStructure;
+import com.redis.spring.batch.common.DataStructure.Type;
+import com.redis.spring.batch.common.JobRunner;
+import com.redis.spring.batch.reader.LiveReaderOptions;
 import com.redis.spring.batch.reader.LiveRedisItemReader;
+import com.redis.spring.batch.step.FlushingOptions;
 
 import io.lettuce.core.AbstractRedisClient;
+import io.lettuce.core.RedisURI;
+import io.lettuce.core.api.StatefulConnection;
+import io.lettuce.core.pubsub.StatefulRedisPubSubConnection;
 
 public class KeySourceRecordReader extends AbstractSourceRecordReader<DataStructure<String>> {
 
@@ -30,6 +38,9 @@ public class KeySourceRecordReader extends AbstractSourceRecordReader<DataStruct
 	private final String topic;
 	private LiveRedisItemReader<String, DataStructure<String>> reader;
 	private final Duration idleTimeout;
+	private AbstractRedisClient client;
+	private GenericObjectPool<StatefulConnection<String, String>> pool;
+	private StatefulRedisPubSubConnection<String, String> pubSubConnection;
 
 	public KeySourceRecordReader(RedisSourceConfig sourceConfig, Duration idleTimeout) {
 		super(sourceConfig);
@@ -39,10 +50,39 @@ public class KeySourceRecordReader extends AbstractSourceRecordReader<DataStruct
 	}
 
 	@Override
-	protected void open(AbstractRedisClient client) throws Exception {
-		reader = RedisItemReader.dataStructure(client).live().idleTimeout(idleTimeout)
-				.keyPatterns(sourceConfig.getKeyPatterns().toArray(new String[0])).build();
+	public void open() throws Exception {
+		RedisURI uri = config.uri();
+		this.client = config.client(uri);
+		this.pool = config.pool(client);
+		this.pubSubConnection = RedisModulesUtils.pubSubConnection(client);
+		reader = RedisItemReader
+				.liveDataStructure(pool, JobRunner.inMemory(), pubSubConnection, uri.getDatabase(),
+						config.getKeyPatterns().toArray(new String[0]))
+				.options(LiveReaderOptions.builder()
+						.flushingOptions(FlushingOptions.builder().timeout(idleTimeout).build()).build())
+				.build();
 		reader.open(new ExecutionContext());
+	}
+
+	@Override
+	public void close() {
+		if (reader != null) {
+			reader.close();
+			reader = null;
+		}
+		if (pubSubConnection != null) {
+			pubSubConnection.close();
+			pubSubConnection = null;
+		}
+		if (pool != null) {
+			pool.close();
+			pool = null;
+		}
+		if (client != null) {
+			client.shutdown();
+			client.getResources().shutdown();
+			client = null;
+		}
 	}
 
 	public LiveRedisItemReader<String, DataStructure<String>> getReader() {
@@ -69,10 +109,4 @@ public class KeySourceRecordReader extends AbstractSourceRecordReader<DataStruct
 		return STRING_VALUE_SCHEMA;
 	}
 
-	@Override
-	protected void doClose() {
-		if (reader != null) {
-			reader.close();
-		}
-	}
 }
