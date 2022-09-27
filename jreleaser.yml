@@ -2,12 +2,12 @@ project:
   name: redis-kafka-connect
   description: Kafka Connector (Source and Sink) by Redis
   longDescription: Kafka Connect source and sink connectors for Redis
-  website: https://github.com/redis-field-engineering/redis-kafka-connect
+  links:
+    homepage: https://github.com/redis-field-engineering/redis-kafka-connect
   authors:
     - Julien Ruaux
   license: Apache-2.0
-  extraProperties:
-    inceptionYear: 2021
+  inceptionYear: 2021
   tags:
     - 'kafka'
     - 'connect'
