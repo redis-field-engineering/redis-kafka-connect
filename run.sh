@@ -8,12 +8,6 @@ if lsof -Pi :6379 -sTCP:LISTEN -t >/dev/null ; then
 fi
 )
 
-echo "Building the Redis Kafka Connector"
-(
-./mvnw clean package -DskipTests
-mv target/components/packages/redis-redis-enterprise-kafka-6.*.zip target/components/packages/redis-redis-enterprise-kafka-6.zip
-)
-
 echo "Starting docker ."
 docker-compose up -d --build
 
