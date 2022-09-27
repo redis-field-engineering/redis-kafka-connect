@@ -1,19 +1,38 @@
-= Redis Kafka Connector
+= Redis Kafka Connector (Source and Sink) by Redis
 :linkattrs:
 :project-owner:   redis-field-engineering
 :project-name:    redis-kafka-connect
 :project-group:   com.redis
 :project-version: 7.1
+:project-url: https://github.com/{project-owner}/{project-name}
+:documentation-url: https://{project-owner}.github.io/{project-name}
 
-image:https://github.com/{project-owner}/{project-name}/actions/workflows/early-access.yml/badge.svg["Build Status", link="https://github.com/{project-owner}/{project-name}/actions"]
+
+image:https://github.com/{project-owner}/{project-name}/actions/workflows/early-access.yml/badge.svg["Build Status", link="{project-url}/actions"]
 image:https://codecov.io/gh/{project-owner}/{project-name}/branch/master/graph/badge.svg?token=MTMRRGEWBD["Coverage", link="https://codecov.io/gh/{project-owner}/{project-name}"]
 
-Kafka Connect source and sink connectors for Redis
+Redis Kafka Connector (Source and Sink) by Redis.
 
 == Documentation
 
-Refer to the link:https://{project-owner}.github.io/{project-name}[documentation] for configuration and usage information.
+Documentation is available at link:{documentation-url}[{documentation-url}]
+
+== Downloading
+
+The connector is published on https://www.confluent.io/hub/redis/redis-enterprise-kafka[Confluent Hub] and {project-url}/releases/latest[Github].
+
+== Support
+
+Contact us on the https://forum.redis.com/[Redis Forum] or create an issue on {project-url}/issues[Github] where we provide support on a good faith effort basis.
 
 == Docker Example
 
-Run `run.sh` and follow prompts
+Clone this repository, execute `run.sh` and follow prompts:
+
+[source,console,subs="verbatim,attributes"]
+----
+git clone {project-url}
+cd {project-name}
+./run.sh
+----
+
