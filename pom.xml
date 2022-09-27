@@ -3,7 +3,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>com.redis</groupId>
 	<artifactId>redis-kafka-connect</artifactId>
-	<version>7.1</version>
+	<version>7.2-SNAPSHOT</version>
 	<name>Redis Kafka Connector</name>
 	<description>Kafka Connect source and sink connectors for Redis</description>
 	<url>https://github.com/${github.owner}/${github.repo}</url>
