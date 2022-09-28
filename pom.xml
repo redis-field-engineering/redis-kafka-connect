@@ -377,7 +377,7 @@
 						<github-owner>${github.owner}</github-owner>
 						<github-repo>${github.repo}</github-repo>
 						<component-owner>redis</component-owner>
-						<component-name>${component-name}</component-name>
+						<component-name>redis-enterprise-kafka</component-name>
 						<project-artifact>${project.artifactId}</project-artifact>
 						<project-name>${project.name}</project-name>
 						<project-version>${project.version}</project-version>

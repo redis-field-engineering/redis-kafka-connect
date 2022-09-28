@@ -53,14 +53,14 @@ distributions:
     type: binary
     artifacts:
       - path: target/components/packages/{{distributionName}}.{{projectVersion}}.zip
-        transform: 'redis-kafka-connect-5.{{projectEffectiveVersion}}.zip'
+        transform: '{{distributionName}}.{{projectEffectiveVersion}}.zip'
   redis-redis-enterprise-kafka-6:
     type: binary
     artifacts:
       - path: target/components/packages/{{distributionName}}.{{projectVersion}}.zip
-        transform: 'redis-kafka-connect-6.{{projectEffectiveVersion}}.zip'
+        transform: '{{distributionName}}.{{projectEffectiveVersion}}.zip'
 
 files:
   artifacts:
-    - path: target/generated-docs/redis-kafka-connect-{{projectVersion}}.pdf
-      transform: 'redis-kafka-connect-{{projectEffectiveVersion}}.pdf'
+    - path: target/generated-docs/{{projectName}}-{{projectVersion}}.pdf
+      transform: '{{projectName}}-{{projectEffectiveVersion}}.pdf'
