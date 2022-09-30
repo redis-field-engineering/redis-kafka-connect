@@ -10,7 +10,7 @@ RUN mvn package $MAVEN_FAST_INSTALL
 
 FROM $BASE_PREFIX/$CONNECT_IMAGE:$CP_VERSION
 
-COPY --from=builder --chown=trino:trino /root/redis-kafka-connect/target/components/packages/redis-redis-enterprise-kafka-6.*.zip /tmp/redis-redis-enterprise-kafka-6.zip
+COPY --from=builder /root/redis-kafka-connect/target/components/packages/redis-redis-enterprise-kafka-6.*.zip /tmp/redis-redis-enterprise-kafka-6.zip
 
 ENV CONNECT_PLUGIN_PATH="/usr/share/java,/usr/share/confluent-hub-components"
 
