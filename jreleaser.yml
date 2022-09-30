@@ -48,6 +48,19 @@ announce:
     channel: '#field-engineering-announcements'
     message: '🔗 Redis Kafka Connect {{projectVersion}} has been released! {{releaseNotesUrl}}'
 
+packagers:
+  docker:
+    active: always
+    registries:
+      - serverName: DEFAULT
+        username: jruaux
+        repositoryName: jruaux
+    imageNames:
+      - 'jruaux/{{distributionName}}:{{tagName}}'
+      - 'jruaux/{{distributionName}}:latest'
+    labels:
+      'org.opencontainers.image.title': '{{distributionName}}'    
+
 distributions:
   redis-redis-enterprise-kafka-5:
     type: binary
