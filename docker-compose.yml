@@ -54,10 +54,7 @@ services:
       SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
 
   connect:
-    image: redis-kafka-connect
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: jruaux/redis-kafka-connect
     hostname: connect
     container_name: connect
     depends_on:
