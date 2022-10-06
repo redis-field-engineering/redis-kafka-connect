@@ -1,7 +1,7 @@
 package com.redis.kafka.connect.source;
 
+import java.time.Clock;
 import java.time.Duration;
-import java.time.Instant;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -33,14 +33,15 @@ public class StreamSourceRecordReader extends AbstractSourceRecordReader<StreamM
 	private static final Schema KEY_SCHEMA = Schema.STRING_SCHEMA;
 	private static final String VALUE_SCHEMA_NAME = "com.redis.kafka.connect.stream.Value";
 	private static final Schema VALUE_SCHEMA = SchemaBuilder.struct().field(FIELD_ID, Schema.STRING_SCHEMA)
-			.field(FIELD_BODY, SchemaBuilder.map(Schema.STRING_SCHEMA, Schema.STRING_SCHEMA))
-			.field(FIELD_STREAM, Schema.STRING_SCHEMA).name(VALUE_SCHEMA_NAME);
+                       .field(FIELD_BODY, SchemaBuilder.map(Schema.STRING_SCHEMA, Schema.STRING_SCHEMA).build())
+                       .field(FIELD_STREAM, Schema.STRING_SCHEMA).name(VALUE_SCHEMA_NAME).build();
 	private final String topic;
 	private final String consumer;
 
 	private StreamItemReader<String, String> reader;
 	private AbstractRedisClient client;
 	private GenericObjectPool<StatefulConnection<String, String>> pool;
+	Clock clock = Clock.systemDefaultZone();
 
 	public StreamSourceRecordReader(RedisSourceConfig sourceConfig, int taskId) {
 		super(sourceConfig);
@@ -92,7 +93,7 @@ public class StreamSourceRecordReader extends AbstractSourceRecordReader<StreamM
 		Struct value = new Struct(VALUE_SCHEMA).put(FIELD_ID, message.getId()).put(FIELD_BODY, message.getBody())
 				.put(FIELD_STREAM, message.getStream());
 		return new SourceRecord(sourcePartition, sourceOffset, topic, null, KEY_SCHEMA, key, VALUE_SCHEMA, value,
-				Instant.now().getEpochSecond());
+				clock.instant().toEpochMilli());
 	}
 
 }

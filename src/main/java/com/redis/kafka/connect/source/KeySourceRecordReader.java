@@ -1,7 +1,7 @@
 package com.redis.kafka.connect.source;
 
+import java.time.Clock;
 import java.time.Duration;
-import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -32,7 +32,7 @@ public class KeySourceRecordReader extends AbstractSourceRecordReader<DataStruct
 	private static final Schema STRING_VALUE_SCHEMA = Schema.STRING_SCHEMA;
 	private static final String HASH_VALUE_SCHEMA_NAME = "com.redis.kafka.connect.HashEventValue";
 	private static final Schema HASH_VALUE_SCHEMA = SchemaBuilder.map(Schema.STRING_SCHEMA, Schema.STRING_SCHEMA)
-			.name(HASH_VALUE_SCHEMA_NAME);
+			.name(HASH_VALUE_SCHEMA_NAME).build();
 
 	private final int batchSize;
 	private final String topic;
@@ -41,6 +41,7 @@ public class KeySourceRecordReader extends AbstractSourceRecordReader<DataStruct
 	private AbstractRedisClient client;
 	private GenericObjectPool<StatefulConnection<String, String>> pool;
 	private StatefulRedisPubSubConnection<String, String> pubSubConnection;
+	Clock clock = Clock.systemDefaultZone();
 
 	public KeySourceRecordReader(RedisSourceConfig sourceConfig, Duration idleTimeout) {
 		super(sourceConfig);
@@ -99,7 +100,7 @@ public class KeySourceRecordReader extends AbstractSourceRecordReader<DataStruct
 		Map<String, ?> sourcePartition = new HashMap<>();
 		Map<String, ?> sourceOffset = new HashMap<>();
 		return new SourceRecord(sourcePartition, sourceOffset, topic, null, KEY_SCHEMA, input.getKey(), schema(input),
-				input.getValue(), Instant.now().getEpochSecond());
+				input.getValue(), clock.instant().toEpochMilli());
 	}
 
 	private Schema schema(DataStructure<String> input) {
