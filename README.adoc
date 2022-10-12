@@ -15,7 +15,7 @@ Redis Kafka Connector (Source and Sink) by Redis.
 
 == Documentation
 
-Documentation is available at link:{documentation-url}[{documentation-url}]
+Documentation is available at link:{documentation-url}[{documentation-url}].
 
 == Downloading
 

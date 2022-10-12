@@ -73,7 +73,7 @@ jobs:
             out/jreleaser/trace.log
             out/jreleaser/output.properties
             out/jreleaser/release/CHANGELOG.md
-          
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2
 
@@ -90,4 +90,4 @@ jobs:
         uses: docker/build-push-action@v3
         with:
           push: ${{ github.event_name != 'pull_request' }}
-          tags: jruaux/redis-kafka-connect:latest
+          tags: jruaux/redis-kafka-connect:early-access
