@@ -5,7 +5,6 @@
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="generator" content="Asciidoctor 2.0.10">
-<meta name="author" content="Julien Ruaux &lt;julien@redis.com&gt;">
 <title>Redis Kafka Connector</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Open+Sans:300,300italic,400,400italic,600,600italic%7CNoto+Serif:400,400italic,700,700italic%7CDroid+Sans+Mono:400,700">
 <link rel="stylesheet" href="./asciidoctor.css">
@@ -15,8 +14,7 @@
 <div id="header">
 <h1>Redis Kafka Connector</h1>
 <div class="details">
-<span id="author" class="author">Julien Ruaux &lt;julien@redis.com&gt;</span><br>
-<span id="revnumber">version 7.1</span>
+<span id="revnumber">version 7.2</span>
 </div>
 <div id="toc" class="toc2">
 <div id="toctitle">Table of Contents</div>
@@ -122,10 +120,10 @@
 <div class="ulist">
 <ul>
 <li>
-<p>Confluent Platform 5.0+: <code>redis--<strong>5</strong>.7.1.zip</code></p>
+<p>Confluent Platform 5.0+: <code>redis-redis-enterprise-kafka-<strong>5</strong>.7.2.zip</code></p>
 </li>
 <li>
-<p>Confluent Platform 6.0+: <code>redis--<strong>6</strong>.7.1.zip</code></p>
+<p>Confluent Platform 6.0+: <code>redis-redis-enterprise-kafka-<strong>6</strong>.7.2.zip</code></p>
 </li>
 </ul>
 </div>
@@ -168,7 +166,7 @@
 </div>
 <div class="listingblock">
 <div class="content">
-<pre class="highlightjs highlight"><code data-lang="properties" class="language-properties hljs">redis.uri=redis://redis-12000.redis.com:12000</code></pre>
+<pre class="CodeRay highlight"><code data-lang="properties">redis.uri=redis://redis-12000.redis.com:12000</code></pre>
 </div>
 </div>
 <div class="paragraph">
@@ -180,7 +178,7 @@ To disable certificate verification for TLS connections use the following proper
 </div>
 <div class="listingblock">
 <div class="content">
-<pre class="highlightjs highlight"><code data-lang="properties" class="language-properties hljs">redis.insecure=true</code></pre>
+<pre class="CodeRay highlight"><code data-lang="properties">redis.insecure=true</code></pre>
 </div>
 </div>
 <div class="paragraph">
@@ -188,7 +186,7 @@ To disable certificate verification for TLS connections use the following proper
 </div>
 <div class="listingblock">
 <div class="content">
-<pre class="highlightjs highlight"><code data-lang="properties" class="language-properties hljs">redis.username=user1
+<pre class="CodeRay highlight"><code data-lang="properties">redis.username=user1
 redis.password=pass</code></pre>
 </div>
 </div>
@@ -269,7 +267,7 @@ You can specify the number of tasks with the <code>tasks.max</code> configuratio
 </div>
 <div class="listingblock">
 <div class="content">
-<pre class="highlightjs highlight"><code data-lang="properties" class="language-properties hljs">redis.type=HASH
+<pre class="CodeRay highlight"><code data-lang="properties">redis.type=HASH
 key.converter=&lt;string or bytes&gt; <i class="conum" data-value="1"></i><b>(1)</b>
 value.converter=&lt;Avro or JSON&gt; <i class="conum" data-value="2"></i><b>(2)</b></code></pre>
 </div>
@@ -295,7 +293,7 @@ If value is null the key is deleted.</td>
 </div>
 <div class="listingblock">
 <div class="content">
-<pre class="highlightjs highlight"><code data-lang="properties" class="language-properties hljs">redis.type=STRING
+<pre class="CodeRay highlight"><code data-lang="properties">redis.type=STRING
 key.converter=&lt;string or bytes&gt; <i class="conum" data-value="1"></i><b>(1)</b>
 value.converter=&lt;string or bytes&gt; <i class="conum" data-value="2"></i><b>(2)</b></code></pre>
 </div>
@@ -321,7 +319,7 @@ If value is null the key is deleted.</td>
 </div>
 <div class="listingblock">
 <div class="content">
-<pre class="highlightjs highlight"><code data-lang="properties" class="language-properties hljs">redis.type=JSON
+<pre class="CodeRay highlight"><code data-lang="properties">redis.type=JSON
 key.converter=&lt;string, bytes, or Avro&gt; <i class="conum" data-value="1"></i><b>(1)</b>
 value.converter=&lt;string, bytes, or Avro&gt; <i class="conum" data-value="2"></i><b>(2)</b></code></pre>
 </div>
@@ -347,7 +345,7 @@ If value is null the key is deleted.</td>
 </div>
 <div class="listingblock">
 <div class="content">
-<pre class="highlightjs highlight"><code data-lang="properties" class="language-properties hljs">redis.type=STREAM
+<pre class="CodeRay highlight"><code data-lang="properties">redis.type=STREAM
 redis.key=&lt;stream key&gt; <i class="conum" data-value="1"></i><b>(1)</b>
 value.converter=&lt;Avro or JSON&gt; <i class="conum" data-value="2"></i><b>(2)</b></code></pre>
 </div>
@@ -372,7 +370,7 @@ value.converter=&lt;Avro or JSON&gt; <i class="conum" data-value="2"></i><b>(2)<
 </div>
 <div class="listingblock">
 <div class="content">
-<pre class="highlightjs highlight"><code data-lang="properties" class="language-properties hljs">redis.type=LIST
+<pre class="CodeRay highlight"><code data-lang="properties">redis.type=LIST
 redis.key=&lt;key name&gt; <i class="conum" data-value="1"></i><b>(1)</b>
 key.converter=&lt;string or bytes&gt; <i class="conum" data-value="2"></i><b>(2)</b>
 redis.push.direction=&lt;LEFT or RIGHT&gt; <i class="conum" data-value="3"></i><b>(3)</b></code></pre>
@@ -406,7 +404,7 @@ If a value is null then the member is removed from the list (instead of pushed t
 </div>
 <div class="listingblock">
 <div class="content">
-<pre class="highlightjs highlight"><code data-lang="properties" class="language-properties hljs">redis.type=SET
+<pre class="CodeRay highlight"><code data-lang="properties">redis.type=SET
 redis.key=&lt;key name&gt; <i class="conum" data-value="1"></i><b>(1)</b>
 key.converter=&lt;string or bytes&gt; <i class="conum" data-value="2"></i><b>(2)</b></code></pre>
 </div>
@@ -435,7 +433,7 @@ If a value is null then the member is removed from the set (instead of added to 
 </div>
 <div class="listingblock">
 <div class="content">
-<pre class="highlightjs highlight"><code data-lang="properties" class="language-properties hljs">redis.type=ZSET
+<pre class="CodeRay highlight"><code data-lang="properties">redis.type=ZSET
 redis.key=&lt;key name&gt; <i class="conum" data-value="1"></i><b>(1)</b>
 key.converter=&lt;string or bytes&gt; <i class="conum" data-value="2"></i><b>(2)</b></code></pre>
 </div>
@@ -464,7 +462,7 @@ If the score is null then the member is removed from the sorted set (instead of 
 </div>
 <div class="listingblock">
 <div class="content">
-<pre class="highlightjs highlight"><code data-lang="properties" class="language-properties hljs">redis.type=TIMESERIES
+<pre class="CodeRay highlight"><code data-lang="properties">redis.type=TIMESERIES
 redis.key=&lt;key name&gt; <i class="conum" data-value="1"></i><b>(1)</b></code></pre>
 </div>
 </div>
@@ -557,7 +555,7 @@ redis.key=&lt;key name&gt; <i class="conum" data-value="1"></i><b>(1)</b></code>
 </div>
 <div class="listingblock">
 <div class="content">
-<pre class="highlightjs highlight"><code data-lang="properties" class="language-properties hljs">key.converter=org.apache.kafka.connect.storage.StringConverter</code></pre>
+<pre class="CodeRay highlight"><code data-lang="properties">key.converter=org.apache.kafka.connect.storage.StringConverter</code></pre>
 </div>
 </div>
 </div>
@@ -568,7 +566,7 @@ redis.key=&lt;key name&gt; <i class="conum" data-value="1"></i><b>(1)</b></code>
 </div>
 <div class="listingblock">
 <div class="content">
-<pre class="highlightjs highlight"><code data-lang="properties" class="language-properties hljs">key.converter=org.apache.kafka.connect.converters.ByteArrayConverter</code></pre>
+<pre class="CodeRay highlight"><code data-lang="properties">key.converter=org.apache.kafka.connect.converters.ByteArrayConverter</code></pre>
 </div>
 </div>
 </div>
@@ -643,7 +641,7 @@ If your data in Kafka is not in the format expected for a given data structure, 
 </div>
 <div class="listingblock">
 <div class="content">
-<pre class="highlightjs highlight"><code data-lang="properties" class="language-properties hljs">value.converter=org.apache.kafka.connect.storage.StringConverter</code></pre>
+<pre class="CodeRay highlight"><code data-lang="properties">value.converter=org.apache.kafka.connect.storage.StringConverter</code></pre>
 </div>
 </div>
 </div>
@@ -654,7 +652,7 @@ If your data in Kafka is not in the format expected for a given data structure, 
 </div>
 <div class="listingblock">
 <div class="content">
-<pre class="highlightjs highlight"><code data-lang="properties" class="language-properties hljs">value.converter=org.apache.kafka.connect.converters.ByteArrayConverter</code></pre>
+<pre class="CodeRay highlight"><code data-lang="properties">value.converter=org.apache.kafka.connect.converters.ByteArrayConverter</code></pre>
 </div>
 </div>
 </div>
@@ -662,7 +660,7 @@ If your data in Kafka is not in the format expected for a given data structure, 
 <h6 id="avro"><a class="anchor" href="#avro"></a>Avro</h6>
 <div class="listingblock">
 <div class="content">
-<pre class="highlightjs highlight"><code data-lang="properties" class="language-properties hljs">value.converter=io.confluent.connect.avro.AvroConverter
+<pre class="CodeRay highlight"><code data-lang="properties">value.converter=io.confluent.connect.avro.AvroConverter
 value.converter.schema.registry.url=http://localhost:8081</code></pre>
 </div>
 </div>
@@ -671,7 +669,7 @@ value.converter.schema.registry.url=http://localhost:8081</code></pre>
 <h6 id="kafka-json"><a class="anchor" href="#kafka-json"></a>JSON</h6>
 <div class="listingblock">
 <div class="content">
-<pre class="highlightjs highlight"><code data-lang="properties" class="language-properties hljs">value.converter=org.apache.kafka.connect.json.JsonConverter
+<pre class="CodeRay highlight"><code data-lang="properties">value.converter=org.apache.kafka.connect.json.JsonConverter
 value.converter.schemas.enable=&lt;true|false&gt; <i class="conum" data-value="1"></i><b>(1)</b></code></pre>
 </div>
 </div>
@@ -787,7 +785,7 @@ Reading is done through a consumer group so that <a href="#source-tasks">multipl
 <h5 id="configuration-2"><a class="anchor" href="#configuration-2"></a>Configuration</h5>
 <div class="listingblock">
 <div class="content">
-<pre class="highlightjs highlight"><code data-lang="properties" class="language-properties hljs">redis.stream.name=&lt;name&gt; <i class="conum" data-value="1"></i><b>(1)</b>
+<pre class="CodeRay highlight"><code data-lang="properties">redis.stream.name=&lt;name&gt; <i class="conum" data-value="1"></i><b>(1)</b>
 redis.stream.offset=&lt;offset&gt; <i class="conum" data-value="2"></i><b>(2)</b>
 redis.stream.block=&lt;millis&gt; <i class="conum" data-value="3"></i><b>(3)</b>
 redis.stream.consumer.group=&lt;group&gt; <i class="conum" data-value="4"></i><b>(4)</b>
@@ -861,7 +859,7 @@ For example, <code>redis_${stream}</code> and stream <code>orders</code> &#8658;
 </div>
 <div class="listingblock">
 <div class="content">
-<pre class="highlightjs highlight"><code data-lang="console" class="language-console hljs">git clone https://github.com/redis-field-engineering/redis-kafka-connect.git
+<pre class="CodeRay highlight"><code data-lang="console">git clone https://github.com/redis-field-engineering/redis-kafka-connect.git
 ./run.sh</code></pre>
 </div>
 </div>
@@ -911,12 +909,12 @@ For example, <code>redis_${stream}</code> and stream <code>orders</code> &#8658;
 </div>
 <div class="listingblock">
 <div class="content">
-<pre class="highlightjs highlight"><code data-lang="json" class="language-json hljs">{
-  "viewtime": {
-    "$numberLong": "81"
+<pre class="CodeRay highlight"><code data-lang="json">{
+  <span class="key"><span class="delimiter">&quot;</span><span class="content">viewtime</span><span class="delimiter">&quot;</span></span>: {
+    <span class="key"><span class="delimiter">&quot;</span><span class="content">$numberLong</span><span class="delimiter">&quot;</span></span>: <span class="string"><span class="delimiter">&quot;</span><span class="content">81</span><span class="delimiter">&quot;</span></span>
   },
-  "pageid": "Page_1",
-  "userid": "User_8"
+  <span class="key"><span class="delimiter">&quot;</span><span class="content">pageid</span><span class="delimiter">&quot;</span></span>: <span class="string"><span class="delimiter">&quot;</span><span class="content">Page_1</span><span class="delimiter">&quot;</span></span>,
+  <span class="key"><span class="delimiter">&quot;</span><span class="content">userid</span><span class="delimiter">&quot;</span></span>: <span class="string"><span class="delimiter">&quot;</span><span class="content">User_8</span><span class="delimiter">&quot;</span></span>
 }</code></pre>
 </div>
 </div>
@@ -932,7 +930,7 @@ For example, <code>redis_${stream}</code> and stream <code>orders</code> &#8658;
 </div>
 <div class="listingblock">
 <div class="content">
-<pre class="highlightjs highlight"><code data-lang="console" class="language-console hljs">docker-compose exec redis /usr/local/bin/redis-cli
+<pre class="CodeRay highlight"><code data-lang="console">docker-compose exec redis /usr/local/bin/redis-cli
 xread COUNT 10 STREAMS pageviews 0</code></pre>
 </div>
 </div>
@@ -1007,12 +1005,10 @@ xread COUNT 10 STREAMS pageviews 0</code></pre>
 </div>
 <div id="footer">
 <div id="footer-text">
-Version 7.1<br>
-Last updated 2022-09-27 17:07:00 UTC
+Version 7.2<br>
+Last updated 2022-10-15 05:49:17 UTC
 </div>
 </div>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.15.6/styles/github.min.css">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.15.6/highlight.min.js"></script>
-<script>hljs.initHighlighting()</script>
+<link rel="stylesheet" href="./coderay-asciidoctor.css">
 </body>
 </html>
