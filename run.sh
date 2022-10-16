@@ -8,7 +8,7 @@ if lsof -Pi :6379 -sTCP:LISTEN -t >/dev/null ; then
 fi
 )
 
-echo "Starting docker ."
+echo "Starting docker"
 docker-compose up -d --build
 
 function clean_up {
@@ -31,9 +31,9 @@ function test_systems_available {
   COUNTER=0
   until $(curl --output /dev/null --silent --head --fail http://localhost:$1); do
       printf '.'
-      sleep 2
+      sleep 10
       (( COUNTER+=1 ))
-      if [[ $COUNTER -gt 30 ]]; then
+      if [[ $COUNTER -gt 50 ]]; then
         MSG="\nWARNING: Could not reach configured kafka system on http://localhost:$1 \nNote: This script requires curl.\n"
 
           if [[ "$OSTYPE" == "darwin"* ]]; then
