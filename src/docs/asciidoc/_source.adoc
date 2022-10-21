@@ -13,8 +13,28 @@ The {name} includes the following features:
 * <<stream-reader,Stream Reader>>
 
 [[source-at-least-once-delivery]]
-=== At least once delivery
-The {name} guarantees that records from the Kafka topic are delivered at least once.
+=== Delivery Guarantees
+
+The {name} can be configured to ack stream messages either automatically (at-most-once delivery) or explicitly (at-least-once delivery).
+The default is explicit acks.
+
+==== Explicit Ack (default)
+
+In this mode, each stream message is acknowledged after it has been written to the corresponding topic.
+
+[source,properties]
+----
+redis.stream.ack=EXPLICIT
+----
+
+==== Automatic Ack
+
+In this mode, stream messages are acknowledged as soon as they are read.
+
+[source,properties]
+----
+redis.stream.ack=AUTO
+----
 
 [[source-tasks]]
 === Multiple Tasks
