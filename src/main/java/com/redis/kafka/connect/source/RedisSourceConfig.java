@@ -32,6 +32,10 @@ public class RedisSourceConfig extends RedisConfig {
 		KEYS, STREAM
 	}
 
+	public enum AckPolicy {
+		AUTO, EXPLICIT
+	}
+
 	public static final String TOKEN_STREAM = "${stream}";
 	public static final String TOKEN_TASK = "${task}";
 
@@ -58,6 +62,12 @@ public class RedisSourceConfig extends RedisConfig {
 	public static final String STREAM_NAME_CONFIG = "redis.stream.name";
 	public static final String STREAM_NAME_DOC = "Name of the Redis stream to read from";
 
+	public static final String STREAM_ACK_CONFIG = "redis.stream.ack";
+	public static final AckPolicy STREAM_ACK_DEFAULT = AckPolicy.EXPLICIT;
+	public static final String STREAM_ACK_DOC = "Acknowledgment policy for stream messages. " + AckPolicy.EXPLICIT
+			+ " mode acks each message after it's been committed (at-least-once processing). " + AckPolicy.AUTO
+			+ " acks messages as soon as they're read (at-most-once processing).";
+
 	public static final String STREAM_OFFSET_CONFIG = "redis.stream.offset";
 	public static final String STREAM_OFFSET_DEFAULT = "0-0";
 	public static final String STREAM_OFFSET_DOC = "Stream offset to start reading from";
@@ -79,6 +89,7 @@ public class RedisSourceConfig extends RedisConfig {
 	private final ReaderType readerType;
 	private final List<String> keyPatterns;
 	private final String streamName;
+	private final AckPolicy streamAckPolicy;
 	private final String streamOffset;
 	private final String streamConsumerGroup;
 	private final String streamConsumerName;
@@ -93,6 +104,7 @@ public class RedisSourceConfig extends RedisConfig {
 		this.batchSize = getLong(BATCH_SIZE_CONFIG);
 		this.keyPatterns = getList(KEY_PATTERNS_CONFIG);
 		this.streamName = getString(STREAM_NAME_CONFIG);
+		this.streamAckPolicy = ConfigUtils.getEnum(AckPolicy.class, this, STREAM_ACK_CONFIG);
 		this.streamOffset = getString(STREAM_OFFSET_CONFIG);
 		this.streamConsumerGroup = getString(STREAM_CONSUMER_GROUP_CONFIG);
 		this.streamConsumerName = getString(STREAM_CONSUMER_NAME_CONFIG);
@@ -117,6 +129,10 @@ public class RedisSourceConfig extends RedisConfig {
 
 	public String getStreamName() {
 		return streamName;
+	}
+
+	public AckPolicy getStreamAckPolicy() {
+		return streamAckPolicy;
 	}
 
 	public String getStreamOffset() {
@@ -159,6 +175,9 @@ public class RedisSourceConfig extends RedisConfig {
 					.defaultValue(KEY_PATTERNS_DEFAULT).importance(Importance.MEDIUM).internalConfig(true).build());
 			define(ConfigKeyBuilder.of(STREAM_NAME_CONFIG, ConfigDef.Type.STRING).documentation(STREAM_NAME_DOC)
 					.importance(ConfigDef.Importance.HIGH).build());
+			define(ConfigKeyBuilder.of(STREAM_ACK_CONFIG, ConfigDef.Type.STRING).documentation(STREAM_ACK_DOC)
+					.defaultValue(STREAM_ACK_DEFAULT.name()).importance(ConfigDef.Importance.HIGH)
+					.validator(Validators.validEnum(AckPolicy.class)).build());
 			define(ConfigKeyBuilder.of(STREAM_OFFSET_CONFIG, ConfigDef.Type.STRING).documentation(STREAM_OFFSET_DOC)
 					.defaultValue(STREAM_OFFSET_DEFAULT).importance(ConfigDef.Importance.MEDIUM).build());
 			define(ConfigKeyBuilder.of(STREAM_CONSUMER_GROUP_CONFIG, ConfigDef.Type.STRING)
@@ -179,7 +198,7 @@ public class RedisSourceConfig extends RedisConfig {
 		final int prime = 31;
 		int result = super.hashCode();
 		result = prime * result + Objects.hash(batchSize, keyPatterns, readerType, streamBlock, streamConsumerGroup,
-				streamConsumerName, streamName, streamOffset, topicName);
+				streamConsumerName, streamName, streamAckPolicy, streamOffset, topicName);
 		return result;
 	}
 
@@ -196,8 +215,9 @@ public class RedisSourceConfig extends RedisConfig {
 				&& readerType == other.readerType && Objects.equals(streamBlock, other.streamBlock)
 				&& Objects.equals(streamConsumerGroup, other.streamConsumerGroup)
 				&& Objects.equals(streamConsumerName, other.streamConsumerName)
-				&& Objects.equals(streamName, other.streamName) && Objects.equals(streamOffset, other.streamOffset)
-				&& Objects.equals(topicName, other.topicName);
+				&& Objects.equals(streamName, other.streamName)
+				&& Objects.equals(streamAckPolicy, other.streamAckPolicy)
+				&& Objects.equals(streamOffset, other.streamOffset) && Objects.equals(topicName, other.topicName);
 	}
 
 }

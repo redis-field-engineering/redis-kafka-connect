@@ -21,7 +21,10 @@ import org.testcontainers.junit.jupiter.Container;
 
 import com.redis.kafka.connect.source.KeySourceRecordReader;
 import com.redis.kafka.connect.source.RedisSourceConfig;
+import com.redis.kafka.connect.source.RedisSourceConfig.AckPolicy;
+import com.redis.kafka.connect.source.RedisSourceConfig.ReaderType;
 import com.redis.kafka.connect.source.RedisSourceTask;
+import com.redis.lettucemod.api.sync.RedisModulesCommands;
 import com.redis.spring.batch.common.DataStructure;
 import com.redis.spring.batch.reader.LiveRedisItemReader;
 import com.redis.testcontainers.RedisContainer;
@@ -73,13 +76,12 @@ class RedisSourceTaskIT extends AbstractTestcontainersRedisTestBase {
 
 	@ParameterizedTest
 	@RedisTestContextsSource
-	void pollStream(RedisTestContext redis) throws InterruptedException {
+	void streamPoll(RedisTestContext redis) throws InterruptedException {
 		final String stream = "stream1";
 		final String topicPrefix = "testprefix-";
-		startTask(redis, RedisSourceConfig.TOPIC_CONFIG,
-				topicPrefix + RedisSourceConfig.TOKEN_STREAM, RedisSourceConfig.READER_CONFIG,
-				RedisSourceConfig.ReaderType.STREAM.name(), RedisSourceConfig.STREAM_NAME_CONFIG,
-				stream);
+		startTask(redis, RedisSourceConfig.TOPIC_CONFIG, topicPrefix + RedisSourceConfig.TOKEN_STREAM,
+				RedisSourceConfig.READER_CONFIG, RedisSourceConfig.ReaderType.STREAM.name(),
+				RedisSourceConfig.STREAM_NAME_CONFIG, stream);
 		String field1 = "field1";
 		String value1 = "value1";
 		String field2 = "field2";
@@ -96,6 +98,63 @@ class RedisSourceTaskIT extends AbstractTestcontainersRedisTestBase {
 		assertEquals(id3, body, stream, topicPrefix + stream, sourceRecords.get(2));
 	}
 
+	@ParameterizedTest
+	@RedisTestContextsSource
+	void streamAckAuto(RedisTestContext redis) throws InterruptedException {
+		final String stream = "stream1";
+		final String topicPrefix = "streamack-";
+		startTask(redis, RedisSourceConfig.TOPIC_CONFIG, topicPrefix + RedisSourceConfig.TOKEN_STREAM,
+				RedisSourceConfig.READER_CONFIG, ReaderType.STREAM.name(), RedisSourceConfig.STREAM_NAME_CONFIG, stream,
+				RedisSourceConfig.STREAM_ACK_CONFIG, AckPolicy.AUTO.name());
+		String field1 = "field1";
+		String value1 = "value1";
+		String field2 = "field2";
+		String value2 = "value2";
+		RedisModulesCommands<String, String> sync = redis.sync();
+		final Map<String, String> body = map(field1, value1, field2, value2);
+		sync.xadd(stream, body);
+		sync.xadd(stream, body);
+		sync.xadd(stream, body);
+		List<SourceRecord> sourceRecords = new ArrayList<>();
+		Awaitility.await().until(() -> sourceRecords.addAll(task.poll()));
+		Assertions.assertEquals(3, sourceRecords.size());
+		Assertions.assertEquals(0, sync.xpending(stream, RedisSourceConfig.STREAM_CONSUMER_GROUP_DEFAULT).getCount());
+	}
+
+	@SuppressWarnings("deprecation")
+	@ParameterizedTest
+	@RedisTestContextsSource
+	void streamAckExplicit(RedisTestContext redis) throws InterruptedException {
+		final String stream = "stream1";
+		final String topicPrefix = "streamack-";
+		startTask(redis, RedisSourceConfig.TOPIC_CONFIG, topicPrefix + RedisSourceConfig.TOKEN_STREAM,
+				RedisSourceConfig.READER_CONFIG, ReaderType.STREAM.name(), RedisSourceConfig.STREAM_NAME_CONFIG, stream,
+				RedisSourceConfig.STREAM_ACK_CONFIG, AckPolicy.EXPLICIT.name());
+		String field1 = "field1";
+		String value1 = "value1";
+		String field2 = "field2";
+		String value2 = "value2";
+		RedisModulesCommands<String, String> sync = redis.sync();
+		final Map<String, String> body = map(field1, value1, field2, value2);
+		sync.xadd(stream, body);
+		sync.xadd(stream, body);
+		sync.xadd(stream, body);
+		List<SourceRecord> sourceRecords = new ArrayList<>();
+		Awaitility.await().until(() -> sourceRecords.addAll(task.poll()));
+		Assertions.assertEquals(3, sourceRecords.size());
+		Assertions.assertEquals(3, sync.xpending(stream, RedisSourceConfig.STREAM_CONSUMER_GROUP_DEFAULT).getCount());
+		sourceRecords.forEach(r -> {
+			try {
+				task.commitRecord(r);
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		});
+		task.commit();
+		Assertions.assertEquals(0, sync.xpending(stream, RedisSourceConfig.STREAM_CONSUMER_GROUP_DEFAULT).getCount());
+	}
+
 	private void assertEquals(String expectedId, Map<String, String> expectedBody, String expectedStream,
 			String expectedTopic, SourceRecord record) {
 		Struct struct = (Struct) record.value();
@@ -107,11 +166,11 @@ class RedisSourceTaskIT extends AbstractTestcontainersRedisTestBase {
 
 	@ParameterizedTest
 	@RedisTestContextsSource
-	void pollKeys(RedisTestContext redis) throws InterruptedException {
+	void keyPoll(RedisTestContext redis) throws InterruptedException {
 		String topic = "mytopic";
 		startTask(redis, RedisSourceConfig.READER_CONFIG, RedisSourceConfig.ReaderType.KEYS.name(),
-				RedisSourceConfig.STREAM_NAME_CONFIG, "dummy", RedisSourceConfig.TOPIC_CONFIG,
-				topic, RedisSourceTask.KEYS_IDLE_TIMEOUT, "3000");
+				RedisSourceConfig.STREAM_NAME_CONFIG, "dummy", RedisSourceConfig.TOPIC_CONFIG, topic,
+				RedisSourceTask.KEYS_IDLE_TIMEOUT, "3000");
 		LiveRedisItemReader<String, DataStructure<String>> reader = ((KeySourceRecordReader) task.getReader())
 				.getReader();
 		Awaitility.await().until(reader::isOpen);

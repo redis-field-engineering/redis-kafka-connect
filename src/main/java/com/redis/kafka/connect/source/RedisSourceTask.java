@@ -16,6 +16,7 @@
 package com.redis.kafka.connect.source;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -24,11 +25,19 @@ import org.apache.kafka.connect.source.SourceRecord;
 import org.apache.kafka.connect.source.SourceTask;
 
 import com.redis.kafka.connect.RedisSourceConnector;
+import com.redis.spring.batch.reader.LiveReaderOptions;
+import com.redis.spring.batch.step.FlushingOptions;
 
 public class RedisSourceTask extends SourceTask {
 
 	public static final String TASK_ID = "task.id";
 	public static final String KEYS_IDLE_TIMEOUT = "keys.idletimeout";
+
+	/**
+	 * The offsets that have been processed and that are to be acknowledged by the
+	 * reader in {@link RedisSourceTask#commit()}.
+	 */
+	private final List<Map<String, ?>> sourceOffsets = new ArrayList<>();
 
 	private SourceRecordReader reader;
 
@@ -53,14 +62,40 @@ public class RedisSourceTask extends SourceTask {
 
 	private SourceRecordReader reader(Map<String, String> props) {
 		RedisSourceConfig sourceConfig = new RedisSourceConfig(props);
-		if (sourceConfig.getReaderType() == RedisSourceConfig.ReaderType.STREAM) {
-			String taskIdString = props.get(TASK_ID);
-			int taskId = taskIdString == null ? 0 : Integer.parseInt(taskIdString);
-			return new StreamSourceRecordReader(sourceConfig, taskId);
+		switch (sourceConfig.getReaderType()) {
+		case STREAM:
+			String taskId = props.getOrDefault(TASK_ID, String.valueOf(0));
+			return new StreamSourceRecordReader(sourceConfig, Integer.parseInt(taskId));
+		case KEYS:
+			String idleMillis = props.getOrDefault(KEYS_IDLE_TIMEOUT,
+					String.valueOf(FlushingOptions.DEFAULT_FLUSHING_INTERVAL.toMillis()));
+			FlushingOptions flushingOptions = FlushingOptions.builder()
+					.timeout(Duration.ofMillis(Long.parseLong(idleMillis))).build();
+			LiveReaderOptions liveReaderOptions = LiveReaderOptions.builder().flushingOptions(flushingOptions).build();
+			return new KeySourceRecordReader(sourceConfig, liveReaderOptions);
+		default:
+			throw new IllegalArgumentException("Unknown reader type: " + sourceConfig.getReaderType());
 		}
-		String idleTimeoutString = props.get(KEYS_IDLE_TIMEOUT);
-		return new KeySourceRecordReader(sourceConfig,
-				idleTimeoutString == null ? null : Duration.ofMillis(Long.parseLong(idleTimeoutString)));
+	}
+
+	private void addSourceOffset(Map<String, ?> sourceOffset) {
+		sourceOffsets.add(sourceOffset);
+	}
+
+	@Deprecated
+	@Override
+	public void commitRecord(SourceRecord sourceRecord) throws InterruptedException {
+		Map<String, ?> currentOffset = sourceRecord.sourceOffset();
+		if (currentOffset != null) {
+			addSourceOffset(currentOffset);
+		}
+	}
+
+	@Override
+	public void commit() throws InterruptedException {
+		if (reader != null) {
+			reader.commit(sourceOffsets);
+		}
 	}
 
 	@Override

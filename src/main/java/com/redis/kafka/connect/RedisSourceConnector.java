@@ -75,6 +75,7 @@ public class RedisSourceConnector extends SourceConnector {
 
     @Override
     public void stop() {
+    	// Do nothing
     }
 
     @Override

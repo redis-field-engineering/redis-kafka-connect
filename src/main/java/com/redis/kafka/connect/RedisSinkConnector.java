@@ -47,6 +47,7 @@ public class RedisSinkConnector extends SinkConnector {
 
     @Override
     public void stop() {
+    	// Do nothing
     }
 
     @Override
