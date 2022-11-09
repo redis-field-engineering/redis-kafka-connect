@@ -16,24 +16,24 @@ The {name} includes the following features:
 === Delivery Guarantees
 
 The {name} can be configured to ack stream messages either automatically (at-most-once delivery) or explicitly (at-least-once delivery).
-The default is explicit acks.
+The default is at-least-once delivery.
 
-==== Explicit Ack (default)
+==== At-Least-Once
 
 In this mode, each stream message is acknowledged after it has been written to the corresponding topic.
 
 [source,properties]
 ----
-redis.stream.ack=EXPLICIT
+redis.stream.delivery=at-least-once
 ----
 
-==== Automatic Ack
+==== At-Most-Once
 
 In this mode, stream messages are acknowledged as soon as they are read.
 
 [source,properties]
 ----
-redis.stream.ack=AUTO
+redis.stream.delivery=at-most-once
 ----
 
 [[source-tasks]]
