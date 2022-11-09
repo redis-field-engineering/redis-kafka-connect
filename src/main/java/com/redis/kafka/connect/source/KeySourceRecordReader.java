@@ -57,7 +57,7 @@ public class KeySourceRecordReader implements SourceRecordReader {
 	}
 
 	@Override
-	public void open() {
+	public void open(Map<String, Object> offset) {
 		RedisURI uri = config.uri();
 		this.client = config.client(uri);
 		this.pool = config.pool(client);

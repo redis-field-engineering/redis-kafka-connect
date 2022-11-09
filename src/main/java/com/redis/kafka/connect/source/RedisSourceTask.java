@@ -17,6 +17,7 @@ package com.redis.kafka.connect.source;
 
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -53,8 +54,12 @@ public class RedisSourceTask extends SourceTask {
 	@Override
 	public void start(Map<String, String> props) {
 		this.reader = reader(props);
+		Map<String, Object> offset = null;
+		if (context != null) {
+			offset = context.offsetStorageReader().offset(Collections.emptyMap());
+		}
 		try {
-			this.reader.open();
+			this.reader.open(offset);
 		} catch (Exception e) {
 			throw new RetriableException("Could not open reader", e);
 		}

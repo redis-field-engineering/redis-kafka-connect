@@ -32,9 +32,8 @@ public class RedisSourceConfig extends RedisConfig {
 		KEYS, STREAM
 	}
 
-	public enum AckPolicy {
-		AUTO, EXPLICIT
-	}
+	public static final String STREAM_DELIVERY_AT_MOST_ONCE = "at-most-once";
+	public static final String STREAM_DELIVERY_AT_LEAST_ONCE = "at-least-once";
 
 	public static final String TOKEN_STREAM = "${stream}";
 	public static final String TOKEN_TASK = "${task}";
@@ -62,15 +61,13 @@ public class RedisSourceConfig extends RedisConfig {
 	public static final String STREAM_NAME_CONFIG = "redis.stream.name";
 	public static final String STREAM_NAME_DOC = "Name of the Redis stream to read from";
 
-	public static final String STREAM_ACK_CONFIG = "redis.stream.ack";
-	public static final AckPolicy STREAM_ACK_DEFAULT = AckPolicy.EXPLICIT;
-	public static final String STREAM_ACK_DOC = "Acknowledgment policy for stream messages. " + AckPolicy.EXPLICIT
-			+ " mode acks each message after it's been committed (at-least-once processing). " + AckPolicy.AUTO
-			+ " acks messages as soon as they're read (at-most-once processing).";
-
 	public static final String STREAM_OFFSET_CONFIG = "redis.stream.offset";
 	public static final String STREAM_OFFSET_DEFAULT = "0-0";
 	public static final String STREAM_OFFSET_DOC = "Stream offset to start reading from";
+
+	public static final String STREAM_DELIVERY_CONFIG = "redis.stream.delivery";
+	public static final String STREAM_DELIVERY_DEFAULT = STREAM_DELIVERY_AT_LEAST_ONCE;
+	public static final String STREAM_DELIVERY_DOC = "Stream message delivery guarantee, either 'at-least-once' or 'at-most-once'";
 
 	public static final String STREAM_CONSUMER_GROUP_CONFIG = "redis.stream.consumer.group";
 	public static final String STREAM_CONSUMER_GROUP_DEFAULT = "kafka-consumer-group";
@@ -89,8 +86,8 @@ public class RedisSourceConfig extends RedisConfig {
 	private final ReaderType readerType;
 	private final List<String> keyPatterns;
 	private final String streamName;
-	private final AckPolicy streamAckPolicy;
 	private final String streamOffset;
+	private final String streamDelivery;
 	private final String streamConsumerGroup;
 	private final String streamConsumerName;
 	private final Long batchSize;
@@ -104,8 +101,8 @@ public class RedisSourceConfig extends RedisConfig {
 		this.batchSize = getLong(BATCH_SIZE_CONFIG);
 		this.keyPatterns = getList(KEY_PATTERNS_CONFIG);
 		this.streamName = getString(STREAM_NAME_CONFIG);
-		this.streamAckPolicy = ConfigUtils.getEnum(AckPolicy.class, this, STREAM_ACK_CONFIG);
 		this.streamOffset = getString(STREAM_OFFSET_CONFIG);
+		this.streamDelivery = getString(STREAM_DELIVERY_CONFIG);
 		this.streamConsumerGroup = getString(STREAM_CONSUMER_GROUP_CONFIG);
 		this.streamConsumerName = getString(STREAM_CONSUMER_NAME_CONFIG);
 		this.streamBlock = getLong(STREAM_BLOCK_CONFIG);
@@ -131,12 +128,12 @@ public class RedisSourceConfig extends RedisConfig {
 		return streamName;
 	}
 
-	public AckPolicy getStreamAckPolicy() {
-		return streamAckPolicy;
-	}
-
 	public String getStreamOffset() {
 		return streamOffset;
+	}
+
+	public String getStreamDelivery() {
+		return streamDelivery;
 	}
 
 	public String getStreamConsumerGroup() {
@@ -175,11 +172,11 @@ public class RedisSourceConfig extends RedisConfig {
 					.defaultValue(KEY_PATTERNS_DEFAULT).importance(Importance.MEDIUM).internalConfig(true).build());
 			define(ConfigKeyBuilder.of(STREAM_NAME_CONFIG, ConfigDef.Type.STRING).documentation(STREAM_NAME_DOC)
 					.importance(ConfigDef.Importance.HIGH).build());
-			define(ConfigKeyBuilder.of(STREAM_ACK_CONFIG, ConfigDef.Type.STRING).documentation(STREAM_ACK_DOC)
-					.defaultValue(STREAM_ACK_DEFAULT.name()).importance(ConfigDef.Importance.HIGH)
-					.validator(Validators.validEnum(AckPolicy.class)).build());
 			define(ConfigKeyBuilder.of(STREAM_OFFSET_CONFIG, ConfigDef.Type.STRING).documentation(STREAM_OFFSET_DOC)
 					.defaultValue(STREAM_OFFSET_DEFAULT).importance(ConfigDef.Importance.MEDIUM).build());
+			define(ConfigKeyBuilder.of(STREAM_DELIVERY_CONFIG, ConfigDef.Type.STRING).documentation(STREAM_DELIVERY_DOC)
+					.defaultValue(STREAM_DELIVERY_DEFAULT).importance(ConfigDef.Importance.MEDIUM)
+					.validator(ConfigDef.ValidString.in(STREAM_DELIVERY_AT_LEAST_ONCE, STREAM_DELIVERY_AT_MOST_ONCE)).build());
 			define(ConfigKeyBuilder.of(STREAM_CONSUMER_GROUP_CONFIG, ConfigDef.Type.STRING)
 					.documentation(STREAM_CONSUMER_GROUP_DOC).defaultValue(STREAM_CONSUMER_GROUP_DEFAULT)
 					.importance(ConfigDef.Importance.MEDIUM).build());
@@ -198,7 +195,7 @@ public class RedisSourceConfig extends RedisConfig {
 		final int prime = 31;
 		int result = super.hashCode();
 		result = prime * result + Objects.hash(batchSize, keyPatterns, readerType, streamBlock, streamConsumerGroup,
-				streamConsumerName, streamName, streamAckPolicy, streamOffset, topicName);
+				streamConsumerName, streamName, streamOffset, streamDelivery, topicName);
 		return result;
 	}
 
@@ -215,9 +212,8 @@ public class RedisSourceConfig extends RedisConfig {
 				&& readerType == other.readerType && Objects.equals(streamBlock, other.streamBlock)
 				&& Objects.equals(streamConsumerGroup, other.streamConsumerGroup)
 				&& Objects.equals(streamConsumerName, other.streamConsumerName)
-				&& Objects.equals(streamName, other.streamName)
-				&& Objects.equals(streamAckPolicy, other.streamAckPolicy)
-				&& Objects.equals(streamOffset, other.streamOffset) && Objects.equals(topicName, other.topicName);
+				&& Objects.equals(streamName, other.streamName) && Objects.equals(streamOffset, other.streamOffset)
+				&& Objects.equals(streamDelivery, other.streamDelivery) && Objects.equals(topicName, other.topicName);
 	}
 
 }

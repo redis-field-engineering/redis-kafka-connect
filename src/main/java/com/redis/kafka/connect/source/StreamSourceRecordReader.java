@@ -39,9 +39,9 @@ public class StreamSourceRecordReader implements SourceRecordReader {
 			.field(FIELD_STREAM, Schema.STRING_SCHEMA).name(VALUE_SCHEMA_NAME).build();
 
 	private final RedisSourceConfig config;
-	private final AckPolicy ackPolicy;
 	private final String topic;
 	private final String consumer;
+	private final AckPolicy ackPolicy;
 	private StreamItemReader<String, String> reader;
 	private AbstractRedisClient client;
 	private GenericObjectPool<StatefulConnection<String, String>> pool;
@@ -49,23 +49,41 @@ public class StreamSourceRecordReader implements SourceRecordReader {
 
 	public StreamSourceRecordReader(RedisSourceConfig config, int taskId) {
 		this.config = config;
-		this.ackPolicy = config.getStreamAckPolicy() == com.redis.kafka.connect.source.RedisSourceConfig.AckPolicy.AUTO
-				? AckPolicy.AUTO
-				: AckPolicy.MANUAL;
 		this.topic = config.getTopicName().replace(RedisSourceConfig.TOKEN_STREAM, config.getStreamName());
 		this.consumer = config.getStreamConsumerName().replace(RedisSourceConfig.TOKEN_TASK, String.valueOf(taskId));
+		this.ackPolicy = ackPolicy(config.getStreamDelivery());
+	}
+
+	private AckPolicy ackPolicy(String deliveryType) {
+		switch (config.getStreamDelivery()) {
+		case RedisSourceConfig.STREAM_DELIVERY_AT_MOST_ONCE:
+			return AckPolicy.AUTO;
+		case RedisSourceConfig.STREAM_DELIVERY_AT_LEAST_ONCE:
+			return AckPolicy.MANUAL;
+		default:
+			throw new IllegalArgumentException("Illegal value for " + RedisSourceConfig.STREAM_DELIVERY_CONFIG + ": "
+					+ config.getStreamDelivery());
+		}
 	}
 
 	@Override
-	public void open() {
+	public void open(Map<String, Object> offset) {
 		this.client = config.client(config.uri());
 		this.pool = config.pool(client);
 		this.reader = RedisItemReader
 				.stream(pool, config.getStreamName(), Consumer.from(config.getStreamConsumerGroup(), consumer))
-				.options(StreamReaderOptions.builder().ackPolicy(ackPolicy).offset(config.getStreamOffset())
-						.block(Duration.ofMillis(config.getStreamBlock())).count(config.getBatchSize()).build())
+				.options(StreamReaderOptions.builder().ackPolicy(AckPolicy.MANUAL).offset(offset(offset))
+						.block(Duration.ofMillis(config.getStreamBlock())).count(config.getBatchSize())
+						.ackPolicy(ackPolicy).build())
 				.build();
 		reader.open(new ExecutionContext());
+	}
+
+	private String offset(Map<String, Object> offset) {
+		if (offset == null) {
+			return config.getStreamOffset();
+		}
+		return (String) offset.get(OFFSET_FIELD);
 	}
 
 	@Override
@@ -108,9 +126,6 @@ public class StreamSourceRecordReader implements SourceRecordReader {
 
 	@Override
 	public void commit(List<Map<String, ?>> sourceOffsets) {
-		if (ackPolicy == AckPolicy.AUTO) {
-			return;
-		}
 		try {
 			reader.ack(sourceOffsets.stream().map(m -> (String) m.get(OFFSET_FIELD)).toArray(String[]::new));
 		} catch (Exception e) {

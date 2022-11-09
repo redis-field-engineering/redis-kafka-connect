@@ -7,7 +7,7 @@ import org.apache.kafka.connect.source.SourceRecord;
 
 public interface SourceRecordReader {
 
-	void open();
+	void open(Map<String, Object> offset);
 
 	List<SourceRecord> poll();
 
