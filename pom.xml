@@ -15,7 +15,7 @@
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 		<asciidoctor.maven.plugin.version>2.1.0</asciidoctor.maven.plugin.version>
 		<asciidoctorj.version>2.5.1</asciidoctorj.version>
-		<asciidoctorj.pdf.version>2.3.0</asciidoctorj.pdf.version>
+		<asciidoctorj.pdf.version>2.3.3</asciidoctorj.pdf.version>
 		<awaitility.version>4.2.0</awaitility.version>
 		<commons-pool2.version>2.11.1</commons-pool2.version>
 		<connect-utils.version>[0.7.166,0.7.2000)</connect-utils.version>
@@ -23,9 +23,9 @@
 		<java.version>8</java.version>
 		<junit.version>5.8.1</junit.version>
 		<kafka.version>3.2.1</kafka.version>
-		<lettucemod.version>3.1.5</lettucemod.version>
-		<mockito.version>4.8.0</mockito.version>
-		<reactor.version>3.4.23</reactor.version>
+		<lettucemod.version>3.1.6</lettucemod.version>
+		<mockito.version>4.8.1</mockito.version>
+		<reactor.version>3.5.0</reactor.version>
 		<spring-batch.version>4.3.7</spring-batch.version>
 		<spring-batch-redis.version>3.0.7</spring-batch-redis.version>
 		<slf4j.version>1.7.36</slf4j.version>
