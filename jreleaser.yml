@@ -19,7 +19,6 @@ release:
     changelog:
       formatted: ALWAYS
       preset: conventional-commits
-      format: '- {{commitShortHash}} {{commitTitle}}'
       contributors:
         enabled: false
       labelers:
@@ -44,7 +43,7 @@ release:
 
 announce:
   slack:
-    active: release
+    active: RELEASE
     channel: '#field-engineering-announcements'
     message: '🔗 Redis Kafka Connect {{projectVersion}} has been released! {{releaseNotesUrl}}'
 
