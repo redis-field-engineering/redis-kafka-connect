@@ -28,7 +28,7 @@
 		<mockito.version>4.8.1</mockito.version>
 		<reactor.version>3.5.5</reactor.version>
 		<spring-batch.version>4.3.8</spring-batch.version>
-		<spring-batch-redis.version>3.2.2-SNAPSHOT</spring-batch-redis.version>
+		<spring-batch-redis.version>3.2.2</spring-batch-redis.version>
 		<slf4j.version>1.7.36</slf4j.version>
 		<testcontainers.version>1.17.6</testcontainers.version>
 		<testcontainers-redis.version>1.6.3</testcontainers-redis.version>
