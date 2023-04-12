@@ -8,10 +8,10 @@ import java.util.Map;
 
 import org.apache.kafka.common.config.ConfigDef;
 import org.apache.kafka.common.config.ConfigValue;
-import org.apache.kafka.common.utils.AppInfoParser;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
+import com.redis.kafka.connect.common.VersionProvider;
 import com.redis.kafka.connect.source.RedisSourceConfig;
 import com.redis.kafka.connect.source.RedisSourceTask;
 
@@ -62,7 +62,7 @@ class RedisSourceConnectorTest {
 
 	@Test
 	void testVersion() {
-		Assertions.assertEquals(AppInfoParser.getVersion(), new RedisSourceConnector().version());
+		Assertions.assertEquals(VersionProvider.getVersion(), new RedisSourceConnector().version());
 	}
 
 	@Test

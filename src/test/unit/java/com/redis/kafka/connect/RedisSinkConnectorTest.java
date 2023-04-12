@@ -1,12 +1,13 @@
 package com.redis.kafka.connect;
 
-import com.redis.kafka.connect.sink.RedisSinkTask;
+import java.util.HashMap;
+
 import org.apache.kafka.common.config.ConfigDef;
-import org.apache.kafka.common.utils.AppInfoParser;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
-import java.util.HashMap;
+import com.redis.kafka.connect.common.VersionProvider;
+import com.redis.kafka.connect.sink.RedisSinkTask;
 
 class RedisSinkConnectorTest {
 
@@ -32,7 +33,7 @@ class RedisSinkConnectorTest {
 
 	@Test
 	void testVersion() {
-		Assertions.assertEquals(AppInfoParser.getVersion(), new RedisSinkConnector().version());
+		Assertions.assertEquals(VersionProvider.getVersion(), new RedisSinkConnector().version());
 	}
 
 }
