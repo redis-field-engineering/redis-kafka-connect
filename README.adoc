@@ -1,11 +1,11 @@
 = Redis Kafka Connector (Source and Sink) by Redis
 :linkattrs:
-:project-owner:     redis-field-engineering
-:project-name:      redis-kafka-connect
-:project-group:     com.redis
-:project-version:   7.2
-:project-url:       https://github.com/{project-owner}/{project-name}
-:documentation-url: https://{project-owner}.github.io/{project-name}
+:project-owner:   redis-field-engineering
+:project-name:    redis-kafka-connect
+:project-group:   com.redis
+:project-version: 7.2
+:project-url:     https://github.com/{project-owner}/{project-name}
+:doc-url:         https://{project-owner}.github.io/{project-name}
 
 
 image:https://github.com/{project-owner}/{project-name}/actions/workflows/early-access.yml/badge.svg["Build Status", link="{project-url}/actions"]
@@ -15,7 +15,7 @@ Redis Kafka Connector (Source and Sink) by Redis.
 
 == Documentation
 
-Documentation is available at link:{documentation-url}[{documentation-url}].
+Documentation is available at link:{doc-url}[{doc-url}].
 
 == Downloading
 
