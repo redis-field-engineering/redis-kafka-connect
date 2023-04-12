@@ -7,6 +7,10 @@ project:
   authors:
     - Julien Ruaux
   license: Apache-2.0
+  java:
+    groupId: com.redis
+    version: 8
+    multiProject: true
   inceptionYear: 2021
   tags:
     - 'kafka'
@@ -41,6 +45,10 @@ release:
       replacers:
         - search: 'deps: '
 
+signing:
+  active: ALWAYS
+  armored: true
+
 announce:
   slack:
     active: RELEASE
@@ -63,3 +71,6 @@ files:
   artifacts:
     - path: target/generated-docs/{{projectName}}-{{projectVersion}}.pdf
       transform: '{{projectName}}-{{projectEffectiveVersion}}.pdf'
+      extraProperties:
+        skipChecksum: true
+        skipSigning: true
