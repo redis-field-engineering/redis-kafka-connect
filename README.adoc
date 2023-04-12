@@ -3,7 +3,7 @@
 :project-owner:   redis-field-engineering
 :project-name:    redis-kafka-connect
 :project-group:   com.redis
-:project-version: 7.2
+:project-version: 7.3
 :project-url:     https://github.com/{project-owner}/{project-name}
 :doc-url:         https://{project-owner}.github.io/{project-name}
 
