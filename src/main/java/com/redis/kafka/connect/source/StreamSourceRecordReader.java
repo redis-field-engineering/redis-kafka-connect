@@ -16,8 +16,10 @@ import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.source.SourceRecord;
 import org.springframework.batch.item.ExecutionContext;
 
-import com.redis.spring.batch.RedisItemReader;
+import com.redis.lettucemod.RedisModulesClient;
+import com.redis.lettucemod.cluster.RedisModulesClusterClient;
 import com.redis.spring.batch.reader.StreamItemReader;
+import com.redis.spring.batch.reader.StreamItemReader.StreamBuilder;
 import com.redis.spring.batch.reader.StreamReaderOptions;
 import com.redis.spring.batch.reader.StreamReaderOptions.AckPolicy;
 
@@ -45,13 +47,18 @@ public class StreamSourceRecordReader implements SourceRecordReader {
 	private StreamItemReader<String, String> reader;
 	private AbstractRedisClient client;
 	private GenericObjectPool<StatefulConnection<String, String>> pool;
-	Clock clock = Clock.systemDefaultZone();
+	private final Clock clock;
 
 	public StreamSourceRecordReader(RedisSourceConfig config, int taskId) {
+		this(config, taskId, Clock.systemDefaultZone());
+	}
+
+	public StreamSourceRecordReader(RedisSourceConfig config, int taskId, Clock clock) {
 		this.config = config;
 		this.topic = config.getTopicName().replace(RedisSourceConfig.TOKEN_STREAM, config.getStreamName());
 		this.consumer = config.getStreamConsumerName().replace(RedisSourceConfig.TOKEN_TASK, String.valueOf(taskId));
 		this.ackPolicy = ackPolicy(config.getStreamDelivery());
+		this.clock = clock;
 	}
 
 	private AckPolicy ackPolicy(String deliveryType) {
@@ -66,12 +73,19 @@ public class StreamSourceRecordReader implements SourceRecordReader {
 		}
 	}
 
+	private StreamBuilder<String, String> reader(AbstractRedisClient client) {
+		if (client instanceof RedisModulesClusterClient) {
+			return StreamItemReader.client((RedisModulesClusterClient) client);
+		}
+		return StreamItemReader.client((RedisModulesClient) client);
+	}
+
 	@Override
 	public void open(Map<String, Object> offset) {
 		this.client = config.client(config.uri());
 		this.pool = config.pool(client);
-		this.reader = RedisItemReader
-				.stream(pool, config.getStreamName(), Consumer.from(config.getStreamConsumerGroup(), consumer))
+		this.reader = reader(client).stream(config.getStreamName())
+				.consumer(Consumer.from(config.getStreamConsumerGroup(), consumer))
 				.options(StreamReaderOptions.builder().ackPolicy(AckPolicy.MANUAL).offset(offset(offset))
 						.block(Duration.ofMillis(config.getStreamBlock())).count(config.getBatchSize())
 						.ackPolicy(ackPolicy).build())

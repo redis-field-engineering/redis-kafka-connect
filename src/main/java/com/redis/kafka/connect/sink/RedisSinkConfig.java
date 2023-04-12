@@ -224,7 +224,7 @@ public class RedisSinkConfig extends RedisConfig {
 	}
 
 	public WriterOptions writerOptions() {
-		return WriterOptions.builder().multiExec(isMultiexec()).waitForReplication(waitForReplication()).build();
+		return WriterOptions.builder().poolOptions(poolOptions()).multiExec(isMultiexec()).waitForReplication(waitForReplication()).build();
 	}
 
 	private Optional<WaitForReplication> waitForReplication() {

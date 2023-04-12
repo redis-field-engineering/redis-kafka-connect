@@ -15,49 +15,49 @@
  */
 package com.redis.kafka.connect;
 
-import com.redis.kafka.connect.sink.RedisSinkConfig;
-import com.redis.kafka.connect.sink.RedisSinkTask;
-import org.apache.kafka.common.config.ConfigDef;
-import org.apache.kafka.common.utils.AppInfoParser;
-import org.apache.kafka.connect.connector.Task;
-import org.apache.kafka.connect.sink.SinkConnector;
-
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.kafka.common.config.ConfigDef;
+import org.apache.kafka.connect.connector.Task;
+import org.apache.kafka.connect.sink.SinkConnector;
+
+import com.redis.kafka.connect.common.VersionProvider;
+import com.redis.kafka.connect.sink.RedisSinkConfig;
+import com.redis.kafka.connect.sink.RedisSinkTask;
+
 public class RedisSinkConnector extends SinkConnector {
 
-    private Map<String, String> props;
+	private Map<String, String> props;
 
-    @Override
-    public void start(Map<String, String> props) {
-        this.props = props;
-    }
+	@Override
+	public void start(Map<String, String> props) {
+		this.props = props;
+	}
 
-    @Override
-    public Class<? extends Task> taskClass() {
-        return RedisSinkTask.class;
-    }
+	@Override
+	public Class<? extends Task> taskClass() {
+		return RedisSinkTask.class;
+	}
 
-    @Override
-    public List<Map<String, String>> taskConfigs(int maxTasks) {
-        return Collections.singletonList(props);
-    }
+	@Override
+	public List<Map<String, String>> taskConfigs(int maxTasks) {
+		return Collections.singletonList(props);
+	}
 
-    @Override
-    public void stop() {
-    	// Do nothing
-    }
+	@Override
+	public void stop() {
+		// Do nothing
+	}
 
-    @Override
-    public ConfigDef config() {
-        return new RedisSinkConfig.RedisSinkConfigDef();
-    }
+	@Override
+	public ConfigDef config() {
+		return new RedisSinkConfig.RedisSinkConfigDef();
+	}
 
-
-    @Override
-    public String version() {
-        return AppInfoParser.getVersion();
-    }
+	@Override
+	public String version() {
+		return VersionProvider.getVersion();
+	}
 }

@@ -25,6 +25,7 @@ import com.github.jcustenborder.kafka.connect.utils.config.ConfigKeyBuilder;
 import com.github.jcustenborder.kafka.connect.utils.config.ConfigUtils;
 import com.github.jcustenborder.kafka.connect.utils.config.validators.Validators;
 import com.redis.kafka.connect.common.RedisConfig;
+import com.redis.spring.batch.reader.ReaderOptions;
 
 public class RedisSourceConfig extends RedisConfig {
 
@@ -51,7 +52,7 @@ public class RedisSourceConfig extends RedisConfig {
 			+ ReaderType.STREAM + ": read messages from a Redis stream";
 
 	public static final String BATCH_SIZE_CONFIG = "batch.size";
-	public static final long BATCH_SIZE_DEFAULT = 500;
+	public static final int BATCH_SIZE_DEFAULT = 500;
 	public static final String BATCH_SIZE_DOC = "Maximum number of records to include in a single read when polling for new data. This setting can be used to limit the amount of data buffered internally in the connector.";
 
 	public static final String KEY_PATTERNS_CONFIG = "redis.keys.patterns";
@@ -90,15 +91,15 @@ public class RedisSourceConfig extends RedisConfig {
 	private final String streamDelivery;
 	private final String streamConsumerGroup;
 	private final String streamConsumerName;
-	private final Long batchSize;
-	private final Long streamBlock;
+	private final int batchSize;
+	private final long streamBlock;
 	private final String topicName;
 
 	public RedisSourceConfig(Map<?, ?> originals) {
 		super(new RedisSourceConfigDef(), originals);
 		this.topicName = getString(TOPIC_CONFIG);
 		this.readerType = ConfigUtils.getEnum(ReaderType.class, this, READER_CONFIG);
-		this.batchSize = getLong(BATCH_SIZE_CONFIG);
+		this.batchSize = getInt(BATCH_SIZE_CONFIG);
 		this.keyPatterns = getList(KEY_PATTERNS_CONFIG);
 		this.streamName = getString(STREAM_NAME_CONFIG);
 		this.streamOffset = getString(STREAM_OFFSET_CONFIG);
@@ -120,7 +121,7 @@ public class RedisSourceConfig extends RedisConfig {
 		return streamBlock;
 	}
 
-	public Long getBatchSize() {
+	public int getBatchSize() {
 		return batchSize;
 	}
 
@@ -162,9 +163,9 @@ public class RedisSourceConfig extends RedisConfig {
 		private void define() {
 			define(ConfigKeyBuilder.of(TOPIC_CONFIG, ConfigDef.Type.STRING).defaultValue(TOPIC_DEFAULT)
 					.importance(ConfigDef.Importance.MEDIUM).documentation(TOPIC_DOC).build());
-			define(ConfigKeyBuilder.of(BATCH_SIZE_CONFIG, ConfigDef.Type.LONG).defaultValue(BATCH_SIZE_DEFAULT)
+			define(ConfigKeyBuilder.of(BATCH_SIZE_CONFIG, ConfigDef.Type.INT).defaultValue(BATCH_SIZE_DEFAULT)
 					.importance(ConfigDef.Importance.LOW).documentation(BATCH_SIZE_DOC)
-					.validator(ConfigDef.Range.atLeast(1L)).build());
+					.validator(ConfigDef.Range.atLeast(1)).build());
 			define(ConfigKeyBuilder.of(READER_CONFIG, ConfigDef.Type.STRING).documentation(READER_DOC)
 					.defaultValue(READER_DEFAULT.name()).importance(ConfigDef.Importance.HIGH)
 					.validator(Validators.validEnum(ReaderType.class)).internalConfig(true).build());
@@ -176,7 +177,8 @@ public class RedisSourceConfig extends RedisConfig {
 					.defaultValue(STREAM_OFFSET_DEFAULT).importance(ConfigDef.Importance.MEDIUM).build());
 			define(ConfigKeyBuilder.of(STREAM_DELIVERY_CONFIG, ConfigDef.Type.STRING).documentation(STREAM_DELIVERY_DOC)
 					.defaultValue(STREAM_DELIVERY_DEFAULT).importance(ConfigDef.Importance.MEDIUM)
-					.validator(ConfigDef.ValidString.in(STREAM_DELIVERY_AT_LEAST_ONCE, STREAM_DELIVERY_AT_MOST_ONCE)).build());
+					.validator(ConfigDef.ValidString.in(STREAM_DELIVERY_AT_LEAST_ONCE, STREAM_DELIVERY_AT_MOST_ONCE))
+					.build());
 			define(ConfigKeyBuilder.of(STREAM_CONSUMER_GROUP_CONFIG, ConfigDef.Type.STRING)
 					.documentation(STREAM_CONSUMER_GROUP_DOC).defaultValue(STREAM_CONSUMER_GROUP_DEFAULT)
 					.importance(ConfigDef.Importance.MEDIUM).build());
@@ -214,6 +216,10 @@ public class RedisSourceConfig extends RedisConfig {
 				&& Objects.equals(streamConsumerName, other.streamConsumerName)
 				&& Objects.equals(streamName, other.streamName) && Objects.equals(streamOffset, other.streamOffset)
 				&& Objects.equals(streamDelivery, other.streamDelivery) && Objects.equals(topicName, other.topicName);
+	}
+
+	public ReaderOptions readerOptions() {
+		return ReaderOptions.builder().poolOptions(poolOptions()).chunkSize(batchSize).poolOptions(poolOptions()).build();
 	}
 
 }

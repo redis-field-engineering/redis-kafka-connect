@@ -26,8 +26,7 @@ import org.apache.kafka.connect.source.SourceRecord;
 import org.apache.kafka.connect.source.SourceTask;
 
 import com.redis.kafka.connect.RedisSourceConnector;
-import com.redis.spring.batch.reader.LiveReaderOptions;
-import com.redis.spring.batch.step.FlushingOptions;
+import com.redis.spring.batch.common.FlushingOptions;
 
 public class RedisSourceTask extends SourceTask {
 
@@ -75,9 +74,8 @@ public class RedisSourceTask extends SourceTask {
 			String idleMillis = props.getOrDefault(KEYS_IDLE_TIMEOUT,
 					String.valueOf(FlushingOptions.DEFAULT_FLUSHING_INTERVAL.toMillis()));
 			FlushingOptions flushingOptions = FlushingOptions.builder()
-					.timeout(Duration.ofMillis(Long.parseLong(idleMillis))).build();
-			LiveReaderOptions liveReaderOptions = LiveReaderOptions.builder().flushingOptions(flushingOptions).build();
-			return new KeySourceRecordReader(sourceConfig, liveReaderOptions);
+					.idleTimeout(Duration.ofMillis(Long.parseLong(idleMillis))).build();
+			return new KeySourceRecordReader(sourceConfig, sourceConfig.readerOptions(), flushingOptions);
 		default:
 			throw new IllegalArgumentException("Unknown reader type: " + sourceConfig.getReaderType());
 		}

@@ -14,13 +14,16 @@ import org.apache.kafka.connect.source.SourceRecord;
 import org.springframework.batch.item.ExecutionContext;
 import org.springframework.util.Assert;
 
+import com.redis.lettucemod.RedisModulesClient;
+import com.redis.lettucemod.cluster.RedisModulesClusterClient;
 import com.redis.lettucemod.util.RedisModulesUtils;
 import com.redis.spring.batch.RedisItemReader;
 import com.redis.spring.batch.common.DataStructure;
 import com.redis.spring.batch.common.DataStructure.Type;
+import com.redis.spring.batch.common.FlushingOptions;
 import com.redis.spring.batch.common.JobRunner;
-import com.redis.spring.batch.reader.LiveReaderOptions;
 import com.redis.spring.batch.reader.LiveRedisItemReader;
+import com.redis.spring.batch.reader.ReaderOptions;
 
 import io.lettuce.core.AbstractRedisClient;
 import io.lettuce.core.RedisURI;
@@ -39,7 +42,8 @@ public class KeySourceRecordReader implements SourceRecordReader {
 
 	private final Clock clock = Clock.systemDefaultZone();
 	protected final RedisSourceConfig config;
-	private final LiveReaderOptions options;
+	private final ReaderOptions options;
+	private final FlushingOptions flushingOptions;
 	private final int batchSize;
 	private final String topic;
 	private LiveRedisItemReader<String, DataStructure<String>> reader;
@@ -47,11 +51,12 @@ public class KeySourceRecordReader implements SourceRecordReader {
 	private GenericObjectPool<StatefulConnection<String, String>> pool;
 	private StatefulRedisPubSubConnection<String, String> pubSubConnection;
 
-	public KeySourceRecordReader(RedisSourceConfig config, LiveReaderOptions options) {
+	public KeySourceRecordReader(RedisSourceConfig config, ReaderOptions options, FlushingOptions flushingOptions) {
 		Assert.notNull(config, "Source connector config must not be null");
 		Assert.notNull(options, "Options must not be null");
 		this.config = config;
 		this.options = options;
+		this.flushingOptions = flushingOptions;
 		this.topic = config.getTopicName();
 		this.batchSize = Math.toIntExact(config.getBatchSize());
 	}
@@ -63,9 +68,17 @@ public class KeySourceRecordReader implements SourceRecordReader {
 		this.pool = config.pool(client);
 		this.pubSubConnection = RedisModulesUtils.pubSubConnection(client);
 		checkJobRunner();
-		reader = RedisItemReader.liveDataStructure(pool, jobRunner, pubSubConnection, uri.getDatabase(),
-				config.getKeyPatterns().toArray(new String[0])).options(options).build();
+		reader = reader(client).live().database(uri.getDatabase())
+				.keyPatterns(config.getKeyPatterns().toArray(new String[0])).jobRunner(jobRunner).readerOptions(options)
+				.flushingOptions(flushingOptions).dataStructure();
 		reader.open(new ExecutionContext());
+	}
+
+	private RedisItemReader.Builder<String, String> reader(AbstractRedisClient client) {
+		if (client instanceof RedisModulesClusterClient) {
+			return RedisItemReader.client((RedisModulesClusterClient) client);
+		}
+		return RedisItemReader.client((RedisModulesClient) client);
 	}
 
 	private static void checkJobRunner() {

@@ -18,11 +18,10 @@ import org.awaitility.Awaitility;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.util.Assert;
-import org.testcontainers.junit.jupiter.Container;
 
 import com.redis.kafka.connect.source.KeySourceRecordReader;
 import com.redis.kafka.connect.source.RedisSourceConfig;
@@ -30,26 +29,12 @@ import com.redis.kafka.connect.source.RedisSourceTask;
 import com.redis.kafka.connect.source.StreamSourceRecordReader;
 import com.redis.spring.batch.common.DataStructure;
 import com.redis.spring.batch.reader.LiveRedisItemReader;
-import com.redis.testcontainers.RedisContainer;
-import com.redis.testcontainers.RedisServer;
-import com.redis.testcontainers.junit.AbstractTestcontainersRedisTestBase;
-import com.redis.testcontainers.junit.RedisTestContext;
-import com.redis.testcontainers.junit.RedisTestContextsSource;
 
 import io.lettuce.core.models.stream.PendingMessages;
 
-class RedisSourceTaskIT extends AbstractTestcontainersRedisTestBase {
+abstract class AbstractSourceIT extends AbstractBaseIT {
 
-	private static final Logger log = LoggerFactory.getLogger(RedisSourceTaskIT.class);
-
-	@Container
-	private static final RedisContainer REDIS = new RedisContainer(
-			RedisContainer.DEFAULT_IMAGE_NAME.withTag(RedisContainer.DEFAULT_TAG)).withKeyspaceNotifications();
-
-	@Override
-	protected Collection<RedisServer> redisServers() {
-		return Arrays.asList(REDIS);
-	}
+	private static final Logger log = LoggerFactory.getLogger(AbstractSourceIT.class);
 
 	private RedisSourceTask task;
 
@@ -84,9 +69,9 @@ class RedisSourceTaskIT extends AbstractTestcontainersRedisTestBase {
 		});
 	}
 
-	private void startTask(RedisTestContext redis, String... props) {
+	private void startTask(String... props) {
 		Map<String, String> config = map(props);
-		config.put(RedisSourceConfig.URI_CONFIG, redis.getServer().getRedisURI());
+		config.put(RedisSourceConfig.URI_CONFIG, getRedisServer().getRedisURI());
 		task.start(config);
 	}
 
@@ -105,12 +90,11 @@ class RedisSourceTaskIT extends AbstractTestcontainersRedisTestBase {
 		task.stop();
 	}
 
-	@ParameterizedTest
-	@RedisTestContextsSource
-	void pollStreamAtMostOnce(RedisTestContext redis) throws InterruptedException {
+	@Test
+	void pollStreamAtMostOnce() throws InterruptedException {
 		String stream = "stream1";
 		String topicPrefix = "testprefix-";
-		startTask(redis, RedisSourceConfig.TOPIC_CONFIG, topicPrefix + RedisSourceConfig.TOKEN_STREAM,
+		startTask(RedisSourceConfig.TOPIC_CONFIG, topicPrefix + RedisSourceConfig.TOKEN_STREAM,
 				RedisSourceConfig.READER_CONFIG, RedisSourceConfig.ReaderType.STREAM.name(),
 				RedisSourceConfig.STREAM_NAME_CONFIG, stream, RedisSourceConfig.STREAM_DELIVERY_CONFIG,
 				RedisSourceConfig.STREAM_DELIVERY_AT_MOST_ONCE);
@@ -119,25 +103,25 @@ class RedisSourceTaskIT extends AbstractTestcontainersRedisTestBase {
 		String field2 = "field2";
 		String value2 = "value2";
 		Map<String, String> body = map(field1, value1, field2, value2);
-		String id1 = redis.sync().xadd(stream, body);
-		String id2 = redis.sync().xadd(stream, body);
-		String id3 = redis.sync().xadd(stream, body);
+		String id1 = connection.sync().xadd(stream, body);
+		String id2 = connection.sync().xadd(stream, body);
+		String id3 = connection.sync().xadd(stream, body);
 		List<SourceRecord> sourceRecords = new ArrayList<>();
 		Awaitility.await().until(() -> sourceRecords.addAll(task.poll()));
 		Assertions.assertEquals(3, sourceRecords.size());
 		assertEquals(id1, body, stream, topicPrefix + stream, sourceRecords.get(0));
 		assertEquals(id2, body, stream, topicPrefix + stream, sourceRecords.get(1));
 		assertEquals(id3, body, stream, topicPrefix + stream, sourceRecords.get(2));
-		PendingMessages pendingMsgs = redis.sync().xpending(stream, RedisSourceConfig.STREAM_CONSUMER_GROUP_DEFAULT);
+		PendingMessages pendingMsgs = connection.sync().xpending(stream,
+				RedisSourceConfig.STREAM_CONSUMER_GROUP_DEFAULT);
 		Assertions.assertEquals(0, pendingMsgs.getCount(), "pending messages");
 	}
 
-	@ParameterizedTest
-	@RedisTestContextsSource
-	void pollStreamAtLeastOnce(RedisTestContext redis) throws InterruptedException {
+	@Test
+	void pollStreamAtLeastOnce() throws InterruptedException {
 		String stream = "stream1";
 		String topicPrefix = "testprefix-";
-		startTask(redis, RedisSourceConfig.TOPIC_CONFIG, topicPrefix + RedisSourceConfig.TOKEN_STREAM,
+		startTask(RedisSourceConfig.TOPIC_CONFIG, topicPrefix + RedisSourceConfig.TOKEN_STREAM,
 				RedisSourceConfig.READER_CONFIG, RedisSourceConfig.ReaderType.STREAM.name(),
 				RedisSourceConfig.STREAM_NAME_CONFIG, stream);
 		String field1 = "field1";
@@ -145,32 +129,31 @@ class RedisSourceTaskIT extends AbstractTestcontainersRedisTestBase {
 		String field2 = "field2";
 		String value2 = "value2";
 		Map<String, String> body = map(field1, value1, field2, value2);
-		String id1 = redis.sync().xadd(stream, body);
-		String id2 = redis.sync().xadd(stream, body);
-		String id3 = redis.sync().xadd(stream, body);
+		String id1 = connection.sync().xadd(stream, body);
+		String id2 = connection.sync().xadd(stream, body);
+		String id3 = connection.sync().xadd(stream, body);
 		List<SourceRecord> sourceRecords = new ArrayList<>();
 		Awaitility.await().until(() -> sourceRecords.addAll(task.poll()));
 		Assertions.assertEquals(3, sourceRecords.size());
 		assertEquals(id1, body, stream, topicPrefix + stream, sourceRecords.get(0));
 		assertEquals(id2, body, stream, topicPrefix + stream, sourceRecords.get(1));
 		assertEquals(id3, body, stream, topicPrefix + stream, sourceRecords.get(2));
-		PendingMessages pendingMsgsBeforeCommit = redis.sync().xpending(stream,
+		PendingMessages pendingMsgsBeforeCommit = connection.sync().xpending(stream,
 				RedisSourceConfig.STREAM_CONSUMER_GROUP_DEFAULT);
 		Assertions.assertEquals(3, pendingMsgsBeforeCommit.getCount(), "pending messages before commit");
 		task.commitRecord(sourceRecords.get(0), new RecordMetadata(null, 0, 0, 0, 0, 0));
 		task.commitRecord(sourceRecords.get(1), new RecordMetadata(null, 0, 0, 0, 0, 0));
 		task.commit();
-		PendingMessages pendingMsgsAfterCommit = redis.sync().xpending(stream,
+		PendingMessages pendingMsgsAfterCommit = connection.sync().xpending(stream,
 				RedisSourceConfig.STREAM_CONSUMER_GROUP_DEFAULT);
 		Assertions.assertEquals(1, pendingMsgsAfterCommit.getCount(), "pending messages after commit");
 	}
 
-	@ParameterizedTest
-	@RedisTestContextsSource
-	void pollStreamAtLeastOnceRecover(RedisTestContext redis) throws InterruptedException {
+	@Test
+	void pollStreamAtLeastOnceRecover() throws InterruptedException {
 		String stream = "stream1";
 		String topicPrefix = "testprefix-";
-		startTask(redis, RedisSourceConfig.TOPIC_CONFIG, topicPrefix + RedisSourceConfig.TOKEN_STREAM,
+		startTask(RedisSourceConfig.TOPIC_CONFIG, topicPrefix + RedisSourceConfig.TOKEN_STREAM,
 				RedisSourceConfig.READER_CONFIG, RedisSourceConfig.ReaderType.STREAM.name(),
 				RedisSourceConfig.STREAM_NAME_CONFIG, stream);
 		String field1 = "field1";
@@ -178,21 +161,21 @@ class RedisSourceTaskIT extends AbstractTestcontainersRedisTestBase {
 		String field2 = "field2";
 		String value2 = "value2";
 		Map<String, String> body = map(field1, value1, field2, value2);
-		redis.sync().xadd(stream, body);
-		redis.sync().xadd(stream, body);
-		redis.sync().xadd(stream, body);
+		connection.sync().xadd(stream, body);
+		connection.sync().xadd(stream, body);
+		connection.sync().xadd(stream, body);
 		List<SourceRecord> sourceRecords = new ArrayList<>();
 		Awaitility.await().until(() -> sourceRecords.addAll(task.poll()));
 		Assertions.assertEquals(3, sourceRecords.size());
 
 		List<SourceRecord> recoveredRecords = new ArrayList<>();
-		redis.sync().xadd(stream, body);
-		redis.sync().xadd(stream, body);
-		redis.sync().xadd(stream, body);
+		connection.sync().xadd(stream, body);
+		connection.sync().xadd(stream, body);
+		connection.sync().xadd(stream, body);
 
 		// create a new task, same config
 		createTask();
-		startTask(redis, RedisSourceConfig.TOPIC_CONFIG, topicPrefix + RedisSourceConfig.TOKEN_STREAM,
+		startTask(RedisSourceConfig.TOPIC_CONFIG, topicPrefix + RedisSourceConfig.TOKEN_STREAM,
 				RedisSourceConfig.READER_CONFIG, RedisSourceConfig.ReaderType.STREAM.name(),
 				RedisSourceConfig.STREAM_NAME_CONFIG, stream);
 
@@ -202,12 +185,11 @@ class RedisSourceTaskIT extends AbstractTestcontainersRedisTestBase {
 		Assertions.assertEquals(6, recoveredRecords.size());
 	}
 
-	@ParameterizedTest
-	@RedisTestContextsSource
-	void pollStreamAtLeastOnceRecoverUncommitted(RedisTestContext redis) throws InterruptedException {
+	@Test
+	void pollStreamAtLeastOnceRecoverUncommitted() throws InterruptedException {
 		String stream = "stream1";
 		String topicPrefix = "testprefix-";
-		startTask(redis, RedisSourceConfig.TOPIC_CONFIG, topicPrefix + RedisSourceConfig.TOKEN_STREAM,
+		startTask(RedisSourceConfig.TOPIC_CONFIG, topicPrefix + RedisSourceConfig.TOKEN_STREAM,
 				RedisSourceConfig.READER_CONFIG, RedisSourceConfig.ReaderType.STREAM.name(),
 				RedisSourceConfig.STREAM_NAME_CONFIG, stream);
 		String field1 = "field1";
@@ -215,9 +197,9 @@ class RedisSourceTaskIT extends AbstractTestcontainersRedisTestBase {
 		String field2 = "field2";
 		String value2 = "value2";
 		Map<String, String> body = map(field1, value1, field2, value2);
-		redis.sync().xadd(stream, body);
-		redis.sync().xadd(stream, body);
-		String id3 = redis.sync().xadd(stream, body);
+		connection.sync().xadd(stream, body);
+		connection.sync().xadd(stream, body);
+		String id3 = connection.sync().xadd(stream, body);
 		List<SourceRecord> sourceRecords = new ArrayList<>();
 		Awaitility.await().until(() -> sourceRecords.addAll(task.poll()));
 		Assertions.assertEquals(3, sourceRecords.size());
@@ -226,13 +208,13 @@ class RedisSourceTaskIT extends AbstractTestcontainersRedisTestBase {
 		task.commit();
 
 		List<SourceRecord> recoveredRecords = new ArrayList<>();
-		String id4 = redis.sync().xadd(stream, body);
-		String id5 = redis.sync().xadd(stream, body);
-		String id6 = redis.sync().xadd(stream, body);
+		String id4 = connection.sync().xadd(stream, body);
+		String id5 = connection.sync().xadd(stream, body);
+		String id6 = connection.sync().xadd(stream, body);
 
 		// create a new task, same config
 		createTask();
-		startTask(redis, RedisSourceConfig.TOPIC_CONFIG, topicPrefix + RedisSourceConfig.TOKEN_STREAM,
+		startTask(RedisSourceConfig.TOPIC_CONFIG, topicPrefix + RedisSourceConfig.TOKEN_STREAM,
 				RedisSourceConfig.READER_CONFIG, RedisSourceConfig.ReaderType.STREAM.name(),
 				RedisSourceConfig.STREAM_NAME_CONFIG, stream);
 
@@ -244,12 +226,11 @@ class RedisSourceTaskIT extends AbstractTestcontainersRedisTestBase {
 		Assertions.assertEquals(Arrays.<String>asList(id3, id4, id5, id6), recoveredIds, "recoveredIds");
 	}
 
-	@ParameterizedTest
-	@RedisTestContextsSource
-	void pollStreamAtLeastOnceRecoverFromOffset(RedisTestContext redis) throws Exception {
+	@Test
+	void pollStreamAtLeastOnceRecoverFromOffset() throws Exception {
 		String stream = "stream1";
 		String topicPrefix = "testprefix-";
-		startTask(redis, RedisSourceConfig.TOPIC_CONFIG, topicPrefix + RedisSourceConfig.TOKEN_STREAM,
+		startTask(RedisSourceConfig.TOPIC_CONFIG, topicPrefix + RedisSourceConfig.TOKEN_STREAM,
 				RedisSourceConfig.READER_CONFIG, RedisSourceConfig.ReaderType.STREAM.name(),
 				RedisSourceConfig.STREAM_NAME_CONFIG, stream);
 		String field1 = "field1";
@@ -257,22 +238,22 @@ class RedisSourceTaskIT extends AbstractTestcontainersRedisTestBase {
 		String field2 = "field2";
 		String value2 = "value2";
 		Map<String, String> body = map(field1, value1, field2, value2);
-		String id1 = redis.sync().xadd(stream, body);
+		String id1 = connection.sync().xadd(stream, body);
 		log.info("ID1: " + id1);
-		String id2 = redis.sync().xadd(stream, body);
+		String id2 = connection.sync().xadd(stream, body);
 		log.info("ID2: " + id2);
-		String id3 = redis.sync().xadd(stream, body);
+		String id3 = connection.sync().xadd(stream, body);
 		log.info("ID3: " + id3);
 		List<SourceRecord> records = new ArrayList<>();
 		Awaitility.await().until(() -> records.addAll(task.poll()));
 		Assertions.assertEquals(3, records.size());
 
 		List<SourceRecord> recoveredRecords = new ArrayList<>();
-		String id4 = redis.sync().xadd(stream, body);
+		String id4 = connection.sync().xadd(stream, body);
 		log.info("ID4: " + id4);
-		String id5 = redis.sync().xadd(stream, body);
+		String id5 = connection.sync().xadd(stream, body);
 		log.info("ID5: " + id5);
-		String id6 = redis.sync().xadd(stream, body);
+		String id6 = connection.sync().xadd(stream, body);
 		log.info("ID6: " + id6);
 
 		// create a new task, same config
@@ -280,7 +261,7 @@ class RedisSourceTaskIT extends AbstractTestcontainersRedisTestBase {
 		// this means connect committed records, but StreamSourceTask didn't get a
 		// chance to ack first
 		initializeTask(id3);
-		startTask(redis, RedisSourceConfig.TOPIC_CONFIG, topicPrefix + RedisSourceConfig.TOKEN_STREAM,
+		startTask(RedisSourceConfig.TOPIC_CONFIG, topicPrefix + RedisSourceConfig.TOKEN_STREAM,
 				RedisSourceConfig.READER_CONFIG, RedisSourceConfig.ReaderType.STREAM.name(),
 				RedisSourceConfig.STREAM_NAME_CONFIG, stream);
 
@@ -293,12 +274,11 @@ class RedisSourceTaskIT extends AbstractTestcontainersRedisTestBase {
 		Assertions.assertEquals(Arrays.<String>asList(id4, id5, id6), recoveredIds, "recoveredIds");
 	}
 
-	@ParameterizedTest
-	@RedisTestContextsSource
-	void pollStreamAtMostOnceRecover(RedisTestContext redis) throws InterruptedException {
+	@Test
+	void pollStreamAtMostOnceRecover() throws InterruptedException {
 		String stream = "stream1";
 		String topicPrefix = "testprefix-";
-		startTask(redis, RedisSourceConfig.TOPIC_CONFIG, topicPrefix + RedisSourceConfig.TOKEN_STREAM,
+		startTask(RedisSourceConfig.TOPIC_CONFIG, topicPrefix + RedisSourceConfig.TOKEN_STREAM,
 				RedisSourceConfig.READER_CONFIG, RedisSourceConfig.ReaderType.STREAM.name(),
 				RedisSourceConfig.STREAM_NAME_CONFIG, stream, RedisSourceConfig.STREAM_DELIVERY_CONFIG,
 				RedisSourceConfig.STREAM_DELIVERY_AT_MOST_ONCE);
@@ -307,21 +287,21 @@ class RedisSourceTaskIT extends AbstractTestcontainersRedisTestBase {
 		String field2 = "field2";
 		String value2 = "value2";
 		Map<String, String> body = map(field1, value1, field2, value2);
-		redis.sync().xadd(stream, body);
-		redis.sync().xadd(stream, body);
-		redis.sync().xadd(stream, body);
+		connection.sync().xadd(stream, body);
+		connection.sync().xadd(stream, body);
+		connection.sync().xadd(stream, body);
 		List<SourceRecord> sourceRecords = new ArrayList<>();
 		Awaitility.await().until(() -> sourceRecords.addAll(task.poll()));
 		Assertions.assertEquals(3, sourceRecords.size());
 
 		List<SourceRecord> recoveredRecords = new ArrayList<>();
-		String id4 = redis.sync().xadd(stream, body);
-		String id5 = redis.sync().xadd(stream, body);
-		String id6 = redis.sync().xadd(stream, body);
+		String id4 = connection.sync().xadd(stream, body);
+		String id5 = connection.sync().xadd(stream, body);
+		String id6 = connection.sync().xadd(stream, body);
 
 		// create a new task, same config
 		createTask();
-		startTask(redis, RedisSourceConfig.TOPIC_CONFIG, topicPrefix + RedisSourceConfig.TOKEN_STREAM,
+		startTask(RedisSourceConfig.TOPIC_CONFIG, topicPrefix + RedisSourceConfig.TOKEN_STREAM,
 				RedisSourceConfig.READER_CONFIG, RedisSourceConfig.ReaderType.STREAM.name(),
 				RedisSourceConfig.STREAM_NAME_CONFIG, stream, RedisSourceConfig.STREAM_DELIVERY_CONFIG,
 				RedisSourceConfig.STREAM_DELIVERY_AT_MOST_ONCE);
@@ -334,12 +314,11 @@ class RedisSourceTaskIT extends AbstractTestcontainersRedisTestBase {
 		Assertions.assertEquals(Arrays.asList(id4, id5, id6), recoveredIds, "recoveredIds");
 	}
 
-	@ParameterizedTest
-	@RedisTestContextsSource
-	void pollStreamRecoverAtLeastOnceToAtMostOnce(RedisTestContext redis) throws InterruptedException {
+	@Test
+	void pollStreamRecoverAtLeastOnceToAtMostOnce() throws InterruptedException {
 		String stream = "stream1";
 		String topicPrefix = "testprefix-";
-		startTask(redis, RedisSourceConfig.TOPIC_CONFIG, topicPrefix + RedisSourceConfig.TOKEN_STREAM,
+		startTask(RedisSourceConfig.TOPIC_CONFIG, topicPrefix + RedisSourceConfig.TOKEN_STREAM,
 				RedisSourceConfig.READER_CONFIG, RedisSourceConfig.ReaderType.STREAM.name(),
 				RedisSourceConfig.STREAM_NAME_CONFIG, stream, RedisSourceConfig.STREAM_DELIVERY_CONFIG,
 				RedisSourceConfig.STREAM_DELIVERY_AT_LEAST_ONCE);
@@ -348,21 +327,21 @@ class RedisSourceTaskIT extends AbstractTestcontainersRedisTestBase {
 		String field2 = "field2";
 		String value2 = "value2";
 		Map<String, String> body = map(field1, value1, field2, value2);
-		redis.sync().xadd(stream, body);
-		redis.sync().xadd(stream, body);
-		redis.sync().xadd(stream, body);
+		connection.sync().xadd(stream, body);
+		connection.sync().xadd(stream, body);
+		connection.sync().xadd(stream, body);
 		List<SourceRecord> sourceRecords = new ArrayList<>();
 		Awaitility.await().until(() -> sourceRecords.addAll(task.poll()));
 		Assertions.assertEquals(3, sourceRecords.size());
 
 		List<SourceRecord> recoveredRecords = new ArrayList<>();
-		String id4 = redis.sync().xadd(stream, body);
-		String id5 = redis.sync().xadd(stream, body);
-		String id6 = redis.sync().xadd(stream, body);
+		String id4 = connection.sync().xadd(stream, body);
+		String id5 = connection.sync().xadd(stream, body);
+		String id6 = connection.sync().xadd(stream, body);
 
 		// create a new task, same config except AT_MOST_ONCE
 		createTask();
-		startTask(redis, RedisSourceConfig.TOPIC_CONFIG, topicPrefix + RedisSourceConfig.TOKEN_STREAM,
+		startTask(RedisSourceConfig.TOPIC_CONFIG, topicPrefix + RedisSourceConfig.TOKEN_STREAM,
 				RedisSourceConfig.READER_CONFIG, RedisSourceConfig.ReaderType.STREAM.name(),
 				RedisSourceConfig.STREAM_NAME_CONFIG, stream, RedisSourceConfig.STREAM_DELIVERY_CONFIG,
 				RedisSourceConfig.STREAM_DELIVERY_AT_MOST_ONCE);
@@ -374,7 +353,7 @@ class RedisSourceTaskIT extends AbstractTestcontainersRedisTestBase {
 				.collect(Collectors.toList());
 		Assertions.assertEquals(Arrays.asList(id4, id5, id6), recoveredIds, "recoveredIds");
 
-		PendingMessages pending = redis.sync().xpending(stream, RedisSourceConfig.STREAM_CONSUMER_GROUP_DEFAULT);
+		PendingMessages pending = connection.sync().xpending(stream, RedisSourceConfig.STREAM_CONSUMER_GROUP_DEFAULT);
 		Assertions.assertEquals(0, pending.getCount(), "pending message count");
 	}
 
@@ -387,11 +366,10 @@ class RedisSourceTaskIT extends AbstractTestcontainersRedisTestBase {
 		Assertions.assertEquals(expectedTopic, record.topic());
 	}
 
-	@ParameterizedTest
-	@RedisTestContextsSource
-	void pollKeys(RedisTestContext redis) throws InterruptedException {
+	@Test
+	void pollKeys() throws InterruptedException {
 		String topic = "mytopic";
-		startTask(redis, RedisSourceConfig.READER_CONFIG, RedisSourceConfig.ReaderType.KEYS.name(),
+		startTask(RedisSourceConfig.READER_CONFIG, RedisSourceConfig.ReaderType.KEYS.name(),
 				RedisSourceConfig.STREAM_NAME_CONFIG, "dummy", RedisSourceConfig.TOPIC_CONFIG, topic,
 				RedisSourceTask.KEYS_IDLE_TIMEOUT, "3000");
 		LiveRedisItemReader<String, DataStructure<String>> reader = ((KeySourceRecordReader) task.getReader())
@@ -400,11 +378,11 @@ class RedisSourceTaskIT extends AbstractTestcontainersRedisTestBase {
 		String stringKey = "key:1";
 		String stringValue = "my string";
 		log.info("Setting {}={}", stringKey, stringValue);
-		redis.sync().set(stringKey, stringValue);
+		connection.sync().set(stringKey, stringValue);
 		String hashKey = "key:2";
 		Map<String, String> hashValue = map("field1", "value1", "field2", "value2");
 		log.info("Setting {}={}", hashKey, hashValue);
-		redis.sync().hset(hashKey, hashValue);
+		connection.sync().hset(hashKey, hashValue);
 		List<SourceRecord> sourceRecords = new ArrayList<>();
 		Awaitility.await().until(() -> sourceRecords.addAll(task.poll()));
 		Assertions.assertEquals(2, sourceRecords.size());

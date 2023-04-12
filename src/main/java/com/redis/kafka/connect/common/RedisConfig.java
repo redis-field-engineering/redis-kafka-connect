@@ -31,6 +31,7 @@ import com.google.common.net.HostAndPort;
 import com.redis.lettucemod.util.ClientBuilder;
 import com.redis.lettucemod.util.RedisURIBuilder;
 import com.redis.spring.batch.common.ConnectionPoolBuilder;
+import com.redis.spring.batch.common.PoolOptions;
 
 import io.lettuce.core.AbstractRedisClient;
 import io.lettuce.core.RedisURI;
@@ -66,7 +67,7 @@ public class RedisConfig extends AbstractConfig {
 	private static final String TIMEOUT_DOC = "Redis command timeout in seconds";
 
 	public static final String POOL_MAX_CONFIG = "redis.pool";
-	private static final int POOL_MAX_DEFAULT = ConnectionPoolBuilder.DEFAULT_MAX_TOTAL;
+	private static final int POOL_MAX_DEFAULT = PoolOptions.DEFAULT_MAX_TOTAL;
 	private static final String POOL_MAX_DOC = "Max pool connections";
 
 	public static final String TLS_CONFIG = "redis.tls";
@@ -147,7 +148,7 @@ public class RedisConfig extends AbstractConfig {
 			builder.host(hostAndPort.getHost());
 			builder.port(hostAndPort.getPort());
 		} else {
-			builder.uriString(uri);
+			builder.uri(uri);
 		}
 		if (Boolean.TRUE.equals(getBoolean(INSECURE_CONFIG))) {
 			builder.sslVerifyMode(SslVerifyMode.NONE);
@@ -196,8 +197,11 @@ public class RedisConfig extends AbstractConfig {
 	}
 
 	public <K, V> GenericObjectPool<StatefulConnection<K, V>> pool(AbstractRedisClient client, RedisCodec<K, V> codec) {
-		return ConnectionPoolBuilder.create(client).maxTotal(getInt(POOL_MAX_CONFIG)).build(codec);
+		return ConnectionPoolBuilder.client(client).options(poolOptions()).codec(codec);
+	}
 
+	protected PoolOptions poolOptions() {
+		return PoolOptions.builder().maxTotal(getInt(POOL_MAX_CONFIG)).build();
 	}
 
 }

@@ -7,7 +7,6 @@ import static org.mockito.Mockito.when;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
@@ -26,9 +25,8 @@ import org.apache.kafka.connect.sink.SinkRecord;
 import org.apache.kafka.connect.sink.SinkTaskContext;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.api.Test;
 import org.springframework.util.Assert;
-import org.springframework.util.unit.DataSize;
 import org.testcontainers.shaded.com.google.common.collect.ImmutableList;
 import org.testcontainers.shaded.com.google.common.collect.ImmutableMap;
 import org.testcontainers.shaded.com.google.common.collect.ImmutableSet;
@@ -36,37 +34,17 @@ import org.testcontainers.shaded.com.google.common.collect.ImmutableSet;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.jcustenborder.kafka.connect.utils.SinkRecordHelper;
-import com.redis.enterprise.Database;
-import com.redis.enterprise.RedisModule;
 import com.redis.kafka.connect.sink.RedisSinkConfig;
 import com.redis.kafka.connect.sink.RedisSinkTask;
 import com.redis.lettucemod.timeseries.Sample;
 import com.redis.lettucemod.timeseries.TimeRange;
-import com.redis.testcontainers.RedisEnterpriseContainer;
-import com.redis.testcontainers.RedisModulesContainer;
-import com.redis.testcontainers.RedisServer;
-import com.redis.testcontainers.junit.AbstractTestcontainersRedisTestBase;
-import com.redis.testcontainers.junit.RedisTestContext;
-import com.redis.testcontainers.junit.RedisTestContextsSource;
 
 import io.lettuce.core.KeyValue;
 import io.lettuce.core.Range;
 import io.lettuce.core.ScoredValue;
 import io.lettuce.core.StreamMessage;
 
-class RedisSinkTaskIT extends AbstractTestcontainersRedisTestBase {
-
-	@SuppressWarnings("resource")
-	@Override
-	protected Collection<RedisServer> redisServers() {
-		return Arrays.asList(
-				new RedisModulesContainer(
-						RedisModulesContainer.DEFAULT_IMAGE_NAME.withTag(RedisModulesContainer.DEFAULT_TAG)),
-				new RedisEnterpriseContainer(RedisEnterpriseContainer.DEFAULT_IMAGE_NAME.withTag("latest"))
-						.withDatabase(Database.name("RedisKafkaConnectTests").memory(DataSize.ofMegabytes(100))
-								.ossCluster(true).modules(RedisModule.SEARCH, RedisModule.JSON, RedisModule.TIMESERIES)
-								.build()));
-	}
+abstract class AbstractSinkIT extends AbstractBaseIT {
 
 	protected Map<String, String> map(String... args) {
 		Assert.notNull(args, "Args cannot be null");
@@ -92,29 +70,26 @@ class RedisSinkTaskIT extends AbstractTestcontainersRedisTestBase {
 		}
 	}
 
-	@ParameterizedTest
-	@RedisTestContextsSource
-	void emptyAssignment(RedisTestContext context) {
+	@Test
+	void emptyAssignment() {
 		SinkTaskContext taskContext = mock(SinkTaskContext.class);
 		when(taskContext.assignment()).thenReturn(ImmutableSet.of());
 		this.task.initialize(taskContext);
-		this.task.start(ImmutableMap.of(RedisSinkConfig.URI_CONFIG, context.getServer().getRedisURI()));
+		this.task.start(ImmutableMap.of(RedisSinkConfig.URI_CONFIG, getRedisServer().getRedisURI()));
 	}
 
-	@ParameterizedTest
-	@RedisTestContextsSource
-	void putEmpty(RedisTestContext redis) {
+	@Test
+	void putEmpty() {
 		String topic = "putWrite";
 		SinkTaskContext context = mock(SinkTaskContext.class);
 		when(context.assignment()).thenReturn(ImmutableSet.of(new TopicPartition(topic, 1)));
 		this.task.initialize(context);
-		this.task.start(ImmutableMap.of(RedisSinkConfig.URI_CONFIG, redis.getServer().getRedisURI()));
+		this.task.start(ImmutableMap.of(RedisSinkConfig.URI_CONFIG, getRedisServer().getRedisURI()));
 		this.task.put(ImmutableList.of());
 	}
 
-	@ParameterizedTest
-	@RedisTestContextsSource
-	void putHash(RedisTestContext redis) {
+	@Test
+	void putHash() {
 		String topic = "hash";
 		int count = 50;
 		Map<String, Map<String, String>> expected = new LinkedHashMap<>(count);
@@ -125,10 +100,10 @@ class RedisSinkTaskIT extends AbstractTestcontainersRedisTestBase {
 			records.add(SinkRecordHelper.write(topic, new SchemaAndValue(Schema.STRING_SCHEMA, i),
 					new SchemaAndValue(SchemaBuilder.map(Schema.STRING_SCHEMA, Schema.STRING_SCHEMA), map)));
 		}
-		put(topic, RedisSinkConfig.DataType.HASH, redis, records);
+		put(topic, RedisSinkConfig.DataType.HASH, records);
 		for (String key : expected.keySet()) {
 			Map<String, String> hash = expected.get(key);
-			Map<String, String> actual = redis.sync().hgetall(key);
+			Map<String, String> actual = connection.sync().hgetall(key);
 			assertEquals(hash, actual, String.format("Hash for key '%s' does not match.", key));
 		}
 	}
@@ -251,9 +226,8 @@ class RedisSinkTaskIT extends AbstractTestcontainersRedisTestBase {
 
 	}
 
-	@ParameterizedTest
-	@RedisTestContextsSource
-	void putJSON(RedisTestContext redis) throws JsonProcessingException {
+	@Test
+	void putJSON() throws JsonProcessingException {
 		String topic = "putJSON";
 		List<Person> persons = new ArrayList<>();
 		Person person1 = new Person();
@@ -296,16 +270,15 @@ class RedisSinkTaskIT extends AbstractTestcontainersRedisTestBase {
 			records.add(SinkRecordHelper.write(topic, new SchemaAndValue(Schema.STRING_SCHEMA, person.getId()),
 					new SchemaAndValue(Schema.STRING_SCHEMA, json)));
 		}
-		put(topic, RedisSinkConfig.DataType.JSON, redis, records);
+		put(topic, RedisSinkConfig.DataType.JSON, records);
 		for (Person person : persons) {
-			String json = redis.sync().jsonGet(topic + ":" + person.getId());
+			String json = connection.sync().jsonGet(topic + ":" + person.getId());
 			assertEquals(person, mapper.readValue(json, Person.class));
 		}
 	}
 
-	@ParameterizedTest
-	@RedisTestContextsSource
-	void putTimeSeries(RedisTestContext redis) {
+	@Test
+	void putTimeSeries() {
 		String topic = "putTimeSeries";
 		int count = 50;
 		long startTime = System.currentTimeMillis() - count;
@@ -318,8 +291,8 @@ class RedisSinkTaskIT extends AbstractTestcontainersRedisTestBase {
 			records.add(SinkRecordHelper.write(topic, new SchemaAndValue(Schema.INT64_SCHEMA, timestamp),
 					new SchemaAndValue(Schema.FLOAT64_SCHEMA, value)));
 		}
-		put(topic, RedisSinkConfig.DataType.TIMESERIES, redis, records);
-		List<Sample> actualSamples = redis.sync().tsRange(topic, TimeRange.unbounded());
+		put(topic, RedisSinkConfig.DataType.TIMESERIES, records);
+		List<Sample> actualSamples = connection.sync().tsRange(topic, TimeRange.unbounded());
 		assertEquals(expectedSamples.size(), actualSamples.size());
 		for (int index = 0; index < expectedSamples.size(); index++) {
 			Sample expectedSample = expectedSamples.get(index);
@@ -329,9 +302,8 @@ class RedisSinkTaskIT extends AbstractTestcontainersRedisTestBase {
 		}
 	}
 
-	@ParameterizedTest
-	@RedisTestContextsSource
-	void putLpush(RedisTestContext redis) {
+	@Test
+	void putLpush() {
 		String topic = "putLpush";
 		int count = 50;
 		List<String> expected = new ArrayList<>(count);
@@ -342,15 +314,14 @@ class RedisSinkTaskIT extends AbstractTestcontainersRedisTestBase {
 			records.add(SinkRecordHelper.write(topic, new SchemaAndValue(Schema.STRING_SCHEMA, member),
 					new SchemaAndValue(Schema.STRING_SCHEMA, member)));
 		}
-		put(topic, RedisSinkConfig.DataType.LIST, redis, records);
-		List<String> actual = redis.sync().lrange(topic, 0, -1);
+		put(topic, RedisSinkConfig.DataType.LIST, records);
+		List<String> actual = connection.sync().lrange(topic, 0, -1);
 		Collections.reverse(actual);
 		assertEquals(expected, actual);
 	}
 
-	@ParameterizedTest
-	@RedisTestContextsSource
-	void putRpush(RedisTestContext redis) {
+	@Test
+	void putRpush() {
 		String topic = "putRpush";
 		int count = 50;
 		List<String> expected = new ArrayList<>(count);
@@ -361,15 +332,14 @@ class RedisSinkTaskIT extends AbstractTestcontainersRedisTestBase {
 			records.add(SinkRecordHelper.write(topic, new SchemaAndValue(Schema.STRING_SCHEMA, member),
 					new SchemaAndValue(Schema.STRING_SCHEMA, member)));
 		}
-		put(topic, RedisSinkConfig.DataType.LIST, redis, records, RedisSinkConfig.PUSH_DIRECTION_CONFIG,
+		put(topic, RedisSinkConfig.DataType.LIST, records, RedisSinkConfig.PUSH_DIRECTION_CONFIG,
 				RedisSinkConfig.PushDirection.RIGHT.name());
-		List<String> actual = redis.sync().lrange(topic, 0, -1);
+		List<String> actual = connection.sync().lrange(topic, 0, -1);
 		assertEquals(expected, actual);
 	}
 
-	@ParameterizedTest
-	@RedisTestContextsSource
-	void putSet(RedisTestContext redis) {
+	@Test
+	void putSet() {
 		String topic = "putSet";
 		int count = 50;
 		Set<String> expected = new HashSet<>(count);
@@ -380,14 +350,13 @@ class RedisSinkTaskIT extends AbstractTestcontainersRedisTestBase {
 			records.add(SinkRecordHelper.write(topic, new SchemaAndValue(Schema.STRING_SCHEMA, member),
 					new SchemaAndValue(Schema.STRING_SCHEMA, member)));
 		}
-		put(topic, RedisSinkConfig.DataType.SET, redis, records);
-		Set<String> members = redis.sync().smembers(topic);
+		put(topic, RedisSinkConfig.DataType.SET, records);
+		Set<String> members = connection.sync().smembers(topic);
 		assertEquals(expected, members);
 	}
 
-	@ParameterizedTest
-	@RedisTestContextsSource
-	void putStream(RedisTestContext redis) {
+	@Test
+	void putStream() {
 		String topic = "putStream";
 		int count = 50;
 		List<Map<String, String>> expected = new ArrayList<>(count);
@@ -398,8 +367,8 @@ class RedisSinkTaskIT extends AbstractTestcontainersRedisTestBase {
 			records.add(SinkRecordHelper.write(topic, new SchemaAndValue(Schema.STRING_SCHEMA, "key" + i),
 					new SchemaAndValue(SchemaBuilder.map(Schema.STRING_SCHEMA, Schema.STRING_SCHEMA), body)));
 		}
-		put(topic, RedisSinkConfig.DataType.STREAM, redis, records);
-		List<StreamMessage<String, String>> messages = redis.sync().xrange(topic, Range.unbounded());
+		put(topic, RedisSinkConfig.DataType.STREAM, records);
+		List<StreamMessage<String, String>> messages = connection.sync().xrange(topic, Range.unbounded());
 		assertEquals(records.size(), messages.size());
 		for (int index = 0; index < messages.size(); index++) {
 			Map<String, String> body = expected.get(index);
@@ -408,9 +377,8 @@ class RedisSinkTaskIT extends AbstractTestcontainersRedisTestBase {
 		}
 	}
 
-	@ParameterizedTest
-	@RedisTestContextsSource
-	void putString(RedisTestContext redis) {
+	@Test
+	void putString() {
 		String topic = "string";
 		int count = 50;
 		Map<String, String> expected = new LinkedHashMap<>(count);
@@ -422,9 +390,9 @@ class RedisSinkTaskIT extends AbstractTestcontainersRedisTestBase {
 			records.add(SinkRecordHelper.write(topic, new SchemaAndValue(Schema.STRING_SCHEMA, key),
 					new SchemaAndValue(Schema.STRING_SCHEMA, value)));
 		}
-		put(topic, RedisSinkConfig.DataType.STRING, redis, records);
+		put(topic, RedisSinkConfig.DataType.STRING, records);
 		String[] keys = expected.keySet().toArray(new String[0]);
-		List<KeyValue<String, String>> actual = redis.sync().mget(keys);
+		List<KeyValue<String, String>> actual = connection.sync().mget(keys);
 		assertEquals(records.size(), actual.size());
 		for (KeyValue<String, String> keyValue : actual) {
 			assertEquals(expected.get(keyValue.getKey()), keyValue.getValue(),
@@ -432,9 +400,8 @@ class RedisSinkTaskIT extends AbstractTestcontainersRedisTestBase {
 		}
 	}
 
-	@ParameterizedTest
-	@RedisTestContextsSource
-	void setBytes(RedisTestContext redis) {
+	@Test
+	void setBytes() {
 		String topic = "setBytes";
 		int count = 50;
 		Map<String, String> expected = new LinkedHashMap<>(count);
@@ -447,9 +414,9 @@ class RedisSinkTaskIT extends AbstractTestcontainersRedisTestBase {
 					new SchemaAndValue(Schema.BYTES_SCHEMA, key.getBytes(StandardCharsets.UTF_8)),
 					new SchemaAndValue(Schema.BYTES_SCHEMA, value.getBytes(StandardCharsets.UTF_8))));
 		}
-		put(topic, RedisSinkConfig.DataType.STRING, redis, records, RedisSinkConfig.KEY_CONFIG, "");
+		put(topic, RedisSinkConfig.DataType.STRING, records, RedisSinkConfig.KEY_CONFIG, "");
 		String[] keys = expected.keySet().toArray(new String[0]);
-		List<KeyValue<String, String>> actual = redis.sync().mget(keys);
+		List<KeyValue<String, String>> actual = connection.sync().mget(keys);
 		assertEquals(records.size(), actual.size());
 		for (KeyValue<String, String> keyValue : actual) {
 			assertEquals(expected.get(keyValue.getKey()), keyValue.getValue(),
@@ -457,9 +424,8 @@ class RedisSinkTaskIT extends AbstractTestcontainersRedisTestBase {
 		}
 	}
 
-	@ParameterizedTest
-	@RedisTestContextsSource
-	void putZset(RedisTestContext context) {
+	@Test
+	void putZset() {
 		String topic = "putZset";
 		int count = 50;
 		List<ScoredValue<String>> expected = new ArrayList<>(count);
@@ -470,32 +436,30 @@ class RedisSinkTaskIT extends AbstractTestcontainersRedisTestBase {
 			records.add(SinkRecordHelper.write(topic, new SchemaAndValue(Schema.STRING_SCHEMA, value),
 					new SchemaAndValue(Schema.FLOAT64_SCHEMA, i)));
 		}
-		put(topic, RedisSinkConfig.DataType.ZSET, context, records);
-		List<ScoredValue<String>> actual = context.sync().zrangeWithScores(topic, 0, -1);
+		put(topic, RedisSinkConfig.DataType.ZSET, records);
+		List<ScoredValue<String>> actual = connection.sync().zrangeWithScores(topic, 0, -1);
 		expected.sort(Comparator.comparing(ScoredValue::getScore));
 		assertEquals(expected, actual);
 	}
 
-	public void put(String topic, RedisSinkConfig.DataType type, RedisTestContext context, List<SinkRecord> records,
-			String... props) {
+	public void put(String topic, RedisSinkConfig.DataType type, List<SinkRecord> records, String... props) {
 		SinkTaskContext taskContext = mock(SinkTaskContext.class);
 		when(taskContext.assignment()).thenReturn(ImmutableSet.of(new TopicPartition(topic, 1)));
 		task.initialize(taskContext);
-		Map<String, String> propsMap = map(RedisSinkConfig.URI_CONFIG, context.getServer().getRedisURI(),
+		Map<String, String> propsMap = map(RedisSinkConfig.URI_CONFIG, getRedisServer().getRedisURI(),
 				RedisSinkConfig.TYPE_CONFIG, type.name());
 		propsMap.putAll(map(props));
 		task.start(propsMap);
 		task.put(records);
 	}
 
-	@ParameterizedTest
-	@RedisTestContextsSource
-	void putDelete(RedisTestContext context) {
+	@Test
+	void putDelete() {
 		String topic = "putDelete";
 		SinkTaskContext taskContext = mock(SinkTaskContext.class);
 		when(taskContext.assignment()).thenReturn(ImmutableSet.of(new TopicPartition(topic, 1)));
 		this.task.initialize(taskContext);
-		this.task.start(ImmutableMap.of(RedisSinkConfig.URI_CONFIG, context.getServer().getRedisURI(),
+		this.task.start(ImmutableMap.of(RedisSinkConfig.URI_CONFIG, getRedisServer().getRedisURI(),
 				RedisSinkConfig.TYPE_CONFIG, RedisSinkConfig.DataType.STRING.name()));
 
 		int count = 50;
@@ -510,10 +474,10 @@ class RedisSinkTaskIT extends AbstractTestcontainersRedisTestBase {
 		Map<String, String> values = expected.entrySet().stream()
 				.collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
 
-		context.sync().mset(values);
+		connection.sync().mset(values);
 		task.put(records);
 		String[] keys = expected.keySet().toArray(new String[0]);
-		long actual = context.sync().exists(keys);
+		long actual = connection.sync().exists(keys);
 		assertEquals(0L, actual, "All of the keys should be removed from Redis.");
 	}
 

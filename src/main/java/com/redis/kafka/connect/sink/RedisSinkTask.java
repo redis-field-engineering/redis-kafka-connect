@@ -47,6 +47,8 @@ import com.github.jcustenborder.kafka.connect.utils.jackson.ObjectMapperFactory;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.redis.kafka.connect.RedisSinkConnector;
+import com.redis.lettucemod.RedisModulesClient;
+import com.redis.lettucemod.cluster.RedisModulesClusterClient;
 import com.redis.lettucemod.util.RedisModulesUtils;
 import com.redis.spring.batch.RedisItemWriter;
 import com.redis.spring.batch.convert.SampleConverter;
@@ -93,7 +95,7 @@ public class RedisSinkTask extends SinkTask {
 		pool = config.pool(client, ByteArrayCodec.INSTANCE);
 		jsonConverter = new JsonConverter();
 		jsonConverter.configure(Collections.singletonMap("schemas.enable", "false"), false);
-		writer = RedisItemWriter.operation(pool, operation()).options(config.writerOptions()).build();
+		writer = writer(client).options(config.writerOptions()).operation(operation());
 		writer.open(new ExecutionContext());
 		final java.util.Set<TopicPartition> assignment = this.context.assignment();
 		if (!assignment.isEmpty()) {
@@ -107,6 +109,13 @@ public class RedisSinkTask extends SinkTask {
 			}
 			this.context.offset(partitionOffsets);
 		}
+	}
+
+	private RedisItemWriter.Builder<byte[], byte[]> writer(AbstractRedisClient client) {
+		if (client instanceof RedisModulesClusterClient) {
+			return RedisItemWriter.client((RedisModulesClusterClient) client, ByteArrayCodec.INSTANCE);
+		}
+		return RedisItemWriter.client((RedisModulesClient)client, ByteArrayCodec.INSTANCE);
 	}
 
 	private Collection<SinkOffsetState> offsetStates(java.util.Set<TopicPartition> assignment) {
