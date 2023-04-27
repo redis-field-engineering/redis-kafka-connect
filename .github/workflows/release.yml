@@ -32,6 +32,7 @@ jobs:
 
   docker:
     name: 'Docker'
+    needs: [release]
     uses: redis-field-engineering/redis-github-workflows/.github/workflows/docker.yml@main
     with:
       tags: fieldengineering/redis-kafka-connect:latest,fieldengineering/redis-kafka-connect:${{ github.event.inputs.version }}
