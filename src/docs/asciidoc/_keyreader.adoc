@@ -1,0 +1,24 @@
+=== Key Reader
+In key reader mode, the source connector captures changes happening to keys in a Redis database and publishes keys and values to a Kafka topic.
+The data structure key will be mapped to the record key, and the value will be mapped to the record value.
+
+[IMPORTANT]
+.Supported Data Structures
+====
+The source connector supports the following data structures:
+
+* String: the Kafka record values will be strings
+* Hash: the Kafka record values will be maps (string key/value pairs)
+
+====
+
+[source,properties]
+----
+redis.keys.patterns=<glob> <1>
+topic=<topic> <2>
+----
+
+<1> Key portion of the pattern that will be used to listen to keyspace events.
+For example `foo:*` translates to pubsub channel `$$__$$keyspace@0$$__$$:foo:*` and will capture changes to keys `foo:1`, `foo:2`, etc.
+Use comma-separated values for multiple patterns (`foo:*,bar:*`)
+<2> Name of the destination topic.

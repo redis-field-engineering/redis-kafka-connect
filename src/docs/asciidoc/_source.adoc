@@ -42,32 +42,6 @@ Use configuration property `tasks.max` to have the change stream handled by mult
 The connector splits the work based on the number of configured key patterns.
 When the number of tasks is greater than the number of patterns, the number of patterns will be used instead.
 
-//
-//[[key-reader]]
-//=== Key Reader
-//In key reader mode, the {name} captures changes happening to keys in a Redis database and publishes keys and values to a Kafka topic.
-//The data structure key will be mapped to the record key, and the value will be mapped to the record value.
-//
-//[IMPORTANT]
-//.Supported Data Structures
-//====
-//The {name} supports the following data structures:
-//
-//* String: the Kafka record values will be strings
-//* Hash: the Kafka record values will be maps (string key/value pairs)
-//
-//====
-//
-//[source,properties]
-//----
-//redis.keys.patterns=<glob> <1>
-//topic=<topic> <2>
-//----
-//
-//<1> Key portion of the pattern that will be used to listen to keyspace events.
-For example `foo:*` translates to pubsub channel `$$__$$keyspace@0$$__$$:foo:*` and will capture changes to keys `foo:1`, `foo:2`, etc.
-Use comma-separated values for multiple patterns (`foo:*,bar:*`)
-//<2> Name of the destination topic.
 
 [[stream-reader]]
 === Stream Reader
@@ -115,3 +89,6 @@ For example, `foo${task}` and task `123` => consumer `foo123`.
 <6> Destination topic (default: `${stream}`).
 May contain `${stream}` as a placeholder for the originating stream name.
 For example, `redis_${stream}` and stream `orders` => topic `redis_orders`.
+
+//[[key-reader]]
+//include::_keyreader.adoc[]
