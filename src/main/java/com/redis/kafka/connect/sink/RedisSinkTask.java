@@ -26,6 +26,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
+import io.lettuce.core.SetArgs;
 import org.apache.commons.pool2.impl.GenericObjectPool;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.config.ConfigException;
@@ -81,6 +82,7 @@ public class RedisSinkTask extends SinkTask {
 	private RedisItemWriter<byte[], byte[], SinkRecord> writer;
 	private Converter jsonConverter;
 	private GenericObjectPool<StatefulConnection<byte[], byte[]>> pool;
+	private SetArgs setArgs;
 
 	@Override
 	public String version() {
@@ -97,6 +99,7 @@ public class RedisSinkTask extends SinkTask {
 		jsonConverter.configure(Collections.singletonMap("schemas.enable", "false"), false);
 		writer = writer(client).options(config.writerOptions()).operation(operation());
 		writer.open(new ExecutionContext());
+		setArgs = getSetArgs(config);
 		final java.util.Set<TopicPartition> assignment = this.context.assignment();
 		if (!assignment.isEmpty()) {
 			Map<TopicPartition, Long> partitionOffsets = new HashMap<>(assignment.size());
@@ -146,7 +149,7 @@ public class RedisSinkTask extends SinkTask {
 		case JSON:
 			return JsonSet.key(this::key).value(this::jsonValue).del(this::isDelete).build();
 		case STRING:
-			return Set.key(this::key).value(this::value).del(this::isDelete).build();
+			return Set.key(this::key).value(this::value).args(setArgs).del(this::isDelete).build();
 		case STREAM:
 			return Xadd.key(this::collectionKey).body(this::map).build();
 		case LIST:
@@ -211,6 +214,16 @@ public class RedisSinkTask extends SinkTask {
 
 	private boolean isDelete(SinkRecord sinkRecord) {
 		return sinkRecord.value() == null;
+	}
+
+	private SetArgs getSetArgs(RedisSinkConfig config) {
+		SetArgs setArgs = new SetArgs();
+
+		if (config.getKeySetExpireTimeout() > 0) {
+			setArgs.ex(config.getKeySetExpireTimeout());
+		}
+
+		return setArgs;
 	}
 
 	private byte[] key(SinkRecord sinkRecord) {
