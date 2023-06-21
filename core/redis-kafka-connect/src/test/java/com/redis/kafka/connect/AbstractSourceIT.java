@@ -141,8 +141,8 @@ abstract class AbstractSourceIT extends AbstractBaseIT {
 		PendingMessages pendingMsgsBeforeCommit = connection.sync().xpending(stream,
 				RedisSourceConfig.STREAM_CONSUMER_GROUP_DEFAULT);
 		Assertions.assertEquals(3, pendingMsgsBeforeCommit.getCount(), "pending messages before commit");
-		task.commitRecord(sourceRecords.get(0), new RecordMetadata(null, 0, 0, 0, 0, 0));
-		task.commitRecord(sourceRecords.get(1), new RecordMetadata(null, 0, 0, 0, 0, 0));
+		task.commitRecord(sourceRecords.get(0), new RecordMetadata(null, 0, 0, 0, null, 0, 0));
+		task.commitRecord(sourceRecords.get(1), new RecordMetadata(null, 0, 0, 0, null, 0, 0));
 		task.commit();
 		PendingMessages pendingMsgsAfterCommit = connection.sync().xpending(stream,
 				RedisSourceConfig.STREAM_CONSUMER_GROUP_DEFAULT);
@@ -203,8 +203,8 @@ abstract class AbstractSourceIT extends AbstractBaseIT {
 		List<SourceRecord> sourceRecords = new ArrayList<>();
 		Awaitility.await().until(() -> sourceRecords.addAll(task.poll()));
 		Assertions.assertEquals(3, sourceRecords.size());
-		task.commitRecord(sourceRecords.get(0), new RecordMetadata(null, 0, 0, 0, 0, 0));
-		task.commitRecord(sourceRecords.get(1), new RecordMetadata(null, 0, 0, 0, 0, 0));
+		task.commitRecord(sourceRecords.get(0), new RecordMetadata(null, 0, 0, 0, null, 0, 0));
+		task.commitRecord(sourceRecords.get(1), new RecordMetadata(null, 0, 0, 0, null, 0, 0));
 		task.commit();
 
 		List<SourceRecord> recoveredRecords = new ArrayList<>();
