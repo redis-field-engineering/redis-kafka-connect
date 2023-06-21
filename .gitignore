@@ -12,15 +12,15 @@ hs_err_*.log
 
 # Avoid ignoring Maven wrapper jar file (.jar files are usually ignored)
 !/.mvn/wrapper/maven-wrapper.jar
-/.classpath
-/.project
-/.settings/
-/.factorypath
+.classpath
+.project
+.settings
+.factorypath
 /.idea/
-/build/
-/.gradle/
-/bin/
-/dump.rdb
+build
+.gradle
+bin
+dump.rdb
 .DS_Store
 /out/
 *.dylib

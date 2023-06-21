@@ -1,0 +1,16 @@
+= {project-title}
+:author: {project-author}
+:revnumber: {project-version}
+:toclevels: 3
+:docinfo1:
+
+include::{includedir}/_links.adoc[]
+
+:leveloffset: 1
+include::{includedir}/introduction.adoc[]
+include::{includedir}/install.adoc[]
+include::{includedir}/connect.adoc[]
+include::{includedir}/sink.adoc[]
+include::{includedir}/source.adoc[]
+include::{includedir}/docker.adoc[]
+include::{includedir}/resources.adoc[]

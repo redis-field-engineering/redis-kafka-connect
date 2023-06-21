@@ -9,7 +9,7 @@ project:
   license: Apache-2.0
   java:
     groupId: com.redis
-    version: 8
+    version: 11
     multiProject: true
   inceptionYear: 2021
   tags:
@@ -20,11 +20,14 @@ project:
 release:
   github:
     overwrite: true
+    sign: true
+    issues:
+      enabled: true
     changelog:
       formatted: ALWAYS
       preset: conventional-commits
       contributors:
-        enabled: false
+        format: '- {{contributorName}}{{#contributorUsernameAsLink}} ({{.}}){{/contributorUsernameAsLink}}'
       labelers:
         - label: 'dependencies'
           title: 'regex:^(?:deps(?:\(.*\))?!?):\s.*'
@@ -56,21 +59,8 @@ announce:
     message: '🔗 Redis Kafka Connect {{projectVersion}} has been released! {{releaseNotesUrl}}'
 
 distributions:
-  redis-redis-enterprise-kafka-5:
+  redis-redis-kafka-connect:
     type: binary
     artifacts:
-      - path: target/components/packages/{{distributionName}}.{{projectVersion}}.zip
-        transform: '{{distributionName}}.{{projectEffectiveVersion}}.zip'
-  redis-redis-enterprise-kafka-6:
-    type: binary
-    artifacts:
-      - path: target/components/packages/{{distributionName}}.{{projectVersion}}.zip
-        transform: '{{distributionName}}.{{projectEffectiveVersion}}.zip'
-
-files:
-  artifacts:
-    - path: target/generated-docs/{{projectName}}-{{projectVersion}}.pdf
-      transform: '{{projectName}}-{{projectEffectiveVersion}}.pdf'
-      extraProperties:
-        skipChecksum: true
-        skipSigning: true
+      - path: core/redis-kafka-connect/build/confluent/{{distributionName}}-{{projectVersion}}.zip
+        transform: '{{distributionName}}-{{projectEffectiveVersion}}.zip'

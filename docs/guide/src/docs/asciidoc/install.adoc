@@ -1,0 +1,17 @@
+[[_install]]
+= Install
+
+Select one of the methods below to install {project-title}.
+
+== Download
+
+Download the latest release archive from https://github.com/{github-owner}/{github-repo}/releases[here].
+
+== Confluent Hub
+
+1. Install the https://docs.confluent.io/current/connect/managing/confluent-hub/client.html[Confluent Hub Client]
+2. Install the {project-name} using the Confluent Hub Client
+
+== Manually
+
+Follow the instructions in {link_manual_install}

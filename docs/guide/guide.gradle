@@ -1,0 +1,24 @@
+configurations {
+    asciidoctorExtensions
+}
+
+dependencies {
+    asciidoctorExtensions 'com.bmuschko:asciidoctorj-tabbed-code-extension:0.3'
+}
+
+asciidoctor {
+    configurations 'asciidoctorExtensions'
+    forkOptions {
+      // Fix issue with JDK16+
+      jvmArgs("--add-opens", "java.base/sun.nio.ch=ALL-UNNAMED", "--add-opens", "java.base/java.io=ALL-UNNAMED")
+    }
+    attributes = [
+        'source-highlighter': 'prettify'
+    ]
+}
+
+eclipse {
+    project {
+        name = 'redis-kafka-connect-guide'
+    }
+}

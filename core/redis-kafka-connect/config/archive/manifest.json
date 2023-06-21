@@ -1,0 +1,36 @@
+{
+  "name" : "redis-kafka-connect",
+  "version" : "${projectVersion}",
+  "title" : "Redis Kafka Connector",
+  "description" : "Kafka Connector (Source and Sink) by Redis.",
+  "owner" : {
+    "username" : "redis",
+    "name" : "Redis",
+    "url" : "http://www.redis.com",
+    "logo" : "assets/redis.png"
+  },
+  "support" : {
+    "logo" : "assets/redis.png",
+    "summary" : "Contact us on https://forum.redis.com or create an issue on Github where we provide support on a good faith effort basis.",
+    "url" : "https://github.com/redis-field-engineering/redis-kafka-connect/issues",
+    "provider_name" : "Redis"
+  },
+  "tags" : [ "redis"],
+  "features" : {
+    "supported_encodings" : [ "any" ],
+    "single_message_transforms" : true,
+    "confluent_control_center_integration" : true,
+    "kafka_connect_api" : true
+  },
+  "logo" : "assets/redis.png",
+  "documentation_url" : "https://redis-field-engineering.github.io/redis-kafka-connect",
+  "source_url" : "https://github.com/redis-field-engineering/redis-kafka-connect",
+  "docker_image" : { },
+  "license" : [{
+    "name" : "The Apache License, Version 2.0",
+    "url" : "https://www.apache.org/licenses/LICENSE-2.0"
+  }],
+  "component_types" : [ "sink", "source" ],
+  "requirements": ["Redis"],
+  "release_date": "${releaseDate}"
+}
