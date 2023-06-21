@@ -1,0 +1,136 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Copyright 2021-2023 The Redis Kafka Connect authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+config {
+    info {
+        description = 'Redis Kafka Connector'
+        inceptionYear = '2021'
+        tags = ['redis', 'kafka', 'connect']
+
+        links {
+            website      = "https://github.com/redis-field-engineering/${project.rootProject.name}"
+            issueTracker = "https://github.com/redis-field-engineering/${project.rootProject.name}/issues"
+            scm          = "https://github.com/redis-field-engineering/${project.rootProject.name}.git"
+        }
+
+        scm {
+            url                 = "https://github.com/redis-field-engineering/${project.rootProject.name}"
+            connection          = "scm:git:https://github.com/redis-field-engineering/${project.rootProject.name}.git"
+            developerConnection = "scm:git:git@github.com:redis-field-engineering/${project.rootProject.name}.git"
+        }
+
+        specification {
+            enabled = true
+        }
+
+        implementation {
+            enabled = true
+        }
+        
+        people {
+            person {
+                id    = 'jruaux'
+                name  = 'Julien Ruaux'
+                roles = ['developer', 'author']
+            }
+        }
+    }
+
+    licensing {                                                           
+        enabled = false
+    }
+    
+    docs {
+        javadoc {
+            autoLinks {
+                enabled = false
+            }
+        }
+    }
+
+    coverage {
+        jacoco {
+            enabled = true
+            toolVersion = jacocoVersion
+        }
+    }
+}
+
+allprojects {
+    repositories {
+        mavenLocal()
+        gradlePluginPortal()
+    }
+
+    tasks.withType(GenerateModuleMetadata) {
+        enabled = false
+    }
+
+    tasks.withType(JavaCompile) {
+        options.encoding = 'UTF-8'
+    }
+}
+
+subprojects { subproj ->
+    if (!subproj.name.contains('guide')) {
+    
+        config {
+	        info {
+	            description = project.project_description
+	        }
+	    }
+	
+	    license {
+	        exclude('build/**')
+	    }
+
+	    dependencies {
+	        testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine'
+            testImplementation group: 'org.testcontainers', name: 'junit-jupiter', version: testcontainersVersion
+	        testImplementation(group: 'com.redis.testcontainers', name: 'testcontainers-redis', version: testcontainersRedisVersion) {
+	            exclude group: 'com.redis', module: 'lettucemod'
+	        }
+	    }
+	
+	    test {
+	        useJUnitPlatform()
+	    }
+	    
+	    configurations.all {
+			resolutionStrategy.eachDependency { DependencyResolveDetails details ->
+				if (details.requested.name == 'lettuce-core' ) {
+					details.useVersion lettuceVersion
+				}
+			}
+		}
+	}
+}
+
+subprojects { p ->
+    config {
+        coverage {
+            jacoco {
+                enabled = hasTestsAt(p.file('src/test'))
+		        toolVersion = jacocoVersion
+            }
+        }
+    }
+}
+
+boolean hasTestsAt(File testDir) {
+    testDir.exists() && testDir.listFiles()?.size()
+}

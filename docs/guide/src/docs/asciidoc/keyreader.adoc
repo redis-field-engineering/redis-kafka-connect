@@ -1,4 +1,6 @@
-=== Key Reader
+[[_key_reader]]
+= Key Reader
+
 In key reader mode, the source connector captures changes happening to keys in a Redis database and publishes keys and values to a Kafka topic.
 The data structure key will be mapped to the record key, and the value will be mapped to the record value.
 

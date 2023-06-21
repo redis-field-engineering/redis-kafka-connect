@@ -1,4 +1,4 @@
-[[resources]]
+[[_resources]]
 = Resources
 
 == Kafka
@@ -32,3 +32,4 @@ https://redis.io/topics/streams-intro
 
 Redis Enterprise Advantages::
 https://redis.com/redis-enterprise/advantages/
+

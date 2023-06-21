@@ -1,4 +1,4 @@
-[[docker]]
+[[_docker]]
 = Quick Start with Docker
 
 This guide provides a hands-on look at the functionality of the Redis Kafka Source and Sink Connectors:
@@ -38,7 +38,7 @@ Once running, examine the topics in the Kafka control center: http://localhost:9
 
 [source,json]
 ----
-include::resources/pageviews.json[]
+include::{includedir}/../resources/pageviews.json[]
 ----
 
 * The `pageviews` stream should contain the 10 change events.
@@ -51,3 +51,5 @@ xread COUNT 10 STREAMS pageviews 0
 ----
 
 Messages added to the `mystream` stream will show up in the `mystream` topic
+
+

@@ -1,9 +1,7 @@
-[[connect]]
+[[_connect]]
 = Connect to Redis
 
 This section provides information on configuring the Redis Kafka Source or Sink Connector.
-
-== Configuration
 
 Specify the Redis URI in the `redis.uri` property, for example:
 
@@ -12,7 +10,7 @@ Specify the Redis URI in the `redis.uri` property, for example:
 redis.uri=redis://redis-12000.redis.com:12000
 ----
 
-Details on the https://github.com/lettuce-io/lettuce-core/wiki/Redis-URI-and-connection-details#uri-syntax[Redis URI syntax] can be found in the Lettuce project https://github.com/lettuce-io/lettuce-core/wiki[wiki].
+For Redis URI syntax see {link_lettuce_uri}.
 
 TLS connection URIs start with `rediss://`.
 To disable certificate verification for TLS connections use the following property:
@@ -29,3 +27,4 @@ Username and password can be specified in the URI or separately with the followi
 redis.username=user1
 redis.password=pass
 ----
+

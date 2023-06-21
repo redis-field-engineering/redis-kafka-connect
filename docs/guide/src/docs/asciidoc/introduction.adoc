@@ -1,0 +1,16 @@
+[[_introduction]]
+= Introduction
+
+{project-title} is used to import and export data between Apache Kafka and Redis.
+
+image:redis-kafka-connector.svg[]
+
+This guide provides documentation and usage information across the following topics:
+
+* <<_install,Install>>
+* <<_connect,Connect to Redis>>
+* <<_sink,Sink Connector>>
+* <<_source,Source Connector>>
+* <<_docker,Docker Example>>
+* <<_resources,Resources>>
+

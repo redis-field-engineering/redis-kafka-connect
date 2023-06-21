@@ -1,47 +1,44 @@
-[[sink]]
+[[_sink]]
 = Sink Connector Guide
 :name: Redis Kafka Sink Connector
 
 The {name} consumes records from a Kafka topic and writes the data to Redis.
+It includes the following features:
 
-== Features
+* <<_sink_at_least_once_delivery,At least once delivery>>
+* <<_sink_tasks,Multiple tasks>>
+* <<_sink_data_structures,Redis Data Structures>>
+* <<_sink_data_formats,Supported Data Formats>>
 
-The {name} includes the following features:
-
-* <<sink-at-least-once-delivery,At least once delivery>>
-* <<sink-tasks,Multiple tasks>>
-* <<data-structures,Redis Data Structures>>
-* <<data-formats,Supported Data Formats>>
-
-[[sink-at-least-once-delivery]]
-=== At least once delivery
+[[_sink_at_least_once_delivery]]
+== At least once delivery
 The {name} guarantees that records from the Kafka topic are delivered at least once.
 
-[[sink-tasks]]
-=== Multiples tasks
+[[_sink_tasks]]
+== Multiple tasks
 
 The {name} supports running one or more tasks.
 You can specify the number of tasks with the `tasks.max` configuration property.
 
-[[data-structures]]
-=== Redis Data Structures
+[[_sink_data_structures]]
+== Redis Data Structures
 The {name} supports the following Redis data-structure types as targets:
 
-[[collection-key]]
-* Collections: <<sink-stream,stream>>, <<sink-list,list>>, <<sink-set,set>>, <<sink-zset,sorted set>>, <<sink-timeseries,time series>>
+[[_collection_key]]
+* Collections: <<_sink_stream,stream>>, <<_sink_list,list>>, <<_sink_set,set>>, <<_sink_zset,sorted set>>, <<_sink_timeseries,time series>>
 +
 Collection keys are generated using the `redis.key` configuration property which may contain `${topic}` (default) as a placeholder for the originating topic name.
 +
 For example with `redis.key = ${topic}` and topic `orders` the Redis key is `set:orders`.
 
-* <<sink-hash,Hash>>, <<sink-string,string>>, <<sink-json,JSON>>
+* <<_sink_hash,Hash>>, <<_sink_string,string>>, <<_sink_json,JSON>>
 +
 For other data-structures the key is in the form `<keyspace>:<record_key>` where `keyspace` is generated using the `redis.key` configuration property like above and `record_key` is the sink record key.
 +
 For example with `redis.key = ${topic}`, topic `orders`, and sink record key `123` the Redis key is `orders:123`.
 
-[[sink-hash]]
-==== Hash
+[[_sink_hash]]
+=== Hash
 Use the following properties to write Kafka records as Redis hashes:
 
 [source,properties]
@@ -51,12 +48,12 @@ key.converter=<string or bytes> <1>
 value.converter=<Avro or JSON> <2>
 ----
 
-<1> <<key-string,String>> or <<key-bytes,bytes>>
-<2> <<avro,Avro>> or <<kafka-json,JSON>>.
+<1> <<_key_string,String>> or <<_key_bytes,bytes>>
+<2> <<_avro,Avro>> or <<_kafka_json,JSON>>.
 If value is null the key is deleted.
 
-[[sink-string]]
-==== String
+[[_sink_string]]
+=== String
 Use the following properties to write Kafka records as Redis strings:
 
 [source,properties]
@@ -66,12 +63,12 @@ key.converter=<string or bytes> <1>
 value.converter=<string or bytes> <2>
 ----
 
-<1> <<key-string,String>> or <<key-bytes,bytes>>
-<2> <<value-string,String>> or <<value-bytes,bytes>>.
+<1> <<_key_string,String>> or <<_key_bytes,bytes>>
+<2> <<_value_string,String>> or <<_value_bytes,bytes>>.
 If value is null the key is deleted.
 
-[[sink-json]]
-==== JSON
+[[_sink_json]]
+=== JSON
 Use the following properties to write Kafka records as RedisJSON documents:
 
 [source,properties]
@@ -81,12 +78,12 @@ key.converter=<string, bytes, or Avro> <1>
 value.converter=<string, bytes, or Avro> <2>
 ----
 
-<1> <<key-string,String>>, <<key-bytes,bytes>>, or <<avro,Avro>>
-<2> <<value-string,String>>, <<value-bytes,bytes>>, or <<avro,Avro>>.
+<1> <<_key_string,String>>, <<_key_bytes,bytes>>, or <<_avro,Avro>>
+<2> <<_value_string,String>>, <<_value_bytes,bytes>>, or <<_avro,Avro>>.
 If value is null the key is deleted.
 
-[[sink-stream]]
-==== Stream
+[[_sink_stream]]
+=== Stream
 Use the following properties to store Kafka records as Redis stream messages:
 
 [source,properties]
@@ -96,11 +93,11 @@ redis.key=<stream key> <1>
 value.converter=<Avro or JSON> <2>
 ----
 
-<1> <<collection-key,Stream key>>
-<2> <<avro,Avro>> or <<kafka-json,JSON>>
+<1> <<_collection_key,Stream key>>
+<2> <<_avro,Avro>> or <<_kafka_json,JSON>>
 
-[[sink-list]]
-==== List
+[[_sink_list]]
+=== List
 Use the following properties to add Kafka record keys to a Redis list:
 
 [source,properties]
@@ -111,15 +108,15 @@ key.converter=<string or bytes> <2>
 redis.push.direction=<LEFT or RIGHT> <3>
 ----
 
-<1> <<collection-key,List key>>
-<2> <<key-string,String>> or <<key-bytes,bytes>>: Kafka record keys to push to the list
+<1><<_collection_key,List key>>
+<2> <<_key_string,String>> or <<_key_bytes,bytes>>: Kafka record keys to push to the list
 <3> `LEFT`: LPUSH (default), `RIGHT`: RPUSH
 
 The Kafka record value can be any format.
 If a value is null then the member is removed from the list (instead of pushed to the list).
 
-[[sink-set]]
-==== Set
+[[_sink_set]]
+=== Set
 Use the following properties to add Kafka record keys to a Redis set:
 
 [source,properties]
@@ -129,14 +126,14 @@ redis.key=<key name> <1>
 key.converter=<string or bytes> <2>
 ----
 
-<1> <<collection-key,Set key>>
-<2> <<key-string,String>> or <<key-bytes,bytes>>: Kafka record keys to add to the set
+<1><<_collection_key,Set key>>
+<2> <<_key_string,String>> or <<_key_bytes,bytes>>: Kafka record keys to add to the set
 
 The Kafka record value can be any format.
 If a value is null then the member is removed from the set (instead of added to the set).
 
-[[sink-zset]]
-==== Sorted Set
+[[_sink_zset]]
+=== Sorted Set
 Use the following properties to add Kafka record keys to a Redis sorted set:
 
 [source,properties]
@@ -146,15 +143,14 @@ redis.key=<key name> <1>
 key.converter=<string or bytes> <2>
 ----
 
-<1> <<collection-key,Sorted set key>>
-<2> <<key-string,String>> or <<key-bytes,bytes>>: Kafka record keys to add to the set
+<1><<_collection_key,Sorted set key>>
+<2> <<_key_string,String>> or <<_key_bytes,bytes>>: Kafka record keys to add to the set
 
 The Kafka record value should be `float64` and is used for the score.
 If the score is null then the member is removed from the sorted set (instead of added to the sorted set).
 
-[[sink-timeseries]]
-==== Time Series
-
+[[_sink_timeseries]]
+=== Time Series
 Use the following properties to write Kafka records as RedisTimeSeries samples:
 
 [source,properties]
@@ -163,36 +159,36 @@ redis.type=TIMESERIES
 redis.key=<key name> <1>
 ----
 
-<1> <<collection-key,Timeseries key>>
+<1> <<_collection_key,Timeseries key>>
 
 The Kafka record key must be an integer (e.g. `int64`) as it is used for the sample time in milliseconds.
 
 The Kafka record value must be a number (e.g. `float64`) as it is used as the sample value.
 
 
-[[data-formats]]
-=== Data Formats
+[[_sink_data_formats]]
+== Data Formats
 
 The {name} supports different data formats for record keys and values depending on the target Redis data structure.
 
-==== Kafka Record Keys
-The {name} expects Kafka record keys in a specific format depending on the configured target <<data-structures,Redis data structure>>:
+=== Kafka Record Keys
+The {name} expects Kafka record keys in a specific format depending on the configured target <<_sink_data_structures,Redis data structure>>:
 
 [options="header",cols="h,1,1"]
 |====
 |Target|Record Key|Assigned To
 |Stream|Any|None
 |Hash|String|Key
-|String|<<key-string,String>> or <<key-bytes,bytes>>|Key
-|List|<<key-string,String>> or <<key-bytes,bytes>>|Member
-|Set|<<key-string,String>> or <<key-bytes,bytes>>|Member
-|Sorted Set|<<key-string,String>> or <<key-bytes,bytes>>|Member
-|JSON|<<key-string,String>> or <<key-bytes,bytes>>|Key
+|String|<<_key_string,String>> or <<_key_bytes,bytes>>|Key
+|List|<<_key_string,String>> or <<_key_bytes,bytes>>|Member
+|Set|<<_key_string,String>> or <<_key_bytes,bytes>>|Member
+|Sorted Set|<<_key_string,String>> or <<_key_bytes,bytes>>|Member
+|JSON|<<_key_string,String>> or <<_key_bytes,bytes>>|Key
 |TimeSeries|Integer|Sample time in milliseconds
 |====
 
-[[key-string]]
-===== StringConverter
+[[_key_string]]
+==== StringConverter
 If record keys are already serialized as strings use the StringConverter:
 
 [source,properties]
@@ -200,8 +196,8 @@ If record keys are already serialized as strings use the StringConverter:
 key.converter=org.apache.kafka.connect.storage.StringConverter
 ----
 
-[[key-bytes]]
-===== ByteArrayConverter
+[[_key_bytes]]
+==== ByteArrayConverter
 Use the byte array converter to use the binary serialized form of the Kafka record keys:
 
 [source,properties]
@@ -209,26 +205,26 @@ Use the byte array converter to use the binary serialized form of the Kafka reco
 key.converter=org.apache.kafka.connect.converters.ByteArrayConverter
 ----
 
-==== Kafka Record Values
-Multiple data formats are supported for Kafka record values depending on the configured target <<data-structures,Redis data structure>>.
+=== Kafka Record Values
+Multiple data formats are supported for Kafka record values depending on the configured target <<_sink_data_structures,Redis data structure>>.
 Each data structure expects a specific format.
 If your data in Kafka is not in the format expected for a given data structure, consider using https://docs.confluent.io/platform/current/connect/transforms/overview.html[Single Message Transformations] to convert to a byte array, string, Struct, or map before it is written to Redis.
 
 [options="header",cols="h,1,1"]
 |====
 |Target|Record Value|Assigned To
-|Stream|<<avro,Avro>> or <<kafka-json,JSON>>|Message body
-|Hash|<<avro,Avro>> or <<kafka-json,JSON>>|Fields
-|String|<<value-string,String>> or <<value-bytes,bytes>>|Value
+|Stream|<<_avro,Avro>> or <<_kafka_json,JSON>>|Message body
+|Hash|<<_avro,Avro>> or <<_kafka_json,JSON>>|Fields
+|String|<<_value_string,String>> or <<_value_bytes,bytes>>|Value
 |List|Any|Removal if null
 |Set|Any|Removal if null
 |Sorted Set|Number|Score or removal if null
-|JSON|<<value-string,String>> or <<value-bytes,bytes>>|Value
+|JSON|<<_value_string,String>> or <<_value_bytes,bytes>>|Value
 |TimeSeries|Number|Sample value
 |====
 
-[[value-string]]
-===== StringConverter
+[[_value_string]]
+==== StringConverter
 If record values are already serialized as strings, use the StringConverter to store values in Redis as strings:
 
 [source,properties]
@@ -236,8 +232,8 @@ If record values are already serialized as strings, use the StringConverter to s
 value.converter=org.apache.kafka.connect.storage.StringConverter
 ----
 
-[[value-bytes]]
-===== ByteArrayConverter
+[[_value_bytes]]
+==== ByteArrayConverter
 Use the byte array converter to store the binary serialized form (for example, JSON, Avro, Strings, etc.) of the Kafka record values in Redis as byte arrays:
 
 [source,properties]
@@ -245,16 +241,16 @@ Use the byte array converter to store the binary serialized form (for example, J
 value.converter=org.apache.kafka.connect.converters.ByteArrayConverter
 ----
 
-[[avro]]
-===== Avro
+[[_avro]]
+==== Avro
 [source,properties]
 ----
 value.converter=io.confluent.connect.avro.AvroConverter
 value.converter.schema.registry.url=http://localhost:8081
 ----
 
-[[kafka-json]]
-===== JSON
+[[_kafka_json]]
+==== JSON
 [source,properties]
 ----
 value.converter=org.apache.kafka.connect.json.JsonConverter
@@ -262,3 +258,5 @@ value.converter.schemas.enable=<true|false> <1>
 ----
 
 <1> Set to `true` if the JSON record structure has an attached schema
+
+

@@ -1,24 +1,22 @@
-[[source]]
+[[_source]]
 = Source Connector Guide
 :name: Redis Kafka Source Connector
 
 The {name} reads from a Redis stream and publishes messages to a Kafka topic.
+It includes the following features:
 
-== Features
+* <<_source_at_least_once_delivery,At least once delivery>>
+* <<_source_at_most_once_delivery,At most once delivery>>
+* <<_source_tasks,Multiple tasks>>
+* <<_stream_reader,Stream Reader>>
 
-The {name} includes the following features:
-
-* <<source-at-least-once-delivery,At least once delivery>>
-* <<source-tasks,Multiple tasks>>
-* <<stream-reader,Stream Reader>>
-
-[[source-at-least-once-delivery]]
-=== Delivery Guarantees
+== Delivery Guarantees
 
 The {name} can be configured to ack stream messages either automatically (at-most-once delivery) or explicitly (at-least-once delivery).
 The default is at-least-once delivery.
 
-==== At-Least-Once
+[[_source_at_least_once_delivery]]
+=== At-Least-Once
 
 In this mode, each stream message is acknowledged after it has been written to the corresponding topic.
 
@@ -27,7 +25,8 @@ In this mode, each stream message is acknowledged after it has been written to t
 redis.stream.delivery=at-least-once
 ----
 
-==== At-Most-Once
+[[_source_at_most_once_delivery]]
+=== At-Most-Once
 
 In this mode, stream messages are acknowledged as soon as they are read.
 
@@ -36,26 +35,26 @@ In this mode, stream messages are acknowledged as soon as they are read.
 redis.stream.delivery=at-most-once
 ----
 
-[[source-tasks]]
-=== Multiple Tasks
+[[_source_tasks]]
+== Multiple Tasks
 Use configuration property `tasks.max` to have the change stream handled by multiple tasks.
 The connector splits the work based on the number of configured key patterns.
 When the number of tasks is greater than the number of patterns, the number of patterns will be used instead.
 
 
-[[stream-reader]]
-=== Stream Reader
+[[_stream_reader]]
+== Stream Reader
 The {name} reads messages from a stream and publishes to a Kafka topic.
-Reading is done through a consumer group so that <<source-tasks,multiple instances>> of the connector configured via the `tasks.max` can consume messages in a round-robin fashion.
+Reading is done through a consumer group so that <<_source_tasks,multiple instances>> of the connector configured via the `tasks.max` can consume messages in a round-robin fashion.
 
 
-==== Stream Message Schema
+=== Message Schema
 
-===== Key Schema
+==== Key Schema
 
 Keys are of type String and contain the stream message id.
 
-===== Value Schema
+==== Value Schema
 
 The value schema defines the following fields:
 
@@ -67,7 +66,7 @@ The value schema defines the following fields:
 |body  |Map of STRING|Stream message body
 |====
 
-==== Configuration
+=== Configuration
 
 [source,properties]
 ----
@@ -92,3 +91,4 @@ For example, `redis_${stream}` and stream `orders` => topic `redis_orders`.
 
 //[[key-reader]]
 //include::_keyreader.adoc[]
+

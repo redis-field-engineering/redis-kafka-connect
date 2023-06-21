@@ -55,6 +55,7 @@ services:
 
   connect:
     image: fieldengineering/redis-kafka-connect
+    build: .
     hostname: connect
     container_name: connect
     depends_on:
