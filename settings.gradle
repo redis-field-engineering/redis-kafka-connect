@@ -78,6 +78,7 @@ enforce {
             "com.fasterxml.jackson.core:jackson-core:$jacksonVersion",
             "com.fasterxml.jackson.datatype:jackson-datatype-jdk8:$jacksonVersion",
             "org.testcontainers:testcontainers:$testcontainersVersion",
-            "org.testcontainers:junit-jupiter:$testcontainersVersion"
+            "org.testcontainers:junit-jupiter:$testcontainersVersion",
+            "com.google.guava:guava:$guavaVersion"
     }
 }

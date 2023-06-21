@@ -24,7 +24,9 @@ dependencies {
     implementation group: 'com.github.jcustenborder.kafka.connect', name: 'connect-utils', version: connectUtilsVersion
     implementation group: 'com.github.jcustenborder.kafka.connect', name: 'connect-utils-jackson', version: connectUtilsVersion
     
+    testImplementation group: 'com.github.jcustenborder.kafka.connect', name: 'connect-utils-testing', version: connectUtilsVersion
     testImplementation group: 'org.awaitility', name: 'awaitility', version: awaitilityVersion
+    testImplementation group: 'org.mockito', name: 'mockito-core', version: mockitoVersion
     testImplementation group: 'com.redis.testcontainers', name: 'testcontainers-redis-junit', version: testcontainersRedisVersion
 }
 
