@@ -38,3 +38,5 @@ jobs:
       tags: fieldengineering/redis-kafka-connect:latest,fieldengineering/redis-kafka-connect:${{ github.event.inputs.version }}
     secrets:
       github-token: ${{ secrets.GIT_ACCESS_TOKEN }}
+      docker-username: ${{ secrets.DOCKER_USERNAME }}
+      docker-password: ${{ secrets.DOCKER_PASSWORD }}
