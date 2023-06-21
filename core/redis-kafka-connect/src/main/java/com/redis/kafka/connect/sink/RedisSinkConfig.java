@@ -85,6 +85,10 @@ public class RedisSinkConfig extends RedisConfig {
 	public static final String PUSH_DIRECTION_DOC = "List push direction: " + PushDirection.LEFT + " (LPUSH) or "
 			+ PushDirection.RIGHT + " (RPUSH)";
 
+	public static final String KEY_SET_EXPIRE_CONFIG = "redis.set.expire.timeout";
+	public static final String KEY_SET_EXPIRE_DEFAULT = "0";
+	public static final String KEY_SET_EXPIRE_DOC = "Key expiration timeout in millis for SET command.";
+
 	private final Charset charset;
 	private final DataType type;
 	private final String keyspace;
@@ -93,6 +97,7 @@ public class RedisSinkConfig extends RedisConfig {
 	private final boolean multiexec;
 	private final int waitReplicas;
 	private final long waitTimeout;
+	private final long keySetExpireTimeout;
 
 	public RedisSinkConfig(Map<?, ?> originals) {
 		super(new RedisSinkConfigDef(), originals);
@@ -105,6 +110,7 @@ public class RedisSinkConfig extends RedisConfig {
 		multiexec = Boolean.TRUE.equals(getBoolean(MULTIEXEC_CONFIG));
 		waitReplicas = getInt(WAIT_REPLICAS_CONFIG);
 		waitTimeout = getLong(WAIT_TIMEOUT_CONFIG);
+		keySetExpireTimeout = getLong(KEY_SET_EXPIRE_CONFIG);
 	}
 
 	public Charset getCharset() {
@@ -139,6 +145,10 @@ public class RedisSinkConfig extends RedisConfig {
 		return waitTimeout;
 	}
 
+	public long getKeySetExpireTimeout() {
+		return keySetExpireTimeout;
+	}
+
 	public static class RedisSinkConfigDef extends RedisConfigDef {
 
 		public RedisSinkConfigDef() {
@@ -168,6 +178,8 @@ public class RedisSinkConfig extends RedisConfig {
 					.defaultValue(WAIT_REPLICAS_DEFAULT).importance(ConfigDef.Importance.MEDIUM).build());
 			define(ConfigKeyBuilder.of(WAIT_TIMEOUT_CONFIG, ConfigDef.Type.LONG).documentation(WAIT_TIMEOUT_DOC)
 					.defaultValue(WAIT_TIMEOUT_DEFAULT).importance(ConfigDef.Importance.MEDIUM).build());
+			define(ConfigKeyBuilder.of(KEY_SET_EXPIRE_CONFIG, ConfigDef.Type.LONG).documentation(KEY_SET_EXPIRE_DOC)
+					.defaultValue(KEY_SET_EXPIRE_DEFAULT).importance(ConfigDef.Importance.MEDIUM).build());
 		}
 
 		@Override
