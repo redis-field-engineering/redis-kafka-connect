@@ -1,0 +1,4 @@
+com.redis.kafka.connect
+com.redis.kafka.connect.common
+com.redis.kafka.connect.sink
+com.redis.kafka.connect.source

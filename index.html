@@ -1,58 +1,163 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
+<meta charset="utf-8">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="generator" content="Asciidoctor 2.0.10">
+<meta name="author" content="Julien Ruaux">
 <title>Redis Kafka Connector</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Open+Sans:300,300italic,400,400italic,600,600italic%7CNoto+Serif:400,400italic,700,700italic%7CDroid+Sans+Mono:400,700">
 <link rel="stylesheet" href="./asciidoctor.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+<style>
+.hidden {
+    display: none;
+}
+
+.switch {
+    border-width: 1px 1px 0 1px;
+    border-style: solid;
+    border-color: #7a2518;
+    display: inline-block;
+}
+
+.switch--item {
+    padding: 10px;
+    background-color: #ffffff;
+    color: #7a2518;
+    display: inline-block;
+    cursor: pointer;
+}
+
+.switch--item.selected {
+    background-color: #7a2519;
+    color: #ffffff;
+}
+
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/zepto/1.2.0/zepto.min.js"></script>
+<script type="text/javascript">
+function addBlockSwitches() {
+    $('.primary').each(function() {
+        primary = $(this);
+        createSwitchItem(primary, createBlockSwitch(primary)).item.addClass("selected");
+        primary.children('.title').remove();
+    });
+    $('.secondary').each(function(idx, node) {
+        secondary = $(node);
+        primary = findPrimary(secondary);
+        switchItem = createSwitchItem(secondary, primary.children('.switch'));
+        switchItem.content.addClass('hidden');
+        findPrimary(secondary).append(switchItem.content);
+        secondary.remove();
+    });
+}
+
+function createBlockSwitch(primary) {
+    blockSwitch = $('<div class="switch"></div>');
+    primary.prepend(blockSwitch);
+    return blockSwitch;
+}
+
+function findPrimary(secondary) {
+    candidate = secondary.prev();
+    while (!candidate.is('.primary')) {
+        candidate = candidate.prev();
+    }
+    return candidate;
+}
+
+function createSwitchItem(block, blockSwitch) {
+    blockName = block.children('.title').text();
+    content = block.children('.content').first().append(block.next('.colist'));
+    item = $('<div class="switch--item">' + blockName + '</div>');
+    item.on('click', '', content, function(e) {
+        $(this).addClass('selected');
+        $(this).siblings().removeClass('selected');
+        e.data.siblings('.content').addClass('hidden');
+        e.data.removeClass('hidden');
+    });
+    blockSwitch.append(item);
+    return {'item': item, 'content': content};
+}
+
+$(addBlockSwitches);
+
+</script>
+
 </head>
-<body class="article toc2 toc-left">
+<body class="book toc2 toc-left">
 <div id="header">
 <h1>Redis Kafka Connector</h1>
 <div class="details">
-<span id="revnumber">version 7.4</span>
+<span id="author" class="author">Julien Ruaux</span><br>
+<span id="revnumber">version 0.7.5</span>
 </div>
 <div id="toc" class="toc2">
 <div id="toctitle">Table of Contents</div>
 <ul class="sectlevel1">
-<li><a href="#introduction">1. Introduction</a></li>
-<li><a href="#install">2. Install</a>
+<li><a href="#_introduction">1. Introduction</a></li>
+<li><a href="#_install">2. Install</a>
 <ul class="sectlevel2">
-<li><a href="#download">2.1. Download</a></li>
-<li><a href="#confluent-hub">2.2. Confluent Hub</a></li>
-<li><a href="#manually">2.3. Manually</a></li>
+<li><a href="#_download">2.1. Download</a></li>
+<li><a href="#_confluent_hub">2.2. Confluent Hub</a></li>
+<li><a href="#_manually">2.3. Manually</a></li>
 </ul>
 </li>
-<li><a href="#connect">3. Connect to Redis</a>
+<li><a href="#_connect">3. Connect to Redis</a></li>
+<li><a href="#_sink">4. Sink Connector Guide</a>
 <ul class="sectlevel2">
-<li><a href="#configuration">3.1. Configuration</a></li>
+<li><a href="#_sink_at_least_once_delivery">4.1. At least once delivery</a></li>
+<li><a href="#_sink_tasks">4.2. Multiple tasks</a></li>
+<li><a href="#_sink_data_structures">4.3. Redis Data Structures</a>
+<ul class="sectlevel3">
+<li><a href="#_sink_hash">4.3.1. Hash</a></li>
+<li><a href="#_sink_string">4.3.2. String</a></li>
+<li><a href="#_sink_json">4.3.3. JSON</a></li>
+<li><a href="#_sink_stream">4.3.4. Stream</a></li>
+<li><a href="#_sink_list">4.3.5. List</a></li>
+<li><a href="#_sink_set">4.3.6. Set</a></li>
+<li><a href="#_sink_zset">4.3.7. Sorted Set</a></li>
+<li><a href="#_sink_timeseries">4.3.8. Time Series</a></li>
 </ul>
 </li>
-<li><a href="#sink">4. Sink Connector Guide</a>
-<ul class="sectlevel2">
-<li><a href="#features">4.1. Features</a></li>
+<li><a href="#_sink_data_formats">4.4. Data Formats</a>
+<ul class="sectlevel3">
+<li><a href="#_kafka_record_keys">4.4.1. Kafka Record Keys</a></li>
+<li><a href="#_kafka_record_values">4.4.2. Kafka Record Values</a></li>
 </ul>
 </li>
-<li><a href="#source">5. Source Connector Guide</a>
-<ul class="sectlevel2">
-<li><a href="#features-2">5.1. Features</a></li>
 </ul>
 </li>
-<li><a href="#docker">6. Quick Start with Docker</a>
+<li><a href="#_source">5. Source Connector Guide</a>
 <ul class="sectlevel2">
-<li><a href="#requirements">6.1. Requirements</a></li>
-<li><a href="#run-the-example">6.2. Run the example</a></li>
+<li><a href="#_delivery_guarantees">5.1. Delivery Guarantees</a>
+<ul class="sectlevel3">
+<li><a href="#_source_at_least_once_delivery">5.1.1. At-Least-Once</a></li>
+<li><a href="#_source_at_most_once_delivery">5.1.2. At-Most-Once</a></li>
 </ul>
 </li>
-<li><a href="#resources">7. Resources</a>
+<li><a href="#_source_tasks">5.2. Multiple Tasks</a></li>
+<li><a href="#_stream_reader">5.3. Stream Reader</a>
+<ul class="sectlevel3">
+<li><a href="#_message_schema">5.3.1. Message Schema</a></li>
+<li><a href="#_configuration">5.3.2. Configuration</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a href="#_docker">6. Quick Start with Docker</a>
 <ul class="sectlevel2">
-<li><a href="#kafka">7.1. Kafka</a></li>
-<li><a href="#kafka-connect">7.2. Kafka Connect</a></li>
-<li><a href="#redis">7.3. Redis</a></li>
+<li><a href="#_requirements">6.1. Requirements</a></li>
+<li><a href="#_run_the_example">6.2. Run the example</a></li>
+</ul>
+</li>
+<li><a href="#_resources">7. Resources</a>
+<ul class="sectlevel2">
+<li><a href="#_kafka">7.1. Kafka</a></li>
+<li><a href="#_kafka_connect">7.2. Kafka Connect</a></li>
+<li><a href="#_redis">7.3. Redis</a></li>
 </ul>
 </li>
 </ul>
@@ -60,10 +165,10 @@
 </div>
 <div id="content">
 <div class="sect1">
-<h2 id="introduction"><a class="anchor" href="#introduction"></a>1. Introduction</h2>
+<h2 id="_introduction"><a class="anchor" href="#_introduction"></a>1. Introduction</h2>
 <div class="sectionbody">
 <div class="paragraph">
-<p>The Redis Kafka Connector is used to import and export data between Apache Kafka and Redis.</p>
+<p>Redis Kafka Connector is used to import and export data between Apache Kafka and Redis.</p>
 </div>
 <div class="paragraph">
 <p><span class="image"><img src="images/redis-kafka-connector.svg" alt="redis kafka connector"></span></p>
@@ -74,79 +179,54 @@
 <div class="ulist">
 <ul>
 <li>
-<p><a href="#install">Install</a></p>
+<p><a href="#_install">Install</a></p>
 </li>
 <li>
-<p><a href="#connect">Connect to Redis</a></p>
+<p><a href="#_connect">Connect to Redis</a></p>
 </li>
 <li>
-<p><a href="#sink">Sink Connector</a></p>
+<p><a href="#_sink">Sink Connector</a></p>
 </li>
 <li>
-<p><a href="#source">Source Connector</a></p>
+<p><a href="#_source">Source Connector</a></p>
 </li>
 <li>
-<p><a href="#docker">Docker Example</a></p>
+<p><a href="#_docker">Docker Example</a></p>
 </li>
 <li>
-<p><a href="#resources">Resources</a></p>
+<p><a href="#_resources">Resources</a></p>
 </li>
 </ul>
 </div>
 </div>
 </div>
 <div class="sect1">
-<h2 id="install"><a class="anchor" href="#install"></a>2. Install</h2>
+<h2 id="_install"><a class="anchor" href="#_install"></a>2. Install</h2>
 <div class="sectionbody">
 <div class="paragraph">
-<p>Select one of the methods below to install {name}.</p>
+<p>Select one of the methods below to install Redis Kafka Connector.</p>
 </div>
 <div class="sect2">
-<h3 id="download"><a class="anchor" href="#download"></a>2.1. Download</h3>
+<h3 id="_download"><a class="anchor" href="#_download"></a>2.1. Download</h3>
 <div class="paragraph">
-<p>Download the latest release archive from <a href="https://github.com/redis-field-engineering/redis-kafka-connect/releases">here</a>.</p>
-</div>
-<div class="admonitionblock important">
-<table>
-<tr>
-<td class="icon">
-<i class="fa icon-important" title="Important"></i>
-</td>
-<td class="content">
-<div class="title">Confluent Platform Version</div>
-<div class="paragraph">
-<p>Download the connector archive that matches your version of Confluent Platform:</p>
-</div>
-<div class="ulist">
-<ul>
-<li>
-<p>Confluent Platform 5.0+: <code>redis-redis-enterprise-kafka-<strong>5</strong>.7.4.zip</code></p>
-</li>
-<li>
-<p>Confluent Platform 6.0+: <code>redis-redis-enterprise-kafka-<strong>6</strong>.7.4.zip</code></p>
-</li>
-</ul>
-</div>
-</td>
-</tr>
-</table>
+<p>Download the latest release archive from <a href="https://github.com/{github-owner}/{github-repo}/releases">here</a>.</p>
 </div>
 </div>
 <div class="sect2">
-<h3 id="confluent-hub"><a class="anchor" href="#confluent-hub"></a>2.2. Confluent Hub</h3>
+<h3 id="_confluent_hub"><a class="anchor" href="#_confluent_hub"></a>2.2. Confluent Hub</h3>
 <div class="olist arabic">
 <ol class="arabic">
 <li>
 <p>Install the <a href="https://docs.confluent.io/current/connect/managing/confluent-hub/client.html">Confluent Hub Client</a></p>
 </li>
 <li>
-<p>Install the Redis Kafka Connector using the Confluent Hub Client</p>
+<p>Install the redis-kafka-connect using the Confluent Hub Client</p>
 </li>
 </ol>
 </div>
 </div>
 <div class="sect2">
-<h3 id="manually"><a class="anchor" href="#manually"></a>2.3. Manually</h3>
+<h3 id="_manually"><a class="anchor" href="#_manually"></a>2.3. Manually</h3>
 <div class="paragraph">
 <p>Follow the instructions in <a href="https://docs.confluent.io/home/connect/community.html#manually-installing-community-connectors/">Manually Installing Community Connectors</a></p>
 </div>
@@ -154,23 +234,21 @@
 </div>
 </div>
 <div class="sect1">
-<h2 id="connect"><a class="anchor" href="#connect"></a>3. Connect to Redis</h2>
+<h2 id="_connect"><a class="anchor" href="#_connect"></a>3. Connect to Redis</h2>
 <div class="sectionbody">
 <div class="paragraph">
 <p>This section provides information on configuring the Redis Kafka Source or Sink Connector.</p>
 </div>
-<div class="sect2">
-<h3 id="configuration"><a class="anchor" href="#configuration"></a>3.1. Configuration</h3>
 <div class="paragraph">
 <p>Specify the Redis URI in the <code>redis.uri</code> property, for example:</p>
 </div>
 <div class="listingblock">
 <div class="content">
-<pre class="CodeRay highlight"><code data-lang="properties">redis.uri=redis://redis-12000.redis.com:12000</code></pre>
+<pre class="prettyprint highlight"><code data-lang="properties">redis.uri=redis://redis-12000.redis.com:12000</code></pre>
 </div>
 </div>
 <div class="paragraph">
-<p>Details on the <a href="https://github.com/lettuce-io/lettuce-core/wiki/Redis-URI-and-connection-details#uri-syntax">Redis URI syntax</a> can be found in the Lettuce project <a href="https://github.com/lettuce-io/lettuce-core/wiki">wiki</a>.</p>
+<p>For Redis URI syntax see <a href="https://github.com/lettuce-io/lettuce-core/wiki/Redis-URI-and-connection-details#uri-syntax">Redis URI Syntax</a>.</p>
 </div>
 <div class="paragraph">
 <p>TLS connection URIs start with <code>rediss://</code>.
@@ -178,7 +256,7 @@ To disable certificate verification for TLS connections use the following proper
 </div>
 <div class="listingblock">
 <div class="content">
-<pre class="CodeRay highlight"><code data-lang="properties">redis.insecure=true</code></pre>
+<pre class="prettyprint highlight"><code data-lang="properties">redis.insecure=true</code></pre>
 </div>
 </div>
 <div class="paragraph">
@@ -186,62 +264,57 @@ To disable certificate verification for TLS connections use the following proper
 </div>
 <div class="listingblock">
 <div class="content">
-<pre class="CodeRay highlight"><code data-lang="properties">redis.username=user1
+<pre class="prettyprint highlight"><code data-lang="properties">redis.username=user1
 redis.password=pass</code></pre>
 </div>
 </div>
 </div>
 </div>
-</div>
 <div class="sect1">
-<h2 id="sink"><a class="anchor" href="#sink"></a>4. Sink Connector Guide</h2>
+<h2 id="_sink"><a class="anchor" href="#_sink"></a>4. Sink Connector Guide</h2>
 <div class="sectionbody">
 <div class="paragraph">
-<p>The Redis Kafka Sink Connector consumes records from a Kafka topic and writes the data to Redis.</p>
-</div>
-<div class="sect2">
-<h3 id="features"><a class="anchor" href="#features"></a>4.1. Features</h3>
-<div class="paragraph">
-<p>The Redis Kafka Sink Connector includes the following features:</p>
+<p>The Redis Kafka Sink Connector consumes records from a Kafka topic and writes the data to Redis.
+It includes the following features:</p>
 </div>
 <div class="ulist">
 <ul>
 <li>
-<p><a href="#sink-at-least-once-delivery">At least once delivery</a></p>
+<p><a href="#_sink_at_least_once_delivery">At least once delivery</a></p>
 </li>
 <li>
-<p><a href="#sink-tasks">Multiple tasks</a></p>
+<p><a href="#_sink_tasks">Multiple tasks</a></p>
 </li>
 <li>
-<p><a href="#data-structures">Redis Data Structures</a></p>
+<p><a href="#_sink_data_structures">Redis Data Structures</a></p>
 </li>
 <li>
-<p><a href="#data-formats">Supported Data Formats</a></p>
+<p><a href="#_sink_data_formats">Supported Data Formats</a></p>
 </li>
 </ul>
 </div>
-<div class="sect3">
-<h4 id="sink-at-least-once-delivery"><a class="anchor" href="#sink-at-least-once-delivery"></a>4.1.1. At least once delivery</h4>
+<div class="sect2">
+<h3 id="_sink_at_least_once_delivery"><a class="anchor" href="#_sink_at_least_once_delivery"></a>4.1. At least once delivery</h3>
 <div class="paragraph">
 <p>The Redis Kafka Sink Connector guarantees that records from the Kafka topic are delivered at least once.</p>
 </div>
 </div>
-<div class="sect3">
-<h4 id="sink-tasks"><a class="anchor" href="#sink-tasks"></a>4.1.2. Multiples tasks</h4>
+<div class="sect2">
+<h3 id="_sink_tasks"><a class="anchor" href="#_sink_tasks"></a>4.2. Multiple tasks</h3>
 <div class="paragraph">
 <p>The Redis Kafka Sink Connector supports running one or more tasks.
 You can specify the number of tasks with the <code>tasks.max</code> configuration property.</p>
 </div>
 </div>
-<div class="sect3">
-<h4 id="data-structures"><a class="anchor" href="#data-structures"></a>4.1.3. Redis Data Structures</h4>
+<div class="sect2">
+<h3 id="_sink_data_structures"><a class="anchor" href="#_sink_data_structures"></a>4.3. Redis Data Structures</h3>
 <div class="paragraph">
 <p>The Redis Kafka Sink Connector supports the following Redis data-structure types as targets:</p>
 </div>
-<div id="collection-key" class="ulist">
+<div id="_collection_key" class="ulist">
 <ul>
 <li>
-<p>Collections: <a href="#sync-stream">stream</a>, <a href="#sync-list">list</a>, <a href="#sync-set">set</a>, <a href="#sync-zset">sorted set</a>, <a href="#sync-timeseries">time series</a></p>
+<p>Collections: <a href="#_sink_stream">stream</a>, <a href="#_sink_list">list</a>, <a href="#_sink_set">set</a>, <a href="#_sink_zset">sorted set</a>, <a href="#_sink_timeseries">time series</a></p>
 <div class="paragraph">
 <p>Collection keys are generated using the <code>redis.key</code> configuration property which may contain <code>${topic}</code> (default) as a placeholder for the originating topic name.</p>
 </div>
@@ -250,7 +323,7 @@ You can specify the number of tasks with the <code>tasks.max</code> configuratio
 </div>
 </li>
 <li>
-<p><a href="#sync-hash">Hash</a>, <a href="#sync-string">string</a>, <a href="#sync-json">JSON</a></p>
+<p><a href="#_sink_hash">Hash</a>, <a href="#_sink_string">string</a>, <a href="#_sink_json">JSON</a></p>
 <div class="paragraph">
 <p>For other data-structures the key is in the form <code>&lt;keyspace&gt;:&lt;record_key&gt;</code> where <code>keyspace</code> is generated using the <code>redis.key</code> configuration property like above and <code>record_key</code> is the sink record key.</p>
 </div>
@@ -260,14 +333,14 @@ You can specify the number of tasks with the <code>tasks.max</code> configuratio
 </li>
 </ul>
 </div>
-<div class="sect4">
-<h5 id="sync-hash"><a class="anchor" href="#sync-hash"></a>Hash</h5>
+<div class="sect3">
+<h4 id="_sink_hash"><a class="anchor" href="#_sink_hash"></a>4.3.1. Hash</h4>
 <div class="paragraph">
 <p>Use the following properties to write Kafka records as Redis hashes:</p>
 </div>
 <div class="listingblock">
 <div class="content">
-<pre class="CodeRay highlight"><code data-lang="properties">redis.type=HASH
+<pre class="prettyprint highlight"><code data-lang="properties">redis.type=HASH
 key.converter=&lt;string or bytes&gt; <i class="conum" data-value="1"></i><b>(1)</b>
 value.converter=&lt;Avro or JSON&gt; <i class="conum" data-value="2"></i><b>(2)</b></code></pre>
 </div>
@@ -276,24 +349,24 @@ value.converter=&lt;Avro or JSON&gt; <i class="conum" data-value="2"></i><b>(2)<
 <table>
 <tr>
 <td><i class="conum" data-value="1"></i><b>1</b></td>
-<td><a href="#key-string">String</a> or <a href="#key-bytes">bytes</a></td>
+<td><a href="#_key_string">String</a> or <a href="#_key_bytes">bytes</a></td>
 </tr>
 <tr>
 <td><i class="conum" data-value="2"></i><b>2</b></td>
-<td><a href="#avro">Avro</a> or <a href="#kafka-json">JSON</a>.
+<td><a href="#_avro">Avro</a> or <a href="#_kafka_json">JSON</a>.
 If value is null the key is deleted.</td>
 </tr>
 </table>
 </div>
 </div>
-<div class="sect4">
-<h5 id="sync-string"><a class="anchor" href="#sync-string"></a>String</h5>
+<div class="sect3">
+<h4 id="_sink_string"><a class="anchor" href="#_sink_string"></a>4.3.2. String</h4>
 <div class="paragraph">
 <p>Use the following properties to write Kafka records as Redis strings:</p>
 </div>
 <div class="listingblock">
 <div class="content">
-<pre class="CodeRay highlight"><code data-lang="properties">redis.type=STRING
+<pre class="prettyprint highlight"><code data-lang="properties">redis.type=STRING
 key.converter=&lt;string or bytes&gt; <i class="conum" data-value="1"></i><b>(1)</b>
 value.converter=&lt;string or bytes&gt; <i class="conum" data-value="2"></i><b>(2)</b></code></pre>
 </div>
@@ -302,24 +375,24 @@ value.converter=&lt;string or bytes&gt; <i class="conum" data-value="2"></i><b>(
 <table>
 <tr>
 <td><i class="conum" data-value="1"></i><b>1</b></td>
-<td><a href="#key-string">String</a> or <a href="#key-bytes">bytes</a></td>
+<td><a href="#_key_string">String</a> or <a href="#_key_bytes">bytes</a></td>
 </tr>
 <tr>
 <td><i class="conum" data-value="2"></i><b>2</b></td>
-<td><a href="#value-string">String</a> or <a href="#value-bytes">bytes</a>.
+<td><a href="#_value_string">String</a> or <a href="#_value_bytes">bytes</a>.
 If value is null the key is deleted.</td>
 </tr>
 </table>
 </div>
 </div>
-<div class="sect4">
-<h5 id="sync-json"><a class="anchor" href="#sync-json"></a>JSON</h5>
+<div class="sect3">
+<h4 id="_sink_json"><a class="anchor" href="#_sink_json"></a>4.3.3. JSON</h4>
 <div class="paragraph">
 <p>Use the following properties to write Kafka records as RedisJSON documents:</p>
 </div>
 <div class="listingblock">
 <div class="content">
-<pre class="CodeRay highlight"><code data-lang="properties">redis.type=JSON
+<pre class="prettyprint highlight"><code data-lang="properties">redis.type=JSON
 key.converter=&lt;string, bytes, or Avro&gt; <i class="conum" data-value="1"></i><b>(1)</b>
 value.converter=&lt;string, bytes, or Avro&gt; <i class="conum" data-value="2"></i><b>(2)</b></code></pre>
 </div>
@@ -328,24 +401,24 @@ value.converter=&lt;string, bytes, or Avro&gt; <i class="conum" data-value="2"><
 <table>
 <tr>
 <td><i class="conum" data-value="1"></i><b>1</b></td>
-<td><a href="#key-string">String</a>, <a href="#key-bytes">bytes</a>, or <a href="#avro">Avro</a></td>
+<td><a href="#_key_string">String</a>, <a href="#_key_bytes">bytes</a>, or <a href="#_avro">Avro</a></td>
 </tr>
 <tr>
 <td><i class="conum" data-value="2"></i><b>2</b></td>
-<td><a href="#value-string">String</a>, <a href="#value-bytes">bytes</a>, or <a href="#avro">Avro</a>.
+<td><a href="#_value_string">String</a>, <a href="#_value_bytes">bytes</a>, or <a href="#_avro">Avro</a>.
 If value is null the key is deleted.</td>
 </tr>
 </table>
 </div>
 </div>
-<div class="sect4">
-<h5 id="sync-stream"><a class="anchor" href="#sync-stream"></a>Stream</h5>
+<div class="sect3">
+<h4 id="_sink_stream"><a class="anchor" href="#_sink_stream"></a>4.3.4. Stream</h4>
 <div class="paragraph">
 <p>Use the following properties to store Kafka records as Redis stream messages:</p>
 </div>
 <div class="listingblock">
 <div class="content">
-<pre class="CodeRay highlight"><code data-lang="properties">redis.type=STREAM
+<pre class="prettyprint highlight"><code data-lang="properties">redis.type=STREAM
 redis.key=&lt;stream key&gt; <i class="conum" data-value="1"></i><b>(1)</b>
 value.converter=&lt;Avro or JSON&gt; <i class="conum" data-value="2"></i><b>(2)</b></code></pre>
 </div>
@@ -354,115 +427,88 @@ value.converter=&lt;Avro or JSON&gt; <i class="conum" data-value="2"></i><b>(2)<
 <table>
 <tr>
 <td><i class="conum" data-value="1"></i><b>1</b></td>
-<td><a href="#collection-key">Stream key</a></td>
+<td><a href="#_collection_key">Stream key</a></td>
 </tr>
 <tr>
 <td><i class="conum" data-value="2"></i><b>2</b></td>
-<td><a href="#avro">Avro</a> or <a href="#kafka-json">JSON</a></td>
+<td><a href="#_avro">Avro</a> or <a href="#_kafka_json">JSON</a></td>
 </tr>
 </table>
 </div>
 </div>
-<div class="sect4">
-<h5 id="sync-list"><a class="anchor" href="#sync-list"></a>List</h5>
+<div class="sect3">
+<h4 id="_sink_list"><a class="anchor" href="#_sink_list"></a>4.3.5. List</h4>
 <div class="paragraph">
 <p>Use the following properties to add Kafka record keys to a Redis list:</p>
 </div>
 <div class="listingblock">
 <div class="content">
-<pre class="CodeRay highlight"><code data-lang="properties">redis.type=LIST
+<pre class="prettyprint highlight"><code data-lang="properties">redis.type=LIST
 redis.key=&lt;key name&gt; <i class="conum" data-value="1"></i><b>(1)</b>
 key.converter=&lt;string or bytes&gt; <i class="conum" data-value="2"></i><b>(2)</b>
 redis.push.direction=&lt;LEFT or RIGHT&gt; <i class="conum" data-value="3"></i><b>(3)</b></code></pre>
 </div>
 </div>
-<div class="colist arabic">
-<table>
-<tr>
-<td><i class="conum" data-value="1"></i><b>1</b></td>
-<td><a href="#collection-key">List key</a></td>
-</tr>
-<tr>
-<td><i class="conum" data-value="2"></i><b>2</b></td>
-<td><a href="#key-string">String</a> or <a href="#key-bytes">bytes</a>: Kafka record keys to push to the list</td>
-</tr>
-<tr>
-<td><i class="conum" data-value="3"></i><b>3</b></td>
-<td><code>LEFT</code>: LPUSH (default), <code>RIGHT</code>: RPUSH</td>
-</tr>
-</table>
+<div class="paragraph">
+<p>&lt;1&gt;<a href="#_collection_key">List key</a>
+&lt;2&gt; <a href="#_key_string">String</a> or <a href="#_key_bytes">bytes</a>: Kafka record keys to push to the list
+&lt;3&gt; <code>LEFT</code>: LPUSH (default), <code>RIGHT</code>: RPUSH</p>
 </div>
 <div class="paragraph">
 <p>The Kafka record value can be any format.
 If a value is null then the member is removed from the list (instead of pushed to the list).</p>
 </div>
 </div>
-<div class="sect4">
-<h5 id="sync-set"><a class="anchor" href="#sync-set"></a>Set</h5>
+<div class="sect3">
+<h4 id="_sink_set"><a class="anchor" href="#_sink_set"></a>4.3.6. Set</h4>
 <div class="paragraph">
 <p>Use the following properties to add Kafka record keys to a Redis set:</p>
 </div>
 <div class="listingblock">
 <div class="content">
-<pre class="CodeRay highlight"><code data-lang="properties">redis.type=SET
+<pre class="prettyprint highlight"><code data-lang="properties">redis.type=SET
 redis.key=&lt;key name&gt; <i class="conum" data-value="1"></i><b>(1)</b>
 key.converter=&lt;string or bytes&gt; <i class="conum" data-value="2"></i><b>(2)</b></code></pre>
 </div>
 </div>
-<div class="colist arabic">
-<table>
-<tr>
-<td><i class="conum" data-value="1"></i><b>1</b></td>
-<td><a href="#collection-key">Set key</a></td>
-</tr>
-<tr>
-<td><i class="conum" data-value="2"></i><b>2</b></td>
-<td><a href="#key-string">String</a> or <a href="#key-bytes">bytes</a>: Kafka record keys to add to the set</td>
-</tr>
-</table>
+<div class="paragraph">
+<p>&lt;1&gt;<a href="#_collection_key">Set key</a>
+&lt;2&gt; <a href="#_key_string">String</a> or <a href="#_key_bytes">bytes</a>: Kafka record keys to add to the set</p>
 </div>
 <div class="paragraph">
 <p>The Kafka record value can be any format.
 If a value is null then the member is removed from the set (instead of added to the set).</p>
 </div>
 </div>
-<div class="sect4">
-<h5 id="sync-zset"><a class="anchor" href="#sync-zset"></a>Sorted Set</h5>
+<div class="sect3">
+<h4 id="_sink_zset"><a class="anchor" href="#_sink_zset"></a>4.3.7. Sorted Set</h4>
 <div class="paragraph">
 <p>Use the following properties to add Kafka record keys to a Redis sorted set:</p>
 </div>
 <div class="listingblock">
 <div class="content">
-<pre class="CodeRay highlight"><code data-lang="properties">redis.type=ZSET
+<pre class="prettyprint highlight"><code data-lang="properties">redis.type=ZSET
 redis.key=&lt;key name&gt; <i class="conum" data-value="1"></i><b>(1)</b>
 key.converter=&lt;string or bytes&gt; <i class="conum" data-value="2"></i><b>(2)</b></code></pre>
 </div>
 </div>
-<div class="colist arabic">
-<table>
-<tr>
-<td><i class="conum" data-value="1"></i><b>1</b></td>
-<td><a href="#collection-key">Sorted set key</a></td>
-</tr>
-<tr>
-<td><i class="conum" data-value="2"></i><b>2</b></td>
-<td><a href="#key-string">String</a> or <a href="#key-bytes">bytes</a>: Kafka record keys to add to the set</td>
-</tr>
-</table>
+<div class="paragraph">
+<p>&lt;1&gt;<a href="#_collection_key">Sorted set key</a>
+&lt;2&gt; <a href="#_key_string">String</a> or <a href="#_key_bytes">bytes</a>: Kafka record keys to add to the set</p>
 </div>
 <div class="paragraph">
 <p>The Kafka record value should be <code>float64</code> and is used for the score.
 If the score is null then the member is removed from the sorted set (instead of added to the sorted set).</p>
 </div>
 </div>
-<div class="sect4">
-<h5 id="sync-timeseries"><a class="anchor" href="#sync-timeseries"></a>Time Series</h5>
+<div class="sect3">
+<h4 id="_sink_timeseries"><a class="anchor" href="#_sink_timeseries"></a>4.3.8. Time Series</h4>
 <div class="paragraph">
 <p>Use the following properties to write Kafka records as RedisTimeSeries samples:</p>
 </div>
 <div class="listingblock">
 <div class="content">
-<pre class="CodeRay highlight"><code data-lang="properties">redis.type=TIMESERIES
+<pre class="prettyprint highlight"><code data-lang="properties">redis.type=TIMESERIES
 redis.key=&lt;key name&gt; <i class="conum" data-value="1"></i><b>(1)</b></code></pre>
 </div>
 </div>
@@ -470,7 +516,7 @@ redis.key=&lt;key name&gt; <i class="conum" data-value="1"></i><b>(1)</b></code>
 <table>
 <tr>
 <td><i class="conum" data-value="1"></i><b>1</b></td>
-<td><a href="#collection-key">Timeseries key</a></td>
+<td><a href="#_collection_key">Timeseries key</a></td>
 </tr>
 </table>
 </div>
@@ -482,15 +528,15 @@ redis.key=&lt;key name&gt; <i class="conum" data-value="1"></i><b>(1)</b></code>
 </div>
 </div>
 </div>
-<div class="sect3">
-<h4 id="data-formats"><a class="anchor" href="#data-formats"></a>4.1.4. Data Formats</h4>
+<div class="sect2">
+<h3 id="_sink_data_formats"><a class="anchor" href="#_sink_data_formats"></a>4.4. Data Formats</h3>
 <div class="paragraph">
 <p>The Redis Kafka Sink Connector supports different data formats for record keys and values depending on the target Redis data structure.</p>
 </div>
-<div class="sect4">
-<h5 id="kafka-record-keys"><a class="anchor" href="#kafka-record-keys"></a>Kafka Record Keys</h5>
+<div class="sect3">
+<h4 id="_kafka_record_keys"><a class="anchor" href="#_kafka_record_keys"></a>4.4.1. Kafka Record Keys</h4>
 <div class="paragraph">
-<p>The Redis Kafka Sink Connector expects Kafka record keys in a specific format depending on the configured target <a href="#data-structures">Redis data structure</a>:</p>
+<p>The Redis Kafka Sink Connector expects Kafka record keys in a specific format depending on the configured target <a href="#_sink_data_structures">Redis data structure</a>:</p>
 </div>
 <table class="tableblock frame-all grid-all stretch">
 <colgroup>
@@ -518,27 +564,27 @@ redis.key=&lt;key name&gt; <i class="conum" data-value="1"></i><b>(1)</b></code>
 </tr>
 <tr>
 <th class="tableblock halign-left valign-top"><p class="tableblock">String</p></th>
-<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="#key-string">String</a> or <a href="#key-bytes">bytes</a></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="#_key_string">String</a> or <a href="#_key_bytes">bytes</a></p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Key</p></td>
 </tr>
 <tr>
 <th class="tableblock halign-left valign-top"><p class="tableblock">List</p></th>
-<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="#key-string">String</a> or <a href="#key-bytes">bytes</a></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="#_key_string">String</a> or <a href="#_key_bytes">bytes</a></p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Member</p></td>
 </tr>
 <tr>
 <th class="tableblock halign-left valign-top"><p class="tableblock">Set</p></th>
-<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="#key-string">String</a> or <a href="#key-bytes">bytes</a></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="#_key_string">String</a> or <a href="#_key_bytes">bytes</a></p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Member</p></td>
 </tr>
 <tr>
 <th class="tableblock halign-left valign-top"><p class="tableblock">Sorted Set</p></th>
-<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="#key-string">String</a> or <a href="#key-bytes">bytes</a></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="#_key_string">String</a> or <a href="#_key_bytes">bytes</a></p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Member</p></td>
 </tr>
 <tr>
 <th class="tableblock halign-left valign-top"><p class="tableblock">JSON</p></th>
-<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="#key-string">String</a> or <a href="#key-bytes">bytes</a></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="#_key_string">String</a> or <a href="#_key_bytes">bytes</a></p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Key</p></td>
 </tr>
 <tr>
@@ -548,33 +594,33 @@ redis.key=&lt;key name&gt; <i class="conum" data-value="1"></i><b>(1)</b></code>
 </tr>
 </tbody>
 </table>
-<div class="sect5">
-<h6 id="key-string"><a class="anchor" href="#key-string"></a>StringConverter</h6>
+<div class="sect4">
+<h5 id="_key_string"><a class="anchor" href="#_key_string"></a>StringConverter</h5>
 <div class="paragraph">
 <p>If record keys are already serialized as strings use the StringConverter:</p>
 </div>
 <div class="listingblock">
 <div class="content">
-<pre class="CodeRay highlight"><code data-lang="properties">key.converter=org.apache.kafka.connect.storage.StringConverter</code></pre>
+<pre class="prettyprint highlight"><code data-lang="properties">key.converter=org.apache.kafka.connect.storage.StringConverter</code></pre>
 </div>
 </div>
 </div>
-<div class="sect5">
-<h6 id="key-bytes"><a class="anchor" href="#key-bytes"></a>ByteArrayConverter</h6>
+<div class="sect4">
+<h5 id="_key_bytes"><a class="anchor" href="#_key_bytes"></a>ByteArrayConverter</h5>
 <div class="paragraph">
 <p>Use the byte array converter to use the binary serialized form of the Kafka record keys:</p>
 </div>
 <div class="listingblock">
 <div class="content">
-<pre class="CodeRay highlight"><code data-lang="properties">key.converter=org.apache.kafka.connect.converters.ByteArrayConverter</code></pre>
+<pre class="prettyprint highlight"><code data-lang="properties">key.converter=org.apache.kafka.connect.converters.ByteArrayConverter</code></pre>
 </div>
 </div>
 </div>
 </div>
-<div class="sect4">
-<h5 id="kafka-record-values"><a class="anchor" href="#kafka-record-values"></a>Kafka Record Values</h5>
+<div class="sect3">
+<h4 id="_kafka_record_values"><a class="anchor" href="#_kafka_record_values"></a>4.4.2. Kafka Record Values</h4>
 <div class="paragraph">
-<p>Multiple data formats are supported for Kafka record values depending on the configured target <a href="#data-structures">Redis data structure</a>.
+<p>Multiple data formats are supported for Kafka record values depending on the configured target <a href="#_sink_data_structures">Redis data structure</a>.
 Each data structure expects a specific format.
 If your data in Kafka is not in the format expected for a given data structure, consider using <a href="https://docs.confluent.io/platform/current/connect/transforms/overview.html">Single Message Transformations</a> to convert to a byte array, string, Struct, or map before it is written to Redis.</p>
 </div>
@@ -594,17 +640,17 @@ If your data in Kafka is not in the format expected for a given data structure, 
 <tbody>
 <tr>
 <th class="tableblock halign-left valign-top"><p class="tableblock">Stream</p></th>
-<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="#avro">Avro</a> or <a href="#kafka-json">JSON</a></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="#_avro">Avro</a> or <a href="#_kafka_json">JSON</a></p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Message body</p></td>
 </tr>
 <tr>
 <th class="tableblock halign-left valign-top"><p class="tableblock">Hash</p></th>
-<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="#avro">Avro</a> or <a href="#kafka-json">JSON</a></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="#_avro">Avro</a> or <a href="#_kafka_json">JSON</a></p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Fields</p></td>
 </tr>
 <tr>
 <th class="tableblock halign-left valign-top"><p class="tableblock">String</p></th>
-<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="#value-string">String</a> or <a href="#value-bytes">bytes</a></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="#_value_string">String</a> or <a href="#_value_bytes">bytes</a></p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Value</p></td>
 </tr>
 <tr>
@@ -624,7 +670,7 @@ If your data in Kafka is not in the format expected for a given data structure, 
 </tr>
 <tr>
 <th class="tableblock halign-left valign-top"><p class="tableblock">JSON</p></th>
-<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="#value-string">String</a> or <a href="#value-bytes">bytes</a></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="#_value_string">String</a> or <a href="#_value_bytes">bytes</a></p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Value</p></td>
 </tr>
 <tr>
@@ -634,42 +680,42 @@ If your data in Kafka is not in the format expected for a given data structure, 
 </tr>
 </tbody>
 </table>
-<div class="sect5">
-<h6 id="value-string"><a class="anchor" href="#value-string"></a>StringConverter</h6>
+<div class="sect4">
+<h5 id="_value_string"><a class="anchor" href="#_value_string"></a>StringConverter</h5>
 <div class="paragraph">
 <p>If record values are already serialized as strings, use the StringConverter to store values in Redis as strings:</p>
 </div>
 <div class="listingblock">
 <div class="content">
-<pre class="CodeRay highlight"><code data-lang="properties">value.converter=org.apache.kafka.connect.storage.StringConverter</code></pre>
+<pre class="prettyprint highlight"><code data-lang="properties">value.converter=org.apache.kafka.connect.storage.StringConverter</code></pre>
 </div>
 </div>
 </div>
-<div class="sect5">
-<h6 id="value-bytes"><a class="anchor" href="#value-bytes"></a>ByteArrayConverter</h6>
+<div class="sect4">
+<h5 id="_value_bytes"><a class="anchor" href="#_value_bytes"></a>ByteArrayConverter</h5>
 <div class="paragraph">
 <p>Use the byte array converter to store the binary serialized form (for example, JSON, Avro, Strings, etc.) of the Kafka record values in Redis as byte arrays:</p>
 </div>
 <div class="listingblock">
 <div class="content">
-<pre class="CodeRay highlight"><code data-lang="properties">value.converter=org.apache.kafka.connect.converters.ByteArrayConverter</code></pre>
+<pre class="prettyprint highlight"><code data-lang="properties">value.converter=org.apache.kafka.connect.converters.ByteArrayConverter</code></pre>
 </div>
 </div>
 </div>
-<div class="sect5">
-<h6 id="avro"><a class="anchor" href="#avro"></a>Avro</h6>
+<div class="sect4">
+<h5 id="_avro"><a class="anchor" href="#_avro"></a>Avro</h5>
 <div class="listingblock">
 <div class="content">
-<pre class="CodeRay highlight"><code data-lang="properties">value.converter=io.confluent.connect.avro.AvroConverter
+<pre class="prettyprint highlight"><code data-lang="properties">value.converter=io.confluent.connect.avro.AvroConverter
 value.converter.schema.registry.url=http://localhost:8081</code></pre>
 </div>
 </div>
 </div>
-<div class="sect5">
-<h6 id="kafka-json"><a class="anchor" href="#kafka-json"></a>JSON</h6>
+<div class="sect4">
+<h5 id="_kafka_json"><a class="anchor" href="#_kafka_json"></a>JSON</h5>
 <div class="listingblock">
 <div class="content">
-<pre class="CodeRay highlight"><code data-lang="properties">value.converter=org.apache.kafka.connect.json.JsonConverter
+<pre class="prettyprint highlight"><code data-lang="properties">value.converter=org.apache.kafka.connect.json.JsonConverter
 value.converter.schemas.enable=&lt;true|false&gt; <i class="conum" data-value="1"></i><b>(1)</b></code></pre>
 </div>
 </div>
@@ -686,88 +732,82 @@ value.converter.schemas.enable=&lt;true|false&gt; <i class="conum" data-value="1
 </div>
 </div>
 </div>
-</div>
 <div class="sect1">
-<h2 id="source"><a class="anchor" href="#source"></a>5. Source Connector Guide</h2>
+<h2 id="_source"><a class="anchor" href="#_source"></a>5. Source Connector Guide</h2>
 <div class="sectionbody">
 <div class="paragraph">
-<p>The Redis Kafka Source Connector reads from a Redis stream and publishes messages to a Kafka topic.</p>
-</div>
-<div class="sect2">
-<h3 id="features-2"><a class="anchor" href="#features-2"></a>5.1. Features</h3>
-<div class="paragraph">
-<p>The Redis Kafka Source Connector includes the following features:</p>
+<p>The Redis Kafka Source Connector reads from a Redis stream and publishes messages to a Kafka topic.
+It includes the following features:</p>
 </div>
 <div class="ulist">
 <ul>
 <li>
-<p><a href="#source-at-least-once-delivery">At least once delivery</a></p>
+<p><a href="#_source_at_least_once_delivery">At least once delivery</a></p>
 </li>
 <li>
-<p><a href="#source-tasks">Multiple tasks</a></p>
+<p><a href="#_source_at_most_once_delivery">At most once delivery</a></p>
 </li>
 <li>
-<p><a href="#stream-reader">Stream Reader</a></p>
+<p><a href="#_source_tasks">Multiple tasks</a></p>
+</li>
+<li>
+<p><a href="#_stream_reader">Stream Reader</a></p>
 </li>
 </ul>
 </div>
-<div class="sect3">
-<h4 id="source-at-least-once-delivery"><a class="anchor" href="#source-at-least-once-delivery"></a>5.1.1. Delivery Guarantees</h4>
+<div class="sect2">
+<h3 id="_delivery_guarantees"><a class="anchor" href="#_delivery_guarantees"></a>5.1. Delivery Guarantees</h3>
 <div class="paragraph">
 <p>The Redis Kafka Source Connector can be configured to ack stream messages either automatically (at-most-once delivery) or explicitly (at-least-once delivery).
 The default is at-least-once delivery.</p>
 </div>
-<div class="sect4">
-<h5 id="at-least-once"><a class="anchor" href="#at-least-once"></a>At-Least-Once</h5>
+<div class="sect3">
+<h4 id="_source_at_least_once_delivery"><a class="anchor" href="#_source_at_least_once_delivery"></a>5.1.1. At-Least-Once</h4>
 <div class="paragraph">
 <p>In this mode, each stream message is acknowledged after it has been written to the corresponding topic.</p>
 </div>
 <div class="listingblock">
 <div class="content">
-<pre class="CodeRay highlight"><code data-lang="properties">redis.stream.delivery=at-least-once</code></pre>
+<pre class="prettyprint highlight"><code data-lang="properties">redis.stream.delivery=at-least-once</code></pre>
 </div>
 </div>
 </div>
-<div class="sect4">
-<h5 id="at-most-once"><a class="anchor" href="#at-most-once"></a>At-Most-Once</h5>
+<div class="sect3">
+<h4 id="_source_at_most_once_delivery"><a class="anchor" href="#_source_at_most_once_delivery"></a>5.1.2. At-Most-Once</h4>
 <div class="paragraph">
 <p>In this mode, stream messages are acknowledged as soon as they are read.</p>
 </div>
 <div class="listingblock">
 <div class="content">
-<pre class="CodeRay highlight"><code data-lang="properties">redis.stream.delivery=at-most-once</code></pre>
+<pre class="prettyprint highlight"><code data-lang="properties">redis.stream.delivery=at-most-once</code></pre>
 </div>
 </div>
 </div>
 </div>
-<div class="sect3">
-<h4 id="source-tasks"><a class="anchor" href="#source-tasks"></a>5.1.2. Multiple Tasks</h4>
+<div class="sect2">
+<h3 id="_source_tasks"><a class="anchor" href="#_source_tasks"></a>5.2. Multiple Tasks</h3>
 <div class="paragraph">
 <p>Use configuration property <code>tasks.max</code> to have the change stream handled by multiple tasks.
 The connector splits the work based on the number of configured key patterns.
 When the number of tasks is greater than the number of patterns, the number of patterns will be used instead.</p>
 </div>
-<div class="paragraph">
-<p>For example <code>foo:*</code> translates to pubsub channel <code>__keyspace@0__:foo:*</code> and will capture changes to keys <code>foo:1</code>, <code>foo:2</code>, etc.
-Use comma-separated values for multiple patterns (<code>foo:*,bar:*</code>)</p>
 </div>
-</div>
-<div class="sect3">
-<h4 id="stream-reader"><a class="anchor" href="#stream-reader"></a>5.1.3. Stream Reader</h4>
+<div class="sect2">
+<h3 id="_stream_reader"><a class="anchor" href="#_stream_reader"></a>5.3. Stream Reader</h3>
 <div class="paragraph">
 <p>The Redis Kafka Source Connector reads messages from a stream and publishes to a Kafka topic.
-Reading is done through a consumer group so that <a href="#source-tasks">multiple instances</a> of the connector configured via the <code>tasks.max</code> can consume messages in a round-robin fashion.</p>
+Reading is done through a consumer group so that <a href="#_source_tasks">multiple instances</a> of the connector configured via the <code>tasks.max</code> can consume messages in a round-robin fashion.</p>
 </div>
+<div class="sect3">
+<h4 id="_message_schema"><a class="anchor" href="#_message_schema"></a>5.3.1. Message Schema</h4>
 <div class="sect4">
-<h5 id="stream-message-schema"><a class="anchor" href="#stream-message-schema"></a>Stream Message Schema</h5>
-<div class="sect5">
-<h6 id="key-schema"><a class="anchor" href="#key-schema"></a>Key Schema</h6>
+<h5 id="_key_schema"><a class="anchor" href="#_key_schema"></a>Key Schema</h5>
 <div class="paragraph">
 <p>Keys are of type String and contain the stream message id.</p>
 </div>
 </div>
-<div class="sect5">
-<h6 id="value-schema"><a class="anchor" href="#value-schema"></a>Value Schema</h6>
+<div class="sect4">
+<h5 id="_value_schema"><a class="anchor" href="#_value_schema"></a>Value Schema</h5>
 <div class="paragraph">
 <p>The value schema defines the following fields:</p>
 </div>
@@ -804,11 +844,11 @@ Reading is done through a consumer group so that <a href="#source-tasks">multipl
 </table>
 </div>
 </div>
-<div class="sect4">
-<h5 id="configuration-2"><a class="anchor" href="#configuration-2"></a>Configuration</h5>
+<div class="sect3">
+<h4 id="_configuration"><a class="anchor" href="#_configuration"></a>5.3.2. Configuration</h4>
 <div class="listingblock">
 <div class="content">
-<pre class="CodeRay highlight"><code data-lang="properties">redis.stream.name=&lt;name&gt; <i class="conum" data-value="1"></i><b>(1)</b>
+<pre class="prettyprint highlight"><code data-lang="properties">redis.stream.name=&lt;name&gt; <i class="conum" data-value="1"></i><b>(1)</b>
 redis.stream.offset=&lt;offset&gt; <i class="conum" data-value="2"></i><b>(2)</b>
 redis.stream.block=&lt;millis&gt; <i class="conum" data-value="3"></i><b>(3)</b>
 redis.stream.consumer.group=&lt;group&gt; <i class="conum" data-value="4"></i><b>(4)</b>
@@ -852,9 +892,8 @@ For example, <code>redis_${stream}</code> and stream <code>orders</code> &#8658;
 </div>
 </div>
 </div>
-</div>
 <div class="sect1">
-<h2 id="docker"><a class="anchor" href="#docker"></a>6. Quick Start with Docker</h2>
+<h2 id="_docker"><a class="anchor" href="#_docker"></a>6. Quick Start with Docker</h2>
 <div class="sectionbody">
 <div class="paragraph">
 <p>This guide provides a hands-on look at the functionality of the Redis Kafka Source and Sink Connectors:</p>
@@ -870,19 +909,19 @@ For example, <code>redis_${stream}</code> and stream <code>orders</code> &#8658;
 </ul>
 </div>
 <div class="sect2">
-<h3 id="requirements"><a class="anchor" href="#requirements"></a>6.1. Requirements</h3>
+<h3 id="_requirements"><a class="anchor" href="#_requirements"></a>6.1. Requirements</h3>
 <div class="paragraph">
 <p><a href="https://docs.docker.com/get-docker/">Docker</a></p>
 </div>
 </div>
 <div class="sect2">
-<h3 id="run-the-example"><a class="anchor" href="#run-the-example"></a>6.2. Run the example</h3>
+<h3 id="_run_the_example"><a class="anchor" href="#_run_the_example"></a>6.2. Run the example</h3>
 <div class="paragraph">
-<p>Clone the <a href="https://github.com/redis-field-engineering/redis-kafka-connect.git">redis-kafka-connect</a> repository and execute <code>run.sh</code> in <code>docker</code> directory:</p>
+<p>Clone the <a href="https://github.com/{github-owner}/{github-repo}.git">{github-repo}</a> repository and execute <code>run.sh</code> in <code>docker</code> directory:</p>
 </div>
 <div class="listingblock">
 <div class="content">
-<pre class="CodeRay highlight"><code data-lang="console">git clone https://github.com/redis-field-engineering/redis-kafka-connect.git
+<pre class="prettyprint highlight"><code data-lang="console">git clone https://github.com/{github-owner}/{github-repo}.git
 ./run.sh</code></pre>
 </div>
 </div>
@@ -932,12 +971,12 @@ For example, <code>redis_${stream}</code> and stream <code>orders</code> &#8658;
 </div>
 <div class="listingblock">
 <div class="content">
-<pre class="CodeRay highlight"><code data-lang="json">{
-  <span class="key"><span class="delimiter">&quot;</span><span class="content">viewtime</span><span class="delimiter">&quot;</span></span>: {
-    <span class="key"><span class="delimiter">&quot;</span><span class="content">$numberLong</span><span class="delimiter">&quot;</span></span>: <span class="string"><span class="delimiter">&quot;</span><span class="content">81</span><span class="delimiter">&quot;</span></span>
+<pre class="prettyprint highlight"><code data-lang="json">{
+  "viewtime": {
+    "$numberLong": "81"
   },
-  <span class="key"><span class="delimiter">&quot;</span><span class="content">pageid</span><span class="delimiter">&quot;</span></span>: <span class="string"><span class="delimiter">&quot;</span><span class="content">Page_1</span><span class="delimiter">&quot;</span></span>,
-  <span class="key"><span class="delimiter">&quot;</span><span class="content">userid</span><span class="delimiter">&quot;</span></span>: <span class="string"><span class="delimiter">&quot;</span><span class="content">User_8</span><span class="delimiter">&quot;</span></span>
+  "pageid": "Page_1",
+  "userid": "User_8"
 }</code></pre>
 </div>
 </div>
@@ -953,7 +992,7 @@ For example, <code>redis_${stream}</code> and stream <code>orders</code> &#8658;
 </div>
 <div class="listingblock">
 <div class="content">
-<pre class="CodeRay highlight"><code data-lang="console">docker-compose exec redis /usr/local/bin/redis-cli
+<pre class="prettyprint highlight"><code data-lang="console">docker-compose exec redis /usr/local/bin/redis-cli
 xread COUNT 10 STREAMS pageviews 0</code></pre>
 </div>
 </div>
@@ -964,10 +1003,10 @@ xread COUNT 10 STREAMS pageviews 0</code></pre>
 </div>
 </div>
 <div class="sect1">
-<h2 id="resources"><a class="anchor" href="#resources"></a>7. Resources</h2>
+<h2 id="_resources"><a class="anchor" href="#_resources"></a>7. Resources</h2>
 <div class="sectionbody">
 <div class="sect2">
-<h3 id="kafka"><a class="anchor" href="#kafka"></a>7.1. Kafka</h3>
+<h3 id="_kafka"><a class="anchor" href="#_kafka"></a>7.1. Kafka</h3>
 <div class="dlist">
 <dl>
 <dt class="hdlist1">What is Apache Kafka?</dt>
@@ -990,7 +1029,7 @@ xread COUNT 10 STREAMS pageviews 0</code></pre>
 </div>
 </div>
 <div class="sect2">
-<h3 id="kafka-connect"><a class="anchor" href="#kafka-connect"></a>7.2. Kafka Connect</h3>
+<h3 id="_kafka_connect"><a class="anchor" href="#_kafka_connect"></a>7.2. Kafka Connect</h3>
 <div class="dlist">
 <dl>
 <dt class="hdlist1">Introduction to Kafka Connectors</dt>
@@ -1005,7 +1044,7 @@ xread COUNT 10 STREAMS pageviews 0</code></pre>
 </div>
 </div>
 <div class="sect2">
-<h3 id="redis"><a class="anchor" href="#redis"></a>7.3. Redis</h3>
+<h3 id="_redis"><a class="anchor" href="#_redis"></a>7.3. Redis</h3>
 <div class="dlist">
 <dl>
 <dt class="hdlist1">Redis</dt>
@@ -1028,10 +1067,11 @@ xread COUNT 10 STREAMS pageviews 0</code></pre>
 </div>
 <div id="footer">
 <div id="footer-text">
-Version 7.4<br>
-Last updated 2023-04-26 20:45:59 UTC
+Version 0.7.5<br>
+Last updated 2023-06-21 19:14:08 UTC
 </div>
 </div>
-<link rel="stylesheet" href="./coderay-asciidoctor.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prettify/r298/prettify.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prettify/r298/run_prettify.min.js"></script>
 </body>
 </html>
