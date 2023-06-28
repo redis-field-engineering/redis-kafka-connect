@@ -113,23 +113,37 @@ curl -X POST -H "Content-Type: application/json" --data '
   {"name": "redis-source",
    "config": {
      "tasks.max":"1",
-     "connector.class":"com.redis.kafka.connect.RedisSourceConnector",
+     "connector.class":"com.redis.kafka.connect.RedisStreamSourceConnector",
      "redis.uri":"redis://redis:6379",
      "redis.stream.name":"mystream",
      "topic": "mystream"
 }}' http://localhost:8083/connectors -w "\n"
 
 sleep 2
+echo -e "\nAdding Keys Source Connector for keys 'mykey:*':"
+curl -X POST -H "Content-Type: application/json" --data '
+  {"name": "redis-keys-source",
+   "config": {
+     "tasks.max":"1",
+     "connector.class":"com.redis.kafka.connect.RedisKeysSourceConnector",
+     "redis.uri":"redis://redis:6379",
+     "redis.keys.patterns":"mykey:*",
+     "topic": "mykeys"
+}}' http://localhost:8083/connectors -w "\n"
+
+sleep 2
 echo -e "\nKafka Connectors: \n"
 curl -X GET "http://localhost:8083/connectors/" -w "\n"
+echo "Enabling keyspace notifications on Redis database:"
+docker compose exec redis /opt/redis-stack/bin/redis-cli config set notify-keyspace-events KEA
 
 echo "Number of messages in 'pageviews' stream:"
-docker compose exec redis /usr/local/bin/redis-cli xlen pageviews
+docker compose exec redis /opt/redis-stack/bin/redis-cli xlen pageviews
 
 sleep 2
 echo -e "\nAdding messages to Redis stream 'mystream':"
-docker compose exec redis /usr/local/bin/redis-cli "xadd" "mystream" "*" "field1" "value11" "field2" "value21"
-docker compose exec redis /usr/local/bin/redis-cli "xadd" "mystream" "*" "field1" "value12" "field2" "value22"
+docker compose exec redis /opt/redis-stack/bin/redis-cli "xadd" "mystream" "*" "field1" "value11" "field2" "value21"
+docker compose exec redis /opt/redis-stack/bin/redis-cli "xadd" "mystream" "*" "field1" "value12" "field2" "value22"
 
 echo -e '''
 
@@ -141,7 +155,7 @@ Examine the topics in the Kafka UI: http://localhost:9021 or http://localhost:80
 The `pageviews` stream in Redis should contain the sunk page views: redis-cli xlen pageviews
 
 Examine the Redis database:
-  - In your shell run: docker compose exec redis /usr/local/bin/redis-cli
+  - In your shell run: docker compose exec redis /opt/redis-stack/bin/redis-cli
   - List some RedisJSON keys: SCAN 0 TYPE ReJSON-RL
   - Show the JSON value of a given key: JSON.GET pageviews:971
 ==============================================================================================================
