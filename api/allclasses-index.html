@@ -27,8 +27,8 @@
     catch(err) {
     }
 //-->
-var data = {"i0":2,"i1":2,"i2":2,"i3":2,"i4":4,"i5":4,"i6":2,"i7":2,"i8":2,"i9":2,"i10":4,"i11":2,"i12":2,"i13":2,"i14":1,"i15":2,"i16":2};
-var tabs = {65535:["t0","All Classes"],1:["t1","Interface Summary"],2:["t2","Class Summary"],4:["t3","Enum Summary"]};
+var data = {"i0":2,"i1":2,"i2":2,"i3":2,"i4":2,"i5":2,"i6":2,"i7":2,"i8":2,"i9":2,"i10":4,"i11":2,"i12":2,"i13":2,"i14":2,"i15":2,"i16":2,"i17":2,"i18":2,"i19":2,"i20":2,"i21":2};
+var tabs = {65535:["t0","All Classes"],2:["t2","Class Summary"],4:["t3","Enum Summary"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
 var tableTab = "tableTab";
@@ -107,80 +107,100 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <ul class="blockList">
 <li class="blockList">
 <table class="typeSummary">
-<caption><span id="t0" class="activeTableTab"><span>All Classes</span><span class="tabEnd">&nbsp;</span></span><span id="t1" class="tableTab"><span><a href="javascript:show(1);">Interface Summary</a></span><span class="tabEnd">&nbsp;</span></span><span id="t2" class="tableTab"><span><a href="javascript:show(2);">Class Summary</a></span><span class="tabEnd">&nbsp;</span></span><span id="t3" class="tableTab"><span><a href="javascript:show(4);">Enum Summary</a></span><span class="tabEnd">&nbsp;</span></span></caption>
+<caption><span id="t0" class="activeTableTab"><span>All Classes</span><span class="tabEnd">&nbsp;</span></span><span id="t2" class="tableTab"><span><a href="javascript:show(2);">Class Summary</a></span><span class="tabEnd">&nbsp;</span></span><span id="t3" class="tableTab"><span><a href="javascript:show(4);">Enum Summary</a></span><span class="tabEnd">&nbsp;</span></span></caption>
 <tr>
 <th class="colFirst" scope="col">Class</th>
 <th class="colLast" scope="col">Description</th>
 </tr>
 <tr id="i0" class="altColor">
-<td class="colFirst"><a href="com/redis/kafka/connect/source/KeySourceRecordReader.html" title="class in com.redis.kafka.connect.source">KeySourceRecordReader</a></td>
+<td class="colFirst"><a href="com/redis/kafka/connect/source/AbstractRedisSourceConnector.html" title="class in com.redis.kafka.connect.source">AbstractRedisSourceConnector</a></td>
 <th class="colLast" scope="row">&nbsp;</th>
 </tr>
 <tr id="i1" class="rowColor">
-<td class="colFirst"><a href="com/redis/kafka/connect/common/RedisConfig.html" title="class in com.redis.kafka.connect.common">RedisConfig</a></td>
+<td class="colFirst"><a href="com/redis/kafka/connect/source/DataStructureConverter.html" title="class in com.redis.kafka.connect.source">DataStructureConverter</a></td>
 <th class="colLast" scope="row">&nbsp;</th>
 </tr>
 <tr id="i2" class="altColor">
-<td class="colFirst"><a href="com/redis/kafka/connect/common/RedisConfig.RedisConfigDef.html" title="class in com.redis.kafka.connect.common">RedisConfig.RedisConfigDef</a></td>
-<th class="colLast" scope="row">&nbsp;</th>
+<td class="colFirst"><a href="com/redis/kafka/connect/common/ManifestVersionProvider.html" title="class in com.redis.kafka.connect.common">ManifestVersionProvider</a></td>
+<th class="colLast" scope="row">
+<div class="block">Returns version information from the jar file's <code>/META-INF/MANIFEST.MF</code></div>
+</th>
 </tr>
 <tr id="i3" class="rowColor">
-<td class="colFirst"><a href="com/redis/kafka/connect/sink/RedisSinkConfig.html" title="class in com.redis.kafka.connect.sink">RedisSinkConfig</a></td>
+<td class="colFirst"><a href="com/redis/kafka/connect/common/RedisConfig.html" title="class in com.redis.kafka.connect.common">RedisConfig</a></td>
 <th class="colLast" scope="row">&nbsp;</th>
 </tr>
 <tr id="i4" class="altColor">
-<td class="colFirst"><a href="com/redis/kafka/connect/sink/RedisSinkConfig.DataType.html" title="enum in com.redis.kafka.connect.sink">RedisSinkConfig.DataType</a></td>
+<td class="colFirst"><a href="com/redis/kafka/connect/common/RedisConfigDef.html" title="class in com.redis.kafka.connect.common">RedisConfigDef</a></td>
 <th class="colLast" scope="row">&nbsp;</th>
 </tr>
 <tr id="i5" class="rowColor">
-<td class="colFirst"><a href="com/redis/kafka/connect/sink/RedisSinkConfig.PushDirection.html" title="enum in com.redis.kafka.connect.sink">RedisSinkConfig.PushDirection</a></td>
+<td class="colFirst"><a href="com/redis/kafka/connect/source/RedisKeysSourceConfig.html" title="class in com.redis.kafka.connect.source">RedisKeysSourceConfig</a></td>
 <th class="colLast" scope="row">&nbsp;</th>
 </tr>
 <tr id="i6" class="altColor">
-<td class="colFirst"><a href="com/redis/kafka/connect/sink/RedisSinkConfig.RedisSinkConfigDef.html" title="class in com.redis.kafka.connect.sink">RedisSinkConfig.RedisSinkConfigDef</a></td>
+<td class="colFirst"><a href="com/redis/kafka/connect/source/RedisKeysSourceConfigDef.html" title="class in com.redis.kafka.connect.source">RedisKeysSourceConfigDef</a></td>
 <th class="colLast" scope="row">&nbsp;</th>
 </tr>
 <tr id="i7" class="rowColor">
-<td class="colFirst"><a href="com/redis/kafka/connect/RedisSinkConnector.html" title="class in com.redis.kafka.connect">RedisSinkConnector</a></td>
+<td class="colFirst"><a href="com/redis/kafka/connect/RedisKeysSourceConnector.html" title="class in com.redis.kafka.connect">RedisKeysSourceConnector</a></td>
 <th class="colLast" scope="row">&nbsp;</th>
 </tr>
 <tr id="i8" class="altColor">
-<td class="colFirst"><a href="com/redis/kafka/connect/sink/RedisSinkTask.html" title="class in com.redis.kafka.connect.sink">RedisSinkTask</a></td>
+<td class="colFirst"><a href="com/redis/kafka/connect/source/RedisKeysSourceTask.html" title="class in com.redis.kafka.connect.source">RedisKeysSourceTask</a></td>
 <th class="colLast" scope="row">&nbsp;</th>
 </tr>
 <tr id="i9" class="rowColor">
-<td class="colFirst"><a href="com/redis/kafka/connect/source/RedisSourceConfig.html" title="class in com.redis.kafka.connect.source">RedisSourceConfig</a></td>
+<td class="colFirst"><a href="com/redis/kafka/connect/sink/RedisSinkConfig.html" title="class in com.redis.kafka.connect.sink">RedisSinkConfig</a></td>
 <th class="colLast" scope="row">&nbsp;</th>
 </tr>
 <tr id="i10" class="altColor">
-<td class="colFirst"><a href="com/redis/kafka/connect/source/RedisSourceConfig.ReaderType.html" title="enum in com.redis.kafka.connect.source">RedisSourceConfig.ReaderType</a></td>
+<td class="colFirst"><a href="com/redis/kafka/connect/sink/RedisSinkConfig.RedisCommand.html" title="enum in com.redis.kafka.connect.sink">RedisSinkConfig.RedisCommand</a></td>
 <th class="colLast" scope="row">&nbsp;</th>
 </tr>
 <tr id="i11" class="rowColor">
-<td class="colFirst"><a href="com/redis/kafka/connect/source/RedisSourceConfig.RedisSourceConfigDef.html" title="class in com.redis.kafka.connect.source">RedisSourceConfig.RedisSourceConfigDef</a></td>
+<td class="colFirst"><a href="com/redis/kafka/connect/sink/RedisSinkConfigDef.html" title="class in com.redis.kafka.connect.sink">RedisSinkConfigDef</a></td>
 <th class="colLast" scope="row">&nbsp;</th>
 </tr>
 <tr id="i12" class="altColor">
-<td class="colFirst"><a href="com/redis/kafka/connect/RedisSourceConnector.html" title="class in com.redis.kafka.connect">RedisSourceConnector</a></td>
+<td class="colFirst"><a href="com/redis/kafka/connect/RedisSinkConnector.html" title="class in com.redis.kafka.connect">RedisSinkConnector</a></td>
 <th class="colLast" scope="row">&nbsp;</th>
 </tr>
 <tr id="i13" class="rowColor">
-<td class="colFirst"><a href="com/redis/kafka/connect/source/RedisSourceTask.html" title="class in com.redis.kafka.connect.source">RedisSourceTask</a></td>
+<td class="colFirst"><a href="com/redis/kafka/connect/sink/RedisSinkTask.html" title="class in com.redis.kafka.connect.sink">RedisSinkTask</a></td>
 <th class="colLast" scope="row">&nbsp;</th>
 </tr>
 <tr id="i14" class="altColor">
-<td class="colFirst"><a href="com/redis/kafka/connect/source/SourceRecordReader.html" title="interface in com.redis.kafka.connect.source">SourceRecordReader</a></td>
+<td class="colFirst"><a href="com/redis/kafka/connect/source/RedisSourceConfig.html" title="class in com.redis.kafka.connect.source">RedisSourceConfig</a></td>
 <th class="colLast" scope="row">&nbsp;</th>
 </tr>
 <tr id="i15" class="rowColor">
-<td class="colFirst"><a href="com/redis/kafka/connect/source/StreamSourceRecordReader.html" title="class in com.redis.kafka.connect.source">StreamSourceRecordReader</a></td>
+<td class="colFirst"><a href="com/redis/kafka/connect/source/RedisSourceConfigDef.html" title="class in com.redis.kafka.connect.source">RedisSourceConfigDef</a></td>
 <th class="colLast" scope="row">&nbsp;</th>
 </tr>
 <tr id="i16" class="altColor">
-<td class="colFirst"><a href="com/redis/kafka/connect/common/VersionProvider.html" title="class in com.redis.kafka.connect.common">VersionProvider</a></td>
-<th class="colLast" scope="row">
-<div class="block">Provide version information.</div>
-</th>
+<td class="colFirst"><a href="com/redis/kafka/connect/source/RedisStreamSourceConfig.html" title="class in com.redis.kafka.connect.source">RedisStreamSourceConfig</a></td>
+<th class="colLast" scope="row">&nbsp;</th>
+</tr>
+<tr id="i17" class="rowColor">
+<td class="colFirst"><a href="com/redis/kafka/connect/source/RedisStreamSourceConfigDef.html" title="class in com.redis.kafka.connect.source">RedisStreamSourceConfigDef</a></td>
+<th class="colLast" scope="row">&nbsp;</th>
+</tr>
+<tr id="i18" class="altColor">
+<td class="colFirst"><a href="com/redis/kafka/connect/RedisStreamSourceConnector.html" title="class in com.redis.kafka.connect">RedisStreamSourceConnector</a></td>
+<th class="colLast" scope="row">&nbsp;</th>
+</tr>
+<tr id="i19" class="rowColor">
+<td class="colFirst"><a href="com/redis/kafka/connect/source/RedisStreamSourceTask.html" title="class in com.redis.kafka.connect.source">RedisStreamSourceTask</a></td>
+<th class="colLast" scope="row">&nbsp;</th>
+</tr>
+<tr id="i20" class="altColor">
+<td class="colFirst"><a href="com/redis/kafka/connect/sink/SinkOffsetState.html" title="class in com.redis.kafka.connect.sink">SinkOffsetState</a></td>
+<th class="colLast" scope="row">&nbsp;</th>
+</tr>
+<tr id="i21" class="rowColor">
+<td class="colFirst"><a href="com/redis/kafka/connect/source/StreamMessageConverter.html" title="class in com.redis.kafka.connect.source">StreamMessageConverter</a></td>
+<th class="colLast" scope="row">&nbsp;</th>
 </tr>
 </table>
 </li>

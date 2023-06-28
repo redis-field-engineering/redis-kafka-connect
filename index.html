@@ -92,7 +92,7 @@ $(addBlockSwitches);
 <h1>Redis Kafka Connector</h1>
 <div class="details">
 <span id="author" class="author">Julien Ruaux</span><br>
-<span id="revnumber">version 0.7.5</span>
+<span id="revnumber">version 0.8.0</span>
 </div>
 <div id="toc" class="toc2">
 <div id="toctitle">Table of Contents</div>
@@ -132,17 +132,17 @@ $(addBlockSwitches);
 </li>
 <li><a href="#_source">5. Source Connector Guide</a>
 <ul class="sectlevel2">
-<li><a href="#_delivery_guarantees">5.1. Delivery Guarantees</a>
+<li><a href="#_stream_source">5.1. Stream</a>
 <ul class="sectlevel3">
-<li><a href="#_source_at_least_once_delivery">5.1.1. At-Least-Once</a></li>
-<li><a href="#_source_at_most_once_delivery">5.1.2. At-Most-Once</a></li>
+<li><a href="#_delivery_guarantees">5.1.1. Delivery Guarantees</a></li>
+<li><a href="#_stream_source_tasks">5.1.2. Multiple Tasks</a></li>
+<li><a href="#_stream_source_schema">5.1.3. Message Schema</a></li>
+<li><a href="#_stream_source_config">5.1.4. Configuration</a></li>
 </ul>
 </li>
-<li><a href="#_source_tasks">5.2. Multiple Tasks</a></li>
-<li><a href="#_stream_reader">5.3. Stream Reader</a>
+<li><a href="#_keys_source">5.2. Keys</a>
 <ul class="sectlevel3">
-<li><a href="#_message_schema">5.3.1. Message Schema</a></li>
-<li><a href="#_configuration">5.3.2. Configuration</a></li>
+<li><a href="#_keys_source_config">5.2.1. Configuration</a></li>
 </ul>
 </li>
 </ul>
@@ -340,7 +340,7 @@ You can specify the number of tasks with the <code>tasks.max</code> configuratio
 </div>
 <div class="listingblock">
 <div class="content">
-<pre class="prettyprint highlight"><code data-lang="properties">redis.type=HASH
+<pre class="prettyprint highlight"><code data-lang="properties">redis.command=HSET
 key.converter=&lt;string or bytes&gt; <i class="conum" data-value="1"></i><b>(1)</b>
 value.converter=&lt;Avro or JSON&gt; <i class="conum" data-value="2"></i><b>(2)</b></code></pre>
 </div>
@@ -366,7 +366,7 @@ If value is null the key is deleted.</td>
 </div>
 <div class="listingblock">
 <div class="content">
-<pre class="prettyprint highlight"><code data-lang="properties">redis.type=STRING
+<pre class="prettyprint highlight"><code data-lang="properties">redis.command=SET
 key.converter=&lt;string or bytes&gt; <i class="conum" data-value="1"></i><b>(1)</b>
 value.converter=&lt;string or bytes&gt; <i class="conum" data-value="2"></i><b>(2)</b></code></pre>
 </div>
@@ -392,7 +392,7 @@ If value is null the key is deleted.</td>
 </div>
 <div class="listingblock">
 <div class="content">
-<pre class="prettyprint highlight"><code data-lang="properties">redis.type=JSON
+<pre class="prettyprint highlight"><code data-lang="properties">redis.command=JSONSET
 key.converter=&lt;string, bytes, or Avro&gt; <i class="conum" data-value="1"></i><b>(1)</b>
 value.converter=&lt;string, bytes, or Avro&gt; <i class="conum" data-value="2"></i><b>(2)</b></code></pre>
 </div>
@@ -418,7 +418,7 @@ If value is null the key is deleted.</td>
 </div>
 <div class="listingblock">
 <div class="content">
-<pre class="prettyprint highlight"><code data-lang="properties">redis.type=STREAM
+<pre class="prettyprint highlight"><code data-lang="properties">redis.command=XADD
 redis.key=&lt;stream key&gt; <i class="conum" data-value="1"></i><b>(1)</b>
 value.converter=&lt;Avro or JSON&gt; <i class="conum" data-value="2"></i><b>(2)</b></code></pre>
 </div>
@@ -443,16 +443,26 @@ value.converter=&lt;Avro or JSON&gt; <i class="conum" data-value="2"></i><b>(2)<
 </div>
 <div class="listingblock">
 <div class="content">
-<pre class="prettyprint highlight"><code data-lang="properties">redis.type=LIST
-redis.key=&lt;key name&gt; <i class="conum" data-value="1"></i><b>(1)</b>
-key.converter=&lt;string or bytes&gt; <i class="conum" data-value="2"></i><b>(2)</b>
-redis.push.direction=&lt;LEFT or RIGHT&gt; <i class="conum" data-value="3"></i><b>(3)</b></code></pre>
+<pre class="prettyprint highlight"><code data-lang="properties">redis.command=&lt;LPUSH or RPUSH&gt; <i class="conum" data-value="1"></i><b>(1)</b>
+redis.key=&lt;key name&gt; <i class="conum" data-value="2"></i><b>(2)</b>
+key.converter=&lt;string or bytes&gt; <i class="conum" data-value="3"></i><b>(3)</b></code></pre>
 </div>
 </div>
-<div class="paragraph">
-<p>&lt;1&gt;<a href="#_collection_key">List key</a>
-&lt;2&gt; <a href="#_key_string">String</a> or <a href="#_key_bytes">bytes</a>: Kafka record keys to push to the list
-&lt;3&gt; <code>LEFT</code>: LPUSH (default), <code>RIGHT</code>: RPUSH</p>
+<div class="colist arabic">
+<table>
+<tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td><code>LPUSH</code> or <code>RPUSH</code></td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td><a href="#_collection_key">List key</a></td>
+</tr>
+<tr>
+<td><i class="conum" data-value="3"></i><b>3</b></td>
+<td><a href="#_key_string">String</a> or <a href="#_key_bytes">bytes</a>: Kafka record keys to push to the list</td>
+</tr>
+</table>
 </div>
 <div class="paragraph">
 <p>The Kafka record value can be any format.
@@ -466,7 +476,7 @@ If a value is null then the member is removed from the list (instead of pushed t
 </div>
 <div class="listingblock">
 <div class="content">
-<pre class="prettyprint highlight"><code data-lang="properties">redis.type=SET
+<pre class="prettyprint highlight"><code data-lang="properties">redis.command=SADD
 redis.key=&lt;key name&gt; <i class="conum" data-value="1"></i><b>(1)</b>
 key.converter=&lt;string or bytes&gt; <i class="conum" data-value="2"></i><b>(2)</b></code></pre>
 </div>
@@ -487,7 +497,7 @@ If a value is null then the member is removed from the set (instead of added to 
 </div>
 <div class="listingblock">
 <div class="content">
-<pre class="prettyprint highlight"><code data-lang="properties">redis.type=ZSET
+<pre class="prettyprint highlight"><code data-lang="properties">redis.command=ZADD
 redis.key=&lt;key name&gt; <i class="conum" data-value="1"></i><b>(1)</b>
 key.converter=&lt;string or bytes&gt; <i class="conum" data-value="2"></i><b>(2)</b></code></pre>
 </div>
@@ -508,7 +518,7 @@ If the score is null then the member is removed from the sorted set (instead of 
 </div>
 <div class="listingblock">
 <div class="content">
-<pre class="prettyprint highlight"><code data-lang="properties">redis.type=TIMESERIES
+<pre class="prettyprint highlight"><code data-lang="properties">redis.command=TSADD
 redis.key=&lt;key name&gt; <i class="conum" data-value="1"></i><b>(1)</b></code></pre>
 </div>
 </div>
@@ -736,33 +746,51 @@ value.converter.schemas.enable=&lt;true|false&gt; <i class="conum" data-value="1
 <h2 id="_source"><a class="anchor" href="#_source"></a>5. Source Connector Guide</h2>
 <div class="sectionbody">
 <div class="paragraph">
-<p>The Redis Kafka Source Connector reads from a Redis stream and publishes messages to a Kafka topic.
+<p>The Redis Kafka Source Connector includes 2 source connectors:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><a href="#_stream_source">Stream</a></p>
+</li>
+<li>
+<p><a href="#_keys_source">Keys</a></p>
+</li>
+</ul>
+</div>
+<div class="sect2">
+<h3 id="_stream_source"><a class="anchor" href="#_stream_source"></a>5.1. Stream</h3>
+<div class="paragraph">
+<p>The stream source connector reads from a Redis stream and publishes messages to a Kafka topic.
 It includes the following features:</p>
 </div>
 <div class="ulist">
 <ul>
 <li>
-<p><a href="#_source_at_least_once_delivery">At least once delivery</a></p>
+<p><a href="#_stream_source_at_least_once_delivery">At least once delivery</a></p>
 </li>
 <li>
-<p><a href="#_source_at_most_once_delivery">At most once delivery</a></p>
+<p><a href="#_stream_source_at_most_once_delivery">At most once delivery</a></p>
 </li>
 <li>
-<p><a href="#_source_tasks">Multiple tasks</a></p>
+<p><a href="#_stream_source_tasks">Multiple tasks</a></p>
 </li>
 <li>
-<p><a href="#_stream_reader">Stream Reader</a></p>
+<p><a href="#_stream_source_schema">Schema</a></p>
+</li>
+<li>
+<p><a href="#_stream_source_config">Configuration</a></p>
 </li>
 </ul>
 </div>
-<div class="sect2">
-<h3 id="_delivery_guarantees"><a class="anchor" href="#_delivery_guarantees"></a>5.1. Delivery Guarantees</h3>
+<div class="sect3">
+<h4 id="_delivery_guarantees"><a class="anchor" href="#_delivery_guarantees"></a>5.1.1. Delivery Guarantees</h4>
 <div class="paragraph">
 <p>The Redis Kafka Source Connector can be configured to ack stream messages either automatically (at-most-once delivery) or explicitly (at-least-once delivery).
 The default is at-least-once delivery.</p>
 </div>
-<div class="sect3">
-<h4 id="_source_at_least_once_delivery"><a class="anchor" href="#_source_at_least_once_delivery"></a>5.1.1. At-Least-Once</h4>
+<div class="sect4">
+<h5 id="_stream_source_at_least_once_delivery"><a class="anchor" href="#_stream_source_at_least_once_delivery"></a>At-Least-Once</h5>
 <div class="paragraph">
 <p>In this mode, each stream message is acknowledged after it has been written to the corresponding topic.</p>
 </div>
@@ -772,8 +800,8 @@ The default is at-least-once delivery.</p>
 </div>
 </div>
 </div>
-<div class="sect3">
-<h4 id="_source_at_most_once_delivery"><a class="anchor" href="#_source_at_most_once_delivery"></a>5.1.2. At-Most-Once</h4>
+<div class="sect4">
+<h5 id="_stream_source_at_most_once_delivery"><a class="anchor" href="#_stream_source_at_most_once_delivery"></a>At-Most-Once</h5>
 <div class="paragraph">
 <p>In this mode, stream messages are acknowledged as soon as they are read.</p>
 </div>
@@ -784,22 +812,18 @@ The default is at-least-once delivery.</p>
 </div>
 </div>
 </div>
-<div class="sect2">
-<h3 id="_source_tasks"><a class="anchor" href="#_source_tasks"></a>5.2. Multiple Tasks</h3>
+<div class="sect3">
+<h4 id="_stream_source_tasks"><a class="anchor" href="#_stream_source_tasks"></a>5.1.2. Multiple Tasks</h4>
 <div class="paragraph">
-<p>Use configuration property <code>tasks.max</code> to have the change stream handled by multiple tasks.
-The connector splits the work based on the number of configured key patterns.
+<p>Reading from the stream is done through a consumer group so that multiple instances of the connector configured via the <code>tasks.max</code> can consume messages in a round-robin fashion.</p>
+</div>
+<div class="paragraph">
+<p>The connector splits the work based on the number of configured key patterns.
 When the number of tasks is greater than the number of patterns, the number of patterns will be used instead.</p>
 </div>
 </div>
-<div class="sect2">
-<h3 id="_stream_reader"><a class="anchor" href="#_stream_reader"></a>5.3. Stream Reader</h3>
-<div class="paragraph">
-<p>The Redis Kafka Source Connector reads messages from a stream and publishes to a Kafka topic.
-Reading is done through a consumer group so that <a href="#_source_tasks">multiple instances</a> of the connector configured via the <code>tasks.max</code> can consume messages in a round-robin fashion.</p>
-</div>
 <div class="sect3">
-<h4 id="_message_schema"><a class="anchor" href="#_message_schema"></a>5.3.1. Message Schema</h4>
+<h4 id="_stream_source_schema"><a class="anchor" href="#_stream_source_schema"></a>5.1.3. Message Schema</h4>
 <div class="sect4">
 <h5 id="_key_schema"><a class="anchor" href="#_key_schema"></a>Key Schema</h5>
 <div class="paragraph">
@@ -845,15 +869,17 @@ Reading is done through a consumer group so that <a href="#_source_tasks">multip
 </div>
 </div>
 <div class="sect3">
-<h4 id="_configuration"><a class="anchor" href="#_configuration"></a>5.3.2. Configuration</h4>
+<h4 id="_stream_source_config"><a class="anchor" href="#_stream_source_config"></a>5.1.4. Configuration</h4>
 <div class="listingblock">
 <div class="content">
-<pre class="prettyprint highlight"><code data-lang="properties">redis.stream.name=&lt;name&gt; <i class="conum" data-value="1"></i><b>(1)</b>
+<pre class="prettyprint highlight"><code data-lang="properties">connector.class=com.redis.kafka.connect.RedisStreamSourceConnector
+redis.stream.name=&lt;name&gt; <i class="conum" data-value="1"></i><b>(1)</b>
 redis.stream.offset=&lt;offset&gt; <i class="conum" data-value="2"></i><b>(2)</b>
 redis.stream.block=&lt;millis&gt; <i class="conum" data-value="3"></i><b>(3)</b>
 redis.stream.consumer.group=&lt;group&gt; <i class="conum" data-value="4"></i><b>(4)</b>
 redis.stream.consumer.name=&lt;name&gt; <i class="conum" data-value="5"></i><b>(5)</b>
-topic=&lt;name&gt; <i class="conum" data-value="6"></i><b>(6)</b></code></pre>
+redis.stream.delivery=&lt;mode&gt; <i class="conum" data-value="6"></i><b>(6)</b>
+topic=&lt;name&gt; <i class="conum" data-value="7"></i><b>(7)</b></code></pre>
 </div>
 </div>
 <div class="colist arabic">
@@ -882,9 +908,71 @@ For example, <code>foo${task}</code> and task <code>123</code> &#8658; consumer 
 </tr>
 <tr>
 <td><i class="conum" data-value="6"></i><b>6</b></td>
+<td>Delivery mode: <code>at-least-once</code>, <code>at-most-once</code> (default: <code>at-least-once</code>).</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="7"></i><b>7</b></td>
 <td>Destination topic (default: <code>${stream}</code>).
 May contain <code>${stream}</code> as a placeholder for the originating stream name.
 For example, <code>redis_${stream}</code> and stream <code>orders</code> &#8658; topic <code>redis_orders</code>.</td>
+</tr>
+</table>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_keys_source"><a class="anchor" href="#_keys_source"></a>5.2. Keys</h3>
+<div class="paragraph">
+<p>The keys source connector captures changes happening to keys in a Redis database and publishes keys and values to a Kafka topic.
+The data structure key will be mapped to the record key, and the value will be mapped to the record value.</p>
+</div>
+<div class="admonitionblock warning">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-warning" title="Warning"></i>
+</td>
+<td class="content">
+<div class="paragraph">
+<p>The keys source connector does not guarantee data consistency because it relies on Redis keyspace notifications which have no delivery guarantees.
+It is possible for some notifications to be missed, for example in case of network failures.</p>
+</div>
+<div class="paragraph">
+<p>Also, depending on the type, size, and rate of change of data structures on the source it is possible the source connector cannot keep up with the change stream.
+For example if a big set is repeatedly updated the connector will need to read the whole set on each update and transfer it over to the target database.
+With a big-enough set the connector could fall behind and the internal queue could fill up leading up to updates being dropped.
+Some preliminary sizing using Redis statistics and <code>bigkeys</code>/<code>memkeys</code> is recommended.
+If you need assistance please contact your Redis account team.</p>
+</div>
+</td>
+</tr>
+</table>
+</div>
+<div class="sect3">
+<h4 id="_keys_source_config"><a class="anchor" href="#_keys_source_config"></a>5.2.1. Configuration</h4>
+<div class="listingblock">
+<div class="content">
+<pre class="prettyprint highlight"><code data-lang="properties">connector.class=com.redis.kafka.connect.RedisKeysSourceConnector
+redis.keys.patterns=&lt;glob&gt; <i class="conum" data-value="1"></i><b>(1)</b>
+redis.keys.timeout=&lt;millis&gt; <i class="conum" data-value="2"></i><b>(2)</b>
+topic=&lt;name&gt; <i class="conum" data-value="3"></i><b>(3)</b></code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>Key pattern to subscribe to. This is the key portion of the pattern that will be used to listen to keyspace events. See <a href="https://redis.io/commands/keys/">Redis KEYS</a> for pattern details.
+For example <code>foo:*</code> translates to pubsub channel <code>__keyspace@0__:foo:*</code> and will capture changes to keys <code>foo:1</code>, <code>foo:2</code>, etc.
+Use comma-separated values for multiple patterns (<code>foo:*,bar:*</code>)</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td>Idle timeout in millis. Duration after which the connector will stop if no activity is encountered.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="3"></i><b>3</b></td>
+<td>Name of the destination topic.</td>
 </tr>
 </table>
 </div>
@@ -896,7 +984,7 @@ For example, <code>redis_${stream}</code> and stream <code>orders</code> &#8658;
 <h2 id="_docker"><a class="anchor" href="#_docker"></a>6. Quick Start with Docker</h2>
 <div class="sectionbody">
 <div class="paragraph">
-<p>This guide provides a hands-on look at the functionality of the Redis Kafka Source and Sink Connectors:</p>
+<p>This section provides a hands-on look at the functionality of the Redis Kafka Source and Sink Connectors:</p>
 </div>
 <div class="ulist">
 <ul>
@@ -1067,8 +1155,8 @@ xread COUNT 10 STREAMS pageviews 0</code></pre>
 </div>
 <div id="footer">
 <div id="footer-text">
-Version 0.7.5<br>
-Last updated 2023-06-21 19:14:08 UTC
+Version 0.8.0<br>
+Last updated 2023-06-28 12:42:36 UTC
 </div>
 </div>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prettify/r298/prettify.min.css">

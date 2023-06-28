@@ -115,17 +115,27 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <li class="circle">com.redis.kafka.connect.common.<a href="com/redis/kafka/connect/common/RedisConfig.html" title="class in com.redis.kafka.connect.common"><span class="typeNameLink">RedisConfig</span></a>
 <ul>
 <li class="circle">com.redis.kafka.connect.sink.<a href="com/redis/kafka/connect/sink/RedisSinkConfig.html" title="class in com.redis.kafka.connect.sink"><span class="typeNameLink">RedisSinkConfig</span></a></li>
-<li class="circle">com.redis.kafka.connect.source.<a href="com/redis/kafka/connect/source/RedisSourceConfig.html" title="class in com.redis.kafka.connect.source"><span class="typeNameLink">RedisSourceConfig</span></a></li>
+<li class="circle">com.redis.kafka.connect.source.<a href="com/redis/kafka/connect/source/RedisSourceConfig.html" title="class in com.redis.kafka.connect.source"><span class="typeNameLink">RedisSourceConfig</span></a>
+<ul>
+<li class="circle">com.redis.kafka.connect.source.<a href="com/redis/kafka/connect/source/RedisKeysSourceConfig.html" title="class in com.redis.kafka.connect.source"><span class="typeNameLink">RedisKeysSourceConfig</span></a></li>
+<li class="circle">com.redis.kafka.connect.source.<a href="com/redis/kafka/connect/source/RedisStreamSourceConfig.html" title="class in com.redis.kafka.connect.source"><span class="typeNameLink">RedisStreamSourceConfig</span></a></li>
+</ul>
+</li>
 </ul>
 </li>
 </ul>
 </li>
 <li class="circle">org.apache.kafka.common.config.ConfigDef
 <ul>
-<li class="circle">com.redis.kafka.connect.common.<a href="com/redis/kafka/connect/common/RedisConfig.RedisConfigDef.html" title="class in com.redis.kafka.connect.common"><span class="typeNameLink">RedisConfig.RedisConfigDef</span></a>
+<li class="circle">com.redis.kafka.connect.common.<a href="com/redis/kafka/connect/common/RedisConfigDef.html" title="class in com.redis.kafka.connect.common"><span class="typeNameLink">RedisConfigDef</span></a>
 <ul>
-<li class="circle">com.redis.kafka.connect.sink.<a href="com/redis/kafka/connect/sink/RedisSinkConfig.RedisSinkConfigDef.html" title="class in com.redis.kafka.connect.sink"><span class="typeNameLink">RedisSinkConfig.RedisSinkConfigDef</span></a></li>
-<li class="circle">com.redis.kafka.connect.source.<a href="com/redis/kafka/connect/source/RedisSourceConfig.RedisSourceConfigDef.html" title="class in com.redis.kafka.connect.source"><span class="typeNameLink">RedisSourceConfig.RedisSourceConfigDef</span></a></li>
+<li class="circle">com.redis.kafka.connect.sink.<a href="com/redis/kafka/connect/sink/RedisSinkConfigDef.html" title="class in com.redis.kafka.connect.sink"><span class="typeNameLink">RedisSinkConfigDef</span></a></li>
+<li class="circle">com.redis.kafka.connect.source.<a href="com/redis/kafka/connect/source/RedisSourceConfigDef.html" title="class in com.redis.kafka.connect.source"><span class="typeNameLink">RedisSourceConfigDef</span></a>
+<ul>
+<li class="circle">com.redis.kafka.connect.source.<a href="com/redis/kafka/connect/source/RedisKeysSourceConfigDef.html" title="class in com.redis.kafka.connect.source"><span class="typeNameLink">RedisKeysSourceConfigDef</span></a></li>
+<li class="circle">com.redis.kafka.connect.source.<a href="com/redis/kafka/connect/source/RedisStreamSourceConfigDef.html" title="class in com.redis.kafka.connect.source"><span class="typeNameLink">RedisStreamSourceConfigDef</span></a></li>
+</ul>
+</li>
 </ul>
 </li>
 </ul>
@@ -139,12 +149,19 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </li>
 <li class="circle">org.apache.kafka.connect.source.SourceConnector
 <ul>
-<li class="circle">com.redis.kafka.connect.<a href="com/redis/kafka/connect/RedisSourceConnector.html" title="class in com.redis.kafka.connect"><span class="typeNameLink">RedisSourceConnector</span></a></li>
+<li class="circle">com.redis.kafka.connect.source.<a href="com/redis/kafka/connect/source/AbstractRedisSourceConnector.html" title="class in com.redis.kafka.connect.source"><span class="typeNameLink">AbstractRedisSourceConnector</span></a>
+<ul>
+<li class="circle">com.redis.kafka.connect.<a href="com/redis/kafka/connect/RedisKeysSourceConnector.html" title="class in com.redis.kafka.connect"><span class="typeNameLink">RedisKeysSourceConnector</span></a></li>
+<li class="circle">com.redis.kafka.connect.<a href="com/redis/kafka/connect/RedisStreamSourceConnector.html" title="class in com.redis.kafka.connect"><span class="typeNameLink">RedisStreamSourceConnector</span></a></li>
 </ul>
 </li>
 </ul>
 </li>
-<li class="circle">com.redis.kafka.connect.source.<a href="com/redis/kafka/connect/source/KeySourceRecordReader.html" title="class in com.redis.kafka.connect.source"><span class="typeNameLink">KeySourceRecordReader</span></a> (implements com.redis.kafka.connect.source.<a href="com/redis/kafka/connect/source/SourceRecordReader.html" title="interface in com.redis.kafka.connect.source">SourceRecordReader</a>)</li>
+</ul>
+</li>
+<li class="circle">com.redis.kafka.connect.source.<a href="com/redis/kafka/connect/source/DataStructureConverter.html" title="class in com.redis.kafka.connect.source"><span class="typeNameLink">DataStructureConverter</span></a> (implements java.util.function.<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/function/Function.html?is-external=true" title="class or interface in java.util.function" class="externalLink">Function</a>&lt;T,&#8203;R&gt;)</li>
+<li class="circle">com.redis.kafka.connect.common.<a href="com/redis/kafka/connect/common/ManifestVersionProvider.html" title="class in com.redis.kafka.connect.common"><span class="typeNameLink">ManifestVersionProvider</span></a></li>
+<li class="circle">com.redis.kafka.connect.sink.<a href="com/redis/kafka/connect/sink/SinkOffsetState.html" title="class in com.redis.kafka.connect.sink"><span class="typeNameLink">SinkOffsetState</span></a> (implements java.lang.<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/Comparable.html?is-external=true" title="class or interface in java.lang" class="externalLink">Comparable</a>&lt;T&gt;)</li>
 <li class="circle">org.apache.kafka.connect.sink.SinkTask (implements org.apache.kafka.connect.connector.Task)
 <ul>
 <li class="circle">com.redis.kafka.connect.sink.<a href="com/redis/kafka/connect/sink/RedisSinkTask.html" title="class in com.redis.kafka.connect.sink"><span class="typeNameLink">RedisSinkTask</span></a></li>
@@ -152,19 +169,13 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </li>
 <li class="circle">org.apache.kafka.connect.source.SourceTask (implements org.apache.kafka.connect.connector.Task)
 <ul>
-<li class="circle">com.redis.kafka.connect.source.<a href="com/redis/kafka/connect/source/RedisSourceTask.html" title="class in com.redis.kafka.connect.source"><span class="typeNameLink">RedisSourceTask</span></a></li>
+<li class="circle">com.redis.kafka.connect.source.<a href="com/redis/kafka/connect/source/RedisKeysSourceTask.html" title="class in com.redis.kafka.connect.source"><span class="typeNameLink">RedisKeysSourceTask</span></a></li>
+<li class="circle">com.redis.kafka.connect.source.<a href="com/redis/kafka/connect/source/RedisStreamSourceTask.html" title="class in com.redis.kafka.connect.source"><span class="typeNameLink">RedisStreamSourceTask</span></a></li>
 </ul>
 </li>
-<li class="circle">com.redis.kafka.connect.source.<a href="com/redis/kafka/connect/source/StreamSourceRecordReader.html" title="class in com.redis.kafka.connect.source"><span class="typeNameLink">StreamSourceRecordReader</span></a> (implements com.redis.kafka.connect.source.<a href="com/redis/kafka/connect/source/SourceRecordReader.html" title="interface in com.redis.kafka.connect.source">SourceRecordReader</a>)</li>
-<li class="circle">com.redis.kafka.connect.common.<a href="com/redis/kafka/connect/common/VersionProvider.html" title="class in com.redis.kafka.connect.common"><span class="typeNameLink">VersionProvider</span></a></li>
+<li class="circle">com.redis.kafka.connect.source.<a href="com/redis/kafka/connect/source/StreamMessageConverter.html" title="class in com.redis.kafka.connect.source"><span class="typeNameLink">StreamMessageConverter</span></a> (implements java.util.function.<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/function/Function.html?is-external=true" title="class or interface in java.util.function" class="externalLink">Function</a>&lt;T,&#8203;R&gt;)</li>
 </ul>
 </li>
-</ul>
-</section>
-<section>
-<h2 title="Interface Hierarchy">Interface Hierarchy</h2>
-<ul>
-<li class="circle">com.redis.kafka.connect.source.<a href="com/redis/kafka/connect/source/SourceRecordReader.html" title="interface in com.redis.kafka.connect.source"><span class="typeNameLink">SourceRecordReader</span></a></li>
 </ul>
 </section>
 <section>
@@ -174,9 +185,7 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <ul>
 <li class="circle">java.lang.<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/Enum.html?is-external=true" title="class or interface in java.lang" class="externalLink"><span class="typeNameLink">Enum</span></a>&lt;E&gt; (implements java.lang.<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/Comparable.html?is-external=true" title="class or interface in java.lang" class="externalLink">Comparable</a>&lt;T&gt;, java.io.<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/io/Serializable.html?is-external=true" title="class or interface in java.io" class="externalLink">Serializable</a>)
 <ul>
-<li class="circle">com.redis.kafka.connect.sink.<a href="com/redis/kafka/connect/sink/RedisSinkConfig.DataType.html" title="enum in com.redis.kafka.connect.sink"><span class="typeNameLink">RedisSinkConfig.DataType</span></a></li>
-<li class="circle">com.redis.kafka.connect.sink.<a href="com/redis/kafka/connect/sink/RedisSinkConfig.PushDirection.html" title="enum in com.redis.kafka.connect.sink"><span class="typeNameLink">RedisSinkConfig.PushDirection</span></a></li>
-<li class="circle">com.redis.kafka.connect.source.<a href="com/redis/kafka/connect/source/RedisSourceConfig.ReaderType.html" title="enum in com.redis.kafka.connect.source"><span class="typeNameLink">RedisSourceConfig.ReaderType</span></a></li>
+<li class="circle">com.redis.kafka.connect.sink.<a href="com/redis/kafka/connect/sink/RedisSinkConfig.RedisCommand.html" title="enum in com.redis.kafka.connect.sink"><span class="typeNameLink">RedisSinkConfig.RedisCommand</span></a></li>
 </ul>
 </li>
 </ul>
