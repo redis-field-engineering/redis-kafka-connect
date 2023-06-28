@@ -17,102 +17,43 @@ package com.redis.kafka.connect.sink;
 
 import java.nio.charset.Charset;
 import java.time.Duration;
-import java.util.Arrays;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
-import java.util.Set;
 
-import org.apache.kafka.common.config.ConfigDef;
-import org.apache.kafka.common.config.ConfigValue;
-
-import com.github.jcustenborder.kafka.connect.utils.config.ConfigKeyBuilder;
-import com.github.jcustenborder.kafka.connect.utils.config.ConfigUtils;
-import com.github.jcustenborder.kafka.connect.utils.config.validators.Validators;
 import com.redis.kafka.connect.common.RedisConfig;
-import com.redis.spring.batch.writer.WaitForReplication;
-import com.redis.spring.batch.writer.WriterOptions;
 
 public class RedisSinkConfig extends RedisConfig {
 
-	public enum DataType {
-		HASH, JSON, TIMESERIES, STRING, STREAM, LIST, SET, ZSET
+	public enum RedisCommand {
+		HSET, JSONSET, TSADD, SET, XADD, LPUSH, RPUSH, SADD, ZADD, DEL
 	}
-
-	public enum PushDirection {
-		LEFT, RIGHT
-	}
-
-	public static final String TOKEN_TOPIC = "${topic}";
-
-	public static final String CHARSET_CONFIG = "redis.charset";
-	public static final String CHARSET_DEFAULT = Charset.defaultCharset().name();
-	public static final String CHARSET_DOC = "Character set to encode Redis key and value strings.";
-
-	public static final String KEY_CONFIG = "redis.key";
-	public static final String KEY_DEFAULT = TOKEN_TOPIC;
-	public static final String KEY_DOC = "A format string for destination key space, which may contain '" + TOKEN_TOPIC
-			+ "' as a placeholder for the originating topic name.\nFor example, ``kafka_" + TOKEN_TOPIC
-			+ "`` for the topic 'orders' will map to the Redis key space "
-			+ "'kafka_orders'.\nLeave empty for passthrough (only applicable to non-collection data structures).";
-
-	public static final String SEPARATOR_CONFIG = "redis.separator";
-	public static final String SEPARATOR_DEFAULT = ":";
-	public static final String SEPARATOR_DOC = "Separator for non-collection destination keys.";
-
-	public static final String MULTIEXEC_CONFIG = "redis.multiexec";
-	public static final String MULTIEXEC_DEFAULT = "false";
-	public static final String MULTIEXEC_DOC = "Whether to execute Redis commands in multi/exec transactions.";
-
-	public static final String WAIT_REPLICAS_CONFIG = "redis.wait.replicas";
-	public static final String WAIT_REPLICAS_DEFAULT = "0";
-	public static final String WAIT_REPLICAS_DOC = "Number of replicas to wait for. Use 0 to disable waiting for replicas.";
-
-	public static final String WAIT_TIMEOUT_CONFIG = "redis.wait.timeout";
-	public static final String WAIT_TIMEOUT_DEFAULT = "1000";
-	public static final String WAIT_TIMEOUT_DOC = "Timeout in millis for WAIT command.";
-
-	public static final String TYPE_CONFIG = "redis.type";
-	public static final DataType TYPE_DEFAULT = DataType.STREAM;
-	public static final String TYPE_DOC = "Destination data structure: " + ConfigUtils.enumValues(DataType.class);
-
-	protected static final Set<DataType> MULTI_EXEC_TYPES = new HashSet<>(
-			Arrays.asList(DataType.STREAM, DataType.LIST, DataType.SET, DataType.ZSET));
-
-	public static final String PUSH_DIRECTION_CONFIG = "redis.push.direction";
-	public static final String PUSH_DIRECTION_DEFAULT = PushDirection.LEFT.name();
-	public static final String PUSH_DIRECTION_DOC = "List push direction: " + PushDirection.LEFT + " (LPUSH) or "
-			+ PushDirection.RIGHT + " (RPUSH)";
 
 	private final Charset charset;
-	private final DataType type;
+	private final RedisCommand command;
 	private final String keyspace;
 	private final String separator;
-	private final PushDirection pushDirection;
 	private final boolean multiexec;
 	private final int waitReplicas;
-	private final long waitTimeout;
+	private final Duration waitTimeout;
 
 	public RedisSinkConfig(Map<?, ?> originals) {
 		super(new RedisSinkConfigDef(), originals);
-		String charsetName = getString(CHARSET_CONFIG).trim();
+		String charsetName = getString(RedisSinkConfigDef.CHARSET_CONFIG).trim();
 		charset = Charset.forName(charsetName);
-		type = ConfigUtils.getEnum(DataType.class, this, TYPE_CONFIG);
-		keyspace = getString(KEY_CONFIG).trim();
-		separator = getString(SEPARATOR_CONFIG).trim();
-		pushDirection = ConfigUtils.getEnum(PushDirection.class, this, PUSH_DIRECTION_CONFIG);
-		multiexec = Boolean.TRUE.equals(getBoolean(MULTIEXEC_CONFIG));
-		waitReplicas = getInt(WAIT_REPLICAS_CONFIG);
-		waitTimeout = getLong(WAIT_TIMEOUT_CONFIG);
+		command = RedisCommand.valueOf(getString(RedisSinkConfigDef.COMMAND_CONFIG));
+		keyspace = getString(RedisSinkConfigDef.KEY_CONFIG).trim();
+		separator = getString(RedisSinkConfigDef.SEPARATOR_CONFIG).trim();
+		multiexec = Boolean.TRUE.equals(getBoolean(RedisSinkConfigDef.MULTIEXEC_CONFIG));
+		waitReplicas = getInt(RedisSinkConfigDef.WAIT_REPLICAS_CONFIG);
+		waitTimeout = Duration.ofMillis(getLong(RedisSinkConfigDef.WAIT_TIMEOUT_CONFIG));
 	}
 
 	public Charset getCharset() {
 		return charset;
 	}
 
-	public DataType getType() {
-		return type;
+	public RedisCommand getCommand() {
+		return command;
 	}
 
 	public String getKeyspace() {
@@ -123,10 +64,6 @@ public class RedisSinkConfig extends RedisConfig {
 		return separator;
 	}
 
-	public PushDirection getPushDirection() {
-		return pushDirection;
-	}
-
 	public boolean isMultiexec() {
 		return multiexec;
 	}
@@ -135,68 +72,8 @@ public class RedisSinkConfig extends RedisConfig {
 		return waitReplicas;
 	}
 
-	public long getWaitTimeout() {
+	public Duration getWaitTimeout() {
 		return waitTimeout;
-	}
-
-	public static class RedisSinkConfigDef extends RedisConfigDef {
-
-		public RedisSinkConfigDef() {
-			define();
-		}
-
-		public RedisSinkConfigDef(ConfigDef base) {
-			super(base);
-			define();
-		}
-
-		private void define() {
-			define(ConfigKeyBuilder.of(CHARSET_CONFIG, ConfigDef.Type.STRING).documentation(CHARSET_DOC)
-					.defaultValue(CHARSET_DEFAULT).importance(ConfigDef.Importance.HIGH).build());
-			define(ConfigKeyBuilder.of(TYPE_CONFIG, ConfigDef.Type.STRING).documentation(TYPE_DOC)
-					.defaultValue(TYPE_DEFAULT.name()).importance(ConfigDef.Importance.HIGH)
-					.validator(Validators.validEnum(DataType.class)).build());
-			define(ConfigKeyBuilder.of(KEY_CONFIG, ConfigDef.Type.STRING).documentation(KEY_DOC)
-					.defaultValue(KEY_DEFAULT).importance(ConfigDef.Importance.MEDIUM).build());
-			define(ConfigKeyBuilder.of(SEPARATOR_CONFIG, ConfigDef.Type.STRING).documentation(SEPARATOR_DOC)
-					.defaultValue(SEPARATOR_DEFAULT).importance(ConfigDef.Importance.MEDIUM).build());
-			define(ConfigKeyBuilder.of(PUSH_DIRECTION_CONFIG, ConfigDef.Type.STRING).documentation(PUSH_DIRECTION_DOC)
-					.defaultValue(PUSH_DIRECTION_DEFAULT).importance(ConfigDef.Importance.MEDIUM).build());
-			define(ConfigKeyBuilder.of(MULTIEXEC_CONFIG, ConfigDef.Type.BOOLEAN).documentation(MULTIEXEC_DOC)
-					.defaultValue(MULTIEXEC_DEFAULT).importance(ConfigDef.Importance.MEDIUM).build());
-			define(ConfigKeyBuilder.of(WAIT_REPLICAS_CONFIG, ConfigDef.Type.INT).documentation(WAIT_REPLICAS_DOC)
-					.defaultValue(WAIT_REPLICAS_DEFAULT).importance(ConfigDef.Importance.MEDIUM).build());
-			define(ConfigKeyBuilder.of(WAIT_TIMEOUT_CONFIG, ConfigDef.Type.LONG).documentation(WAIT_TIMEOUT_DOC)
-					.defaultValue(WAIT_TIMEOUT_DEFAULT).importance(ConfigDef.Importance.MEDIUM).build());
-		}
-
-		@Override
-		public Map<String, ConfigValue> validateAll(Map<String, String> props) {
-			Map<String, ConfigValue> results = super.validateAll(props);
-			if (results.values().stream().map(ConfigValue::errorMessages).anyMatch(l -> !l.isEmpty())) {
-				return results;
-			}
-			DataType dataType = dataType(props);
-			String multiexec = props.getOrDefault(MULTIEXEC_CONFIG, MULTIEXEC_DEFAULT).trim();
-			if (multiexec.equalsIgnoreCase("true") && !MULTI_EXEC_TYPES.contains(dataType)) {
-				String supportedTypes = String.join(", ",
-						MULTI_EXEC_TYPES.stream().map(Enum::name).toArray(String[]::new));
-				results.get(MULTIEXEC_CONFIG)
-						.addErrorMessage("multi/exec is only supported with these data structures: " + supportedTypes);
-			}
-			String charsetName = props.getOrDefault(CHARSET_CONFIG, CHARSET_DEFAULT).trim();
-			try {
-				Charset.forName(charsetName);
-			} catch (Exception e) {
-				results.get(CHARSET_CONFIG).addErrorMessage(e.getMessage());
-			}
-			return results;
-		}
-
-		private DataType dataType(Map<String, String> props) {
-			return DataType.valueOf(props.getOrDefault(TYPE_CONFIG, TYPE_DEFAULT.name()));
-		}
-
 	}
 
 	@Override
@@ -204,7 +81,7 @@ public class RedisSinkConfig extends RedisConfig {
 		final int prime = 31;
 		int result = super.hashCode();
 		result = prime * result
-				+ Objects.hash(charset, keyspace, separator, multiexec, pushDirection, type, waitReplicas, waitTimeout);
+				+ Objects.hash(charset, keyspace, separator, multiexec, command, waitReplicas, waitTimeout);
 		return result;
 	}
 
@@ -219,19 +96,7 @@ public class RedisSinkConfig extends RedisConfig {
 		RedisSinkConfig other = (RedisSinkConfig) obj;
 		return Objects.equals(charset, other.charset) && Objects.equals(keyspace, other.keyspace)
 				&& Objects.equals(separator, other.separator) && multiexec == other.multiexec
-				&& pushDirection == other.pushDirection && type == other.type && waitReplicas == other.waitReplicas
-				&& waitTimeout == other.waitTimeout;
-	}
-
-	public WriterOptions writerOptions() {
-		return WriterOptions.builder().poolOptions(poolOptions()).multiExec(isMultiexec()).waitForReplication(waitForReplication()).build();
-	}
-
-	private Optional<WaitForReplication> waitForReplication() {
-		if (waitReplicas > 0) {
-			return Optional.of(WaitForReplication.of(waitReplicas, Duration.ofMillis(waitTimeout)));
-		}
-		return Optional.empty();
+				&& command == other.command && waitReplicas == other.waitReplicas && waitTimeout == other.waitTimeout;
 	}
 
 }

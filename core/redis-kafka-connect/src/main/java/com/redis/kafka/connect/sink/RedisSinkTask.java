@@ -26,7 +26,6 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
-import org.apache.commons.pool2.impl.GenericObjectPool;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.config.ConfigException;
 import org.apache.kafka.connect.data.Field;
@@ -40,20 +39,21 @@ import org.apache.kafka.connect.storage.Converter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.batch.item.ExecutionContext;
+import org.springframework.util.Assert;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.github.jcustenborder.kafka.connect.utils.data.SinkOffsetState;
-import com.github.jcustenborder.kafka.connect.utils.jackson.ObjectMapperFactory;
-import com.google.common.base.Preconditions;
-import com.google.common.base.Strings;
-import com.redis.kafka.connect.RedisSinkConnector;
-import com.redis.lettucemod.RedisModulesClient;
-import com.redis.lettucemod.cluster.RedisModulesClusterClient;
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.redis.kafka.connect.common.ManifestVersionProvider;
+import com.redis.lettucemod.api.StatefulRedisModulesConnection;
 import com.redis.lettucemod.util.RedisModulesUtils;
 import com.redis.spring.batch.RedisItemWriter;
+import com.redis.spring.batch.RedisItemWriter.WriterBuilder;
+import com.redis.spring.batch.common.Operation;
 import com.redis.spring.batch.convert.SampleConverter;
 import com.redis.spring.batch.convert.ScoredValueConverter;
-import com.redis.spring.batch.writer.Operation;
+import com.redis.spring.batch.writer.operation.Del;
 import com.redis.spring.batch.writer.operation.Hset;
 import com.redis.spring.batch.writer.operation.JsonSet;
 import com.redis.spring.batch.writer.operation.Lpush;
@@ -66,37 +66,47 @@ import com.redis.spring.batch.writer.operation.Zadd;
 
 import io.lettuce.core.AbstractRedisClient;
 import io.lettuce.core.KeyValue;
-import io.lettuce.core.api.StatefulConnection;
-import io.lettuce.core.api.StatefulRedisConnection;
+import io.lettuce.core.XAddArgs;
 import io.lettuce.core.codec.ByteArrayCodec;
+import io.netty.util.internal.StringUtil;
 
 public class RedisSinkTask extends SinkTask {
 
 	private static final Logger log = LoggerFactory.getLogger(RedisSinkTask.class);
 	private static final String OFFSET_KEY_FORMAT = "com.redis.kafka.connect.sink.offset.%s.%s";
 
+	private static final ObjectMapper objectMapper = objectMapper();
+
 	private RedisSinkConfig config;
 	private AbstractRedisClient client;
-	private StatefulRedisConnection<String, String> connection;
-	private RedisItemWriter<byte[], byte[], SinkRecord> writer;
+	private StatefulRedisModulesConnection<String, String> connection;
 	private Converter jsonConverter;
-	private GenericObjectPool<StatefulConnection<byte[], byte[]>> pool;
+	private RedisItemWriter<byte[], byte[], SinkRecord> writer;
 
 	@Override
 	public String version() {
-		return new RedisSinkConnector().version();
+		return ManifestVersionProvider.getVersion();
+	}
+
+	private static ObjectMapper objectMapper() {
+		ObjectMapper mapper = new ObjectMapper();
+		mapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
+		mapper.configure(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS, true);
+		mapper.configure(DeserializationFeature.USE_LONG_FOR_INTS, true);
+		return mapper;
 	}
 
 	@Override
 	public void start(final Map<String, String> props) {
 		config = new RedisSinkConfig(props);
-		client = config.client();
-		connection = RedisModulesUtils.connection(client);
-		pool = config.pool(client, ByteArrayCodec.INSTANCE);
 		jsonConverter = new JsonConverter();
 		jsonConverter.configure(Collections.singletonMap("schemas.enable", "false"), false);
-		writer = writer(client).options(config.writerOptions()).operation(operation());
+		this.client = config.client();
+		this.connection = RedisModulesUtils.connection(client);
+		writer = new WriterBuilder(client).multiExec(config.isMultiexec()).waitReplicas(config.getWaitReplicas())
+				.waitTimeout(config.getWaitTimeout()).operation(ByteArrayCodec.INSTANCE, operation());
 		writer.open(new ExecutionContext());
+		writer.setPoolOptions(config.poolOptions());
 		final java.util.Set<TopicPartition> assignment = this.context.assignment();
 		if (!assignment.isEmpty()) {
 			Map<TopicPartition, Long> partitionOffsets = new HashMap<>(assignment.size());
@@ -111,13 +121,6 @@ public class RedisSinkTask extends SinkTask {
 		}
 	}
 
-	private RedisItemWriter.Builder<byte[], byte[]> writer(AbstractRedisClient client) {
-		if (client instanceof RedisModulesClusterClient) {
-			return RedisItemWriter.client((RedisModulesClusterClient) client, ByteArrayCodec.INSTANCE);
-		}
-		return RedisItemWriter.client((RedisModulesClient)client, ByteArrayCodec.INSTANCE);
-	}
-
 	private Collection<SinkOffsetState> offsetStates(java.util.Set<TopicPartition> assignment) {
 		Collection<SinkOffsetState> offsetStates = new ArrayList<>();
 		String[] partitionKeys = assignment.stream().map(a -> offsetKey(a.topic(), a.partition()))
@@ -126,7 +129,7 @@ public class RedisSinkTask extends SinkTask {
 		for (KeyValue<String, String> value : values) {
 			if (value.hasValue()) {
 				try {
-					offsetStates.add(ObjectMapperFactory.INSTANCE.readValue(value.getValue(), SinkOffsetState.class));
+					offsetStates.add(objectMapper.readValue(value.getValue(), SinkOffsetState.class));
 				} catch (IOException e) {
 					throw new DataException(e);
 				}
@@ -139,31 +142,30 @@ public class RedisSinkTask extends SinkTask {
 		return String.format(OFFSET_KEY_FORMAT, topic, partition);
 	}
 
-	private Operation<byte[], byte[], SinkRecord> operation() {
-		switch (config.getType()) {
-		case HASH:
-			return Hset.key(this::key).map(this::map).del(this::isDelete).build();
-		case JSON:
-			return JsonSet.key(this::key).value(this::jsonValue).del(this::isDelete).build();
-		case STRING:
-			return Set.key(this::key).value(this::value).del(this::isDelete).build();
-		case STREAM:
-			return Xadd.key(this::collectionKey).body(this::map).build();
-		case LIST:
-			if (config.getPushDirection() == RedisSinkConfig.PushDirection.LEFT) {
-				return Lpush.key(this::collectionKey).member(this::member).build();
-			}
-			return Rpush.key(this::collectionKey).member(this::member).build();
+	private Operation<byte[], byte[], SinkRecord, ?> operation() {
+		switch (config.getCommand()) {
+		case HSET:
+			return new Hset<>(this::key, this::map);
+		case JSONSET:
+			return new JsonSet<>(this::key, this::jsonValue);
 		case SET:
-			return Sadd.key(this::collectionKey).member(this::member).build();
-		case TIMESERIES:
-			return TsAdd.key(this::collectionKey)
-					.<byte[]>sample(new SampleConverter<>(this::longMember, this::doubleValue)).build();
-		case ZSET:
-			return Zadd.key(this::collectionKey).value(new ScoredValueConverter<>(this::member, this::doubleValue))
-					.build();
+			return new Set<>(this::key, this::value);
+		case XADD:
+			return new Xadd<>(this::collectionKey, this::map, m -> new XAddArgs());
+		case LPUSH:
+			return new Lpush<>(this::collectionKey, this::member);
+		case RPUSH:
+			return new Rpush<>(this::collectionKey, this::member);
+		case SADD:
+			return new Sadd<>(this::collectionKey, this::member);
+		case TSADD:
+			return new TsAdd<>(this::collectionKey, new SampleConverter<>(this::longMember, this::doubleValue));
+		case ZADD:
+			return new Zadd<>(this::collectionKey, new ScoredValueConverter<>(this::member, this::doubleValue));
+		case DEL:
+			return new Del<>(this::key);
 		default:
-			throw new ConfigException(RedisSinkConfig.TYPE_CONFIG, config.getType());
+			throw new ConfigException(RedisSinkConfigDef.COMMAND_CONFIG, config.getCommand());
 		}
 	}
 
@@ -209,10 +211,6 @@ public class RedisSinkTask extends SinkTask {
 				"The value for the record must be a number. Consider using a single message transformation to transform the data before it is written to Redis.");
 	}
 
-	private boolean isDelete(SinkRecord sinkRecord) {
-		return sinkRecord.value() == null;
-	}
-
 	private byte[] key(SinkRecord sinkRecord) {
 		if (config.getKeyspace().isEmpty()) {
 			return bytes("key", sinkRecord.key());
@@ -227,7 +225,7 @@ public class RedisSinkTask extends SinkTask {
 	}
 
 	private String keyspace(SinkRecord sinkRecord) {
-		return config.getKeyspace().replace(RedisSinkConfig.TOKEN_TOPIC, sinkRecord.topic());
+		return config.getKeyspace().replace(RedisSinkConfigDef.TOKEN_TOPIC, sinkRecord.topic());
 	}
 
 	private byte[] bytes(String source, Object input) {
@@ -287,13 +285,10 @@ public class RedisSinkTask extends SinkTask {
 			connection.close();
 			connection = null;
 		}
-		if (pool != null) {
-			pool.close();
-			pool = null;
-		}
 		if (client != null) {
 			client.shutdown();
 			client.getResources().shutdown();
+			client = null;
 		}
 	}
 
@@ -308,9 +303,9 @@ public class RedisSinkTask extends SinkTask {
 		}
 		Map<TopicPartition, Long> data = new ConcurrentHashMap<>(100);
 		for (SinkRecord sinkRecord : records) {
-			Preconditions.checkState(!Strings.isNullOrEmpty(sinkRecord.topic()), "topic cannot be null or empty.");
-			Preconditions.checkNotNull(sinkRecord.kafkaPartition(), "partition cannot be null.");
-			Preconditions.checkState(sinkRecord.kafkaOffset() >= 0, "offset must be greater than or equal 0.");
+			Assert.isTrue(!StringUtil.isNullOrEmpty(sinkRecord.topic()), "topic cannot be null or empty.");
+			Assert.notNull(sinkRecord.kafkaPartition(), "partition cannot be null.");
+			Assert.isTrue(sinkRecord.kafkaOffset() >= 0, "offset must be greater than or equal 0.");
 			TopicPartition partition = new TopicPartition(sinkRecord.topic(), sinkRecord.kafkaPartition());
 			long current = data.getOrDefault(partition, Long.MIN_VALUE);
 			if (sinkRecord.kafkaOffset() > current) {
@@ -325,7 +320,7 @@ public class RedisSinkTask extends SinkTask {
 				String key = offsetKey(e.topic(), e.partition());
 				String value;
 				try {
-					value = ObjectMapperFactory.INSTANCE.writeValueAsString(e);
+					value = objectMapper.writeValueAsString(e);
 				} catch (JsonProcessingException e1) {
 					throw new DataException(e1);
 				}

@@ -17,8 +17,9 @@ import io.lettuce.core.RedisURI;
 
 @Testcontainers
 @TestInstance(Lifecycle.PER_CLASS)
-abstract class AbstractBaseIT {
+abstract class AbstractIntegrationTests {
 
+	protected RedisURI redisURI;
 	protected AbstractRedisClient client;
 	protected StatefulRedisModulesConnection<String, String> connection;
 
@@ -26,7 +27,7 @@ abstract class AbstractBaseIT {
 	void setup() {
 		RedisServer server = getRedisServer();
 		server.start();
-		RedisURI redisURI = RedisURI.create(server.getRedisURI());
+		redisURI = RedisURI.create(server.getRedisURI());
 		client = ClientBuilder.create(redisURI).cluster(server.isCluster()).build();
 		connection = RedisModulesUtils.connection(client);
 	}
@@ -49,5 +50,9 @@ abstract class AbstractBaseIT {
 	}
 
 	protected abstract RedisServer getRedisServer();
+
+	protected void enableKeyspaceNotifications() {
+		connection.sync().configSet("notify-keyspace-events", "AK");
+	}
 
 }

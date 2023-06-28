@@ -15,189 +15,29 @@
  */
 package com.redis.kafka.connect.source;
 
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-import org.apache.kafka.common.config.ConfigDef;
-
-import com.github.jcustenborder.kafka.connect.utils.config.ConfigKeyBuilder;
-import com.github.jcustenborder.kafka.connect.utils.config.ConfigUtils;
-import com.github.jcustenborder.kafka.connect.utils.config.validators.Validators;
 import com.redis.kafka.connect.common.RedisConfig;
-import com.redis.spring.batch.reader.ReaderOptions;
 
 public class RedisSourceConfig extends RedisConfig {
 
-	public enum ReaderType {
-		KEYS, STREAM
-	}
+	protected final int batchSize;
 
-	public static final String STREAM_DELIVERY_AT_MOST_ONCE = "at-most-once";
-	public static final String STREAM_DELIVERY_AT_LEAST_ONCE = "at-least-once";
-
-	public static final String TOKEN_STREAM = "${stream}";
-	public static final String TOKEN_TASK = "${task}";
-
-	public static final String TOPIC_CONFIG = "topic";
-	public static final String TOPIC_DEFAULT = TOKEN_STREAM;
-	public static final String TOPIC_DOC = String.format(
-			"Name of the destination topic, which may contain '%s' as a placeholder for the originating stream name. For example `redis_%s` for the stream 'orders' will map to the topic name 'redis_orders'.",
-			TOKEN_STREAM, TOKEN_STREAM);
-
-	public static final String READER_CONFIG = "redis.reader";
-	public static final ReaderType READER_DEFAULT = ReaderType.STREAM;
-	public static final String READER_DOC = "Source from which to read Redis records. " + ReaderType.KEYS
-			+ ": generate records from key events and respective values generated from write operations in the Redis database. "
-			+ ReaderType.STREAM + ": read messages from a Redis stream";
-
-	public static final String BATCH_SIZE_CONFIG = "batch.size";
-	public static final int BATCH_SIZE_DEFAULT = 500;
-	public static final String BATCH_SIZE_DOC = "Maximum number of records to include in a single read when polling for new data. This setting can be used to limit the amount of data buffered internally in the connector.";
-
-	public static final String KEY_PATTERNS_CONFIG = "redis.keys.patterns";
-	public static final String KEY_PATTERNS_DEFAULT = "*";
-	public static final String KEY_PATTERNS_DOC = "Keyspace glob-style patterns to subscribe to, comma-separated.";
-
-	public static final String STREAM_NAME_CONFIG = "redis.stream.name";
-	public static final String STREAM_NAME_DOC = "Name of the Redis stream to read from";
-
-	public static final String STREAM_OFFSET_CONFIG = "redis.stream.offset";
-	public static final String STREAM_OFFSET_DEFAULT = "0-0";
-	public static final String STREAM_OFFSET_DOC = "Stream offset to start reading from";
-
-	public static final String STREAM_DELIVERY_CONFIG = "redis.stream.delivery";
-	public static final String STREAM_DELIVERY_DEFAULT = STREAM_DELIVERY_AT_LEAST_ONCE;
-	public static final String STREAM_DELIVERY_DOC = "Stream message delivery guarantee, either 'at-least-once' or 'at-most-once'";
-
-	public static final String STREAM_CONSUMER_GROUP_CONFIG = "redis.stream.consumer.group";
-	public static final String STREAM_CONSUMER_GROUP_DEFAULT = "kafka-consumer-group";
-	public static final String STREAM_CONSUMER_GROUP_DOC = "Stream consumer group";
-
-	public static final String STREAM_CONSUMER_NAME_CONFIG = "redis.stream.consumer.name";
-	public static final String STREAM_CONSUMER_NAME_DEFAULT = "consumer-" + TOKEN_TASK;
-	public static final String STREAM_CONSUMER_NAME_DOC = "A format string for the stream consumer, which may contain '"
-			+ TOKEN_TASK + "' as a placeholder for the task id.\nFor example, 'consumer-" + TOKEN_TASK
-			+ "' for the task id '123' will map to the consumer name 'consumer-123'.";
-
-	public static final String STREAM_BLOCK_CONFIG = "redis.stream.block";
-	public static final long STREAM_BLOCK_DEFAULT = 100;
-	public static final String STREAM_BLOCK_DOC = "The max amount of time in milliseconds to wait while polling for stream messages (XREAD [BLOCK milliseconds])";
-
-	private final ReaderType readerType;
-	private final List<String> keyPatterns;
-	private final String streamName;
-	private final String streamOffset;
-	private final String streamDelivery;
-	private final String streamConsumerGroup;
-	private final String streamConsumerName;
-	private final int batchSize;
-	private final long streamBlock;
-	private final String topicName;
-
-	public RedisSourceConfig(Map<?, ?> originals) {
-		super(new RedisSourceConfigDef(), originals);
-		this.topicName = getString(TOPIC_CONFIG);
-		this.readerType = ConfigUtils.getEnum(ReaderType.class, this, READER_CONFIG);
-		this.batchSize = getInt(BATCH_SIZE_CONFIG);
-		this.keyPatterns = getList(KEY_PATTERNS_CONFIG);
-		this.streamName = getString(STREAM_NAME_CONFIG);
-		this.streamOffset = getString(STREAM_OFFSET_CONFIG);
-		this.streamDelivery = getString(STREAM_DELIVERY_CONFIG);
-		this.streamConsumerGroup = getString(STREAM_CONSUMER_GROUP_CONFIG);
-		this.streamConsumerName = getString(STREAM_CONSUMER_NAME_CONFIG);
-		this.streamBlock = getLong(STREAM_BLOCK_CONFIG);
-	}
-
-	public ReaderType getReaderType() {
-		return readerType;
-	}
-
-	public List<String> getKeyPatterns() {
-		return keyPatterns;
-	}
-
-	public Long getStreamBlock() {
-		return streamBlock;
+	protected RedisSourceConfig(RedisSourceConfigDef def, Map<?, ?> originals) {
+		super(def, originals);
+		this.batchSize = getInt(RedisSourceConfigDef.BATCH_SIZE_CONFIG);
 	}
 
 	public int getBatchSize() {
 		return batchSize;
 	}
 
-	public String getStreamName() {
-		return streamName;
-	}
-
-	public String getStreamOffset() {
-		return streamOffset;
-	}
-
-	public String getStreamDelivery() {
-		return streamDelivery;
-	}
-
-	public String getStreamConsumerGroup() {
-		return streamConsumerGroup;
-	}
-
-	public String getStreamConsumerName() {
-		return streamConsumerName;
-	}
-
-	public String getTopicName() {
-		return topicName;
-	}
-
-	public static class RedisSourceConfigDef extends RedisConfigDef {
-
-		public RedisSourceConfigDef() {
-			define();
-		}
-
-		public RedisSourceConfigDef(ConfigDef base) {
-			super(base);
-			define();
-		}
-
-		private void define() {
-			define(ConfigKeyBuilder.of(TOPIC_CONFIG, ConfigDef.Type.STRING).defaultValue(TOPIC_DEFAULT)
-					.importance(ConfigDef.Importance.MEDIUM).documentation(TOPIC_DOC).build());
-			define(ConfigKeyBuilder.of(BATCH_SIZE_CONFIG, ConfigDef.Type.INT).defaultValue(BATCH_SIZE_DEFAULT)
-					.importance(ConfigDef.Importance.LOW).documentation(BATCH_SIZE_DOC)
-					.validator(ConfigDef.Range.atLeast(1)).build());
-			define(ConfigKeyBuilder.of(READER_CONFIG, ConfigDef.Type.STRING).documentation(READER_DOC)
-					.defaultValue(READER_DEFAULT.name()).importance(ConfigDef.Importance.HIGH)
-					.validator(Validators.validEnum(ReaderType.class)).internalConfig(true).build());
-			define(ConfigKeyBuilder.of(KEY_PATTERNS_CONFIG, Type.LIST).documentation(KEY_PATTERNS_DOC)
-					.defaultValue(KEY_PATTERNS_DEFAULT).importance(Importance.MEDIUM).internalConfig(true).build());
-			define(ConfigKeyBuilder.of(STREAM_NAME_CONFIG, ConfigDef.Type.STRING).documentation(STREAM_NAME_DOC)
-					.importance(ConfigDef.Importance.HIGH).build());
-			define(ConfigKeyBuilder.of(STREAM_OFFSET_CONFIG, ConfigDef.Type.STRING).documentation(STREAM_OFFSET_DOC)
-					.defaultValue(STREAM_OFFSET_DEFAULT).importance(ConfigDef.Importance.MEDIUM).build());
-			define(ConfigKeyBuilder.of(STREAM_DELIVERY_CONFIG, ConfigDef.Type.STRING).documentation(STREAM_DELIVERY_DOC)
-					.defaultValue(STREAM_DELIVERY_DEFAULT).importance(ConfigDef.Importance.MEDIUM)
-					.validator(ConfigDef.ValidString.in(STREAM_DELIVERY_AT_LEAST_ONCE, STREAM_DELIVERY_AT_MOST_ONCE))
-					.build());
-			define(ConfigKeyBuilder.of(STREAM_CONSUMER_GROUP_CONFIG, ConfigDef.Type.STRING)
-					.documentation(STREAM_CONSUMER_GROUP_DOC).defaultValue(STREAM_CONSUMER_GROUP_DEFAULT)
-					.importance(ConfigDef.Importance.MEDIUM).build());
-			define(ConfigKeyBuilder.of(STREAM_CONSUMER_NAME_CONFIG, ConfigDef.Type.STRING)
-					.documentation(STREAM_CONSUMER_NAME_DOC).defaultValue(STREAM_CONSUMER_NAME_DEFAULT)
-					.importance(ConfigDef.Importance.MEDIUM).build());
-			define(ConfigKeyBuilder.of(STREAM_BLOCK_CONFIG, ConfigDef.Type.LONG).defaultValue(STREAM_BLOCK_DEFAULT)
-					.importance(ConfigDef.Importance.LOW).documentation(STREAM_BLOCK_DOC)
-					.validator(ConfigDef.Range.atLeast(1L)).build());
-		}
-
-	}
-
 	@Override
 	public int hashCode() {
 		final int prime = 31;
 		int result = super.hashCode();
-		result = prime * result + Objects.hash(batchSize, keyPatterns, readerType, streamBlock, streamConsumerGroup,
-				streamConsumerName, streamName, streamOffset, streamDelivery, topicName);
+		result = prime * result + Objects.hash(batchSize);
 		return result;
 	}
 
@@ -210,16 +50,7 @@ public class RedisSourceConfig extends RedisConfig {
 		if (getClass() != obj.getClass())
 			return false;
 		RedisSourceConfig other = (RedisSourceConfig) obj;
-		return Objects.equals(batchSize, other.batchSize) && Objects.equals(keyPatterns, other.keyPatterns)
-				&& readerType == other.readerType && Objects.equals(streamBlock, other.streamBlock)
-				&& Objects.equals(streamConsumerGroup, other.streamConsumerGroup)
-				&& Objects.equals(streamConsumerName, other.streamConsumerName)
-				&& Objects.equals(streamName, other.streamName) && Objects.equals(streamOffset, other.streamOffset)
-				&& Objects.equals(streamDelivery, other.streamDelivery) && Objects.equals(topicName, other.topicName);
-	}
-
-	public ReaderOptions readerOptions() {
-		return ReaderOptions.builder().poolOptions(poolOptions()).chunkSize(batchSize).poolOptions(poolOptions()).build();
+		return Objects.equals(batchSize, other.batchSize);
 	}
 
 }

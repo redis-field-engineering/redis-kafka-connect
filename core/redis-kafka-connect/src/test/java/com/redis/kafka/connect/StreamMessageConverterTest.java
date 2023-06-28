@@ -20,12 +20,12 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.ArgumentsProvider;
 import org.junit.jupiter.params.provider.ArgumentsSource;
 
-import com.redis.kafka.connect.source.RedisSourceConfig;
-import com.redis.kafka.connect.source.StreamSourceRecordReader;
+import com.redis.kafka.connect.source.RedisStreamSourceConfig;
+import com.redis.kafka.connect.source.StreamMessageConverter;
 
 import io.lettuce.core.StreamMessage;
 
-class StreamSourceRecordReaderTest {
+class StreamMessageConverterTest {
 
 	public static final String OFFSET_FIELD = "offset";
 	public static final String FIELD_ID = "id";
@@ -43,9 +43,9 @@ class StreamSourceRecordReaderTest {
 	@ParameterizedTest
 	@ArgumentsSource(ConvertArgs.class)
 	void testConvertStreamMessageOfStringString(ConvertArgs args) {
-		final StreamSourceRecordReader r = new StreamSourceRecordReader(args.config, 0, CLOCK);
-		final SourceRecord got = r.convert(args.message);
-
+		RedisStreamSourceConfig config = new RedisStreamSourceConfig(args.props);
+		StreamMessageConverter r = new StreamMessageConverter(CLOCK, config);
+		SourceRecord got = r.apply(args.message);
 		assertThat(got, equalTo(args.want));
 	}
 
@@ -53,15 +53,15 @@ class StreamSourceRecordReaderTest {
 		@Override
 		public Stream<? extends Arguments> provideArguments(ExtensionContext context) throws Exception {
 			return Stream.of(
-					new ConvertArgs(new RedisSourceConfig(mapOf("redis.stream.name", "stream1")),
+					new ConvertArgs(mapOf("redis.stream.name", "stream1"),
 							new StreamMessage<>("stream1", "1-0", mapOf()),
 							new SourceRecord(mapOf(), mapOf("offset", "1-0"), "stream1", null, Schema.STRING_SCHEMA,
 									"1-0", PUBLISHED_SCHEMA,
-									new Struct(PUBLISHED_SCHEMA)
-											.put(FIELD_ID, "1-0").put(FIELD_STREAM, "stream1").put(FIELD_BODY, mapOf()),
+									new Struct(PUBLISHED_SCHEMA).put(FIELD_ID, "1-0").put(FIELD_STREAM, "stream1")
+											.put(FIELD_BODY, mapOf()),
 									NOW)),
 
-					new ConvertArgs(new RedisSourceConfig(mapOf("redis.stream.name", "stream2")),
+					new ConvertArgs(mapOf("redis.stream.name", "stream2"),
 							new StreamMessage<>("stream2", "2-0", mapOf("key2", "value2")),
 							new SourceRecord(mapOf(), mapOf("offset", "2-0"), "stream2", null, Schema.STRING_SCHEMA,
 									"2-0", PUBLISHED_SCHEMA,
@@ -69,7 +69,7 @@ class StreamSourceRecordReaderTest {
 											.put(FIELD_BODY, mapOf("key2", "value2")),
 									NOW)),
 
-					new ConvertArgs(new RedisSourceConfig(mapOf("redis.stream.name", "stream3", "topic", "topic3")),
+					new ConvertArgs(mapOf("redis.stream.name", "stream3", "topic", "topic3"),
 							new StreamMessage<>("stream3", "3-0", mapOf("key3", "value3")),
 							new SourceRecord(mapOf(), mapOf("offset", "3-0"), "topic3", null, Schema.STRING_SCHEMA,
 									"3-0", PUBLISHED_SCHEMA, new Struct(PUBLISHED_SCHEMA).put(FIELD_ID, "3-0")
@@ -77,15 +77,15 @@ class StreamSourceRecordReaderTest {
 									NOW)));
 		}
 
-		RedisSourceConfig config;
+		Map<String, String> props;
 		StreamMessage<String, String> message;
 		SourceRecord want;
 
 		ConvertArgs() {
 		}
 
-		ConvertArgs(RedisSourceConfig config, StreamMessage<String, String> message, SourceRecord want) {
-			this.config = config;
+		ConvertArgs(Map<String, String> props, StreamMessage<String, String> message, SourceRecord want) {
+			this.props = props;
 			this.message = message;
 			this.want = want;
 		}
@@ -97,7 +97,7 @@ class StreamSourceRecordReaderTest {
 	}
 
 	static Map<String, String> mapOf(String... args) {
-		final HashMap<String, String> ret = new HashMap<>();
+		HashMap<String, String> ret = new HashMap<>();
 		int i = 0;
 		for (; i < args.length; i += 2) {
 			ret.put(args[i], args[i + 1]);
