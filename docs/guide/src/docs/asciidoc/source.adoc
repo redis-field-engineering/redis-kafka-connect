@@ -103,6 +103,9 @@ For example, `redis_${stream}` and stream `orders` => topic `redis_orders`.
 The keys source connector captures changes happening to keys in a Redis database and publishes keys and values to a Kafka topic.
 The data structure key will be mapped to the record key, and the value will be mapped to the record value.
 
+**Make sure the Redis database has keyspace notifications enabled** using `notify-keyspace-events = KA` in `redis.conf` or via `CONFIG SET`.
+For more details see {link_redis_notif}.
+
 [WARNING]
 ====
 The keys source connector does not guarantee data consistency because it relies on Redis keyspace notifications which have no delivery guarantees.
