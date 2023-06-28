@@ -34,7 +34,6 @@ public class DataStructureConverter implements Function<DataStructure<String>, S
 	public static final Schema HASH_SCHEMA = SchemaBuilder.map(Schema.STRING_SCHEMA, Schema.STRING_SCHEMA).optional();
 	public static final Schema LIST_SCHEMA = SchemaBuilder.array(Schema.STRING_SCHEMA).optional();
 	public static final Schema SET_SCHEMA = SchemaBuilder.array(Schema.STRING_SCHEMA).optional();
-	public static final Schema STREAM_SCHEMA = SchemaBuilder.array(StreamMessageConverter.VALUE_SCHEMA).optional();
 	public static final Schema STRING_SCHEMA = Schema.OPTIONAL_STRING_SCHEMA;
 	public static final Schema ZSET_SCHEMA = SchemaBuilder.map(Schema.FLOAT64_SCHEMA, Schema.STRING_SCHEMA).optional();
 	public static final Schema VALUE_SCHEMA = SchemaBuilder.struct().field(FIELD_KEY, Schema.STRING_SCHEMA)
@@ -48,20 +47,39 @@ public class DataStructureConverter implements Function<DataStructure<String>, S
 		struct.put(FIELD_KEY, input.getKey());
 		struct.put(FIELD_TTL, input.getTtl());
 		struct.put(FIELD_TYPE, input.getType());
-		struct.put(fieldName(input), fieldValue(input));
+		switch (input.getType()) {
+		case DataStructure.HASH:
+			struct.put(FIELD_HASH, input.getValue());
+			break;
+		case DataStructure.JSON:
+			struct.put(FIELD_JSON, input.getValue());
+			break;
+		case DataStructure.LIST:
+			struct.put(FIELD_LIST, input.getValue());
+			break;
+		case DataStructure.SET:
+			struct.put(FIELD_SET, list(input));
+			break;
+		case DataStructure.STRING:
+			struct.put(FIELD_STRING, input.getValue());
+			break;
+		case DataStructure.ZSET:
+			struct.put(FIELD_ZSET, zsetMap(input));
+			break;
+		default:
+			break;
+		}
 		return struct;
 	}
 
 	@SuppressWarnings("unchecked")
-	private Object fieldValue(DataStructure<String> input) {
-		switch (input.getType()) {
-		case DataStructure.ZSET:
-			return zsetMap((Collection<ScoredValue<String>>) input.getValue());
-		case DataStructure.SET:
-			return new ArrayList<>(((Collection<String>) input.getValue()));
-		default:
-			return input.getValue();
-		}
+	private Object list(DataStructure<String> input) {
+		return new ArrayList<>((Collection<String>) input.getValue());
+	}
+
+	public static Map<Double, String> zsetMap(DataStructure<String> input) {
+		Collection<ScoredValue<String>> value = input.getValue();
+		return zsetMap(value);
 	}
 
 	public static Map<Double, String> zsetMap(Collection<ScoredValue<String>> value) {
@@ -70,25 +88,6 @@ public class DataStructureConverter implements Function<DataStructure<String>, S
 
 	public static Map<Long, Double> timeseriesMap(Collection<Sample> samples) {
 		return samples.stream().collect(Collectors.toMap(Sample::getTimestamp, Sample::getValue));
-	}
-
-	public static String fieldName(DataStructure<String> input) {
-		switch (input.getType()) {
-		case DataStructure.HASH:
-			return FIELD_HASH;
-		case DataStructure.JSON:
-			return FIELD_JSON;
-		case DataStructure.LIST:
-			return FIELD_LIST;
-		case DataStructure.SET:
-			return FIELD_SET;
-		case DataStructure.STRING:
-			return FIELD_STRING;
-		case DataStructure.ZSET:
-			return FIELD_ZSET;
-		default:
-			return FIELD_STRING;
-		}
 	}
 
 }
