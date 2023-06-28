@@ -2,3 +2,4 @@
 :link_lettuce_uri:      link:https://github.com/lettuce-io/lettuce-core/wiki/Redis-URI-and-connection-details#uri-syntax[Redis URI Syntax]
 :link_redis_notif:      link:https://redis.io/docs/manual/keyspace-notifications[Redis Keyspace Notifications]
 :link_manual_install:   link:https://docs.confluent.io/home/connect/community.html#manually-installing-community-connectors/[Manually Installing Community Connectors]
+:link_redis_keys:       https://redis.io/commands/keys/[Redis KEYS]

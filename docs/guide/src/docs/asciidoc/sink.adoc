@@ -43,7 +43,7 @@ Use the following properties to write Kafka records as Redis hashes:
 
 [source,properties]
 ----
-redis.type=HASH
+redis.command=HSET
 key.converter=<string or bytes> <1>
 value.converter=<Avro or JSON> <2>
 ----
@@ -58,7 +58,7 @@ Use the following properties to write Kafka records as Redis strings:
 
 [source,properties]
 ----
-redis.type=STRING
+redis.command=SET
 key.converter=<string or bytes> <1>
 value.converter=<string or bytes> <2>
 ----
@@ -73,7 +73,7 @@ Use the following properties to write Kafka records as RedisJSON documents:
 
 [source,properties]
 ----
-redis.type=JSON
+redis.command=JSONSET
 key.converter=<string, bytes, or Avro> <1>
 value.converter=<string, bytes, or Avro> <2>
 ----
@@ -88,7 +88,7 @@ Use the following properties to store Kafka records as Redis stream messages:
 
 [source,properties]
 ----
-redis.type=STREAM
+redis.command=XADD
 redis.key=<stream key> <1>
 value.converter=<Avro or JSON> <2>
 ----
@@ -102,15 +102,14 @@ Use the following properties to add Kafka record keys to a Redis list:
 
 [source,properties]
 ----
-redis.type=LIST
-redis.key=<key name> <1>
-key.converter=<string or bytes> <2>
-redis.push.direction=<LEFT or RIGHT> <3>
+redis.command=<LPUSH or RPUSH> <1>
+redis.key=<key name> <2>
+key.converter=<string or bytes> <3>
 ----
 
-<1><<_collection_key,List key>>
-<2> <<_key_string,String>> or <<_key_bytes,bytes>>: Kafka record keys to push to the list
-<3> `LEFT`: LPUSH (default), `RIGHT`: RPUSH
+<1> `LPUSH` or `RPUSH`
+<2> <<_collection_key,List key>>
+<3> <<_key_string,String>> or <<_key_bytes,bytes>>: Kafka record keys to push to the list
 
 The Kafka record value can be any format.
 If a value is null then the member is removed from the list (instead of pushed to the list).
@@ -121,7 +120,7 @@ Use the following properties to add Kafka record keys to a Redis set:
 
 [source,properties]
 ----
-redis.type=SET
+redis.command=SADD
 redis.key=<key name> <1>
 key.converter=<string or bytes> <2>
 ----
@@ -138,7 +137,7 @@ Use the following properties to add Kafka record keys to a Redis sorted set:
 
 [source,properties]
 ----
-redis.type=ZSET
+redis.command=ZADD
 redis.key=<key name> <1>
 key.converter=<string or bytes> <2>
 ----
@@ -155,7 +154,7 @@ Use the following properties to write Kafka records as RedisTimeSeries samples:
 
 [source,properties]
 ----
-redis.type=TIMESERIES
+redis.command=TSADD
 redis.key=<key name> <1>
 ----
 

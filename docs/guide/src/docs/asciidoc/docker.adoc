@@ -1,7 +1,7 @@
 [[_docker]]
 = Quick Start with Docker
 
-This guide provides a hands-on look at the functionality of the Redis Kafka Source and Sink Connectors:
+This section provides a hands-on look at the functionality of the Redis Kafka Source and Sink Connectors:
 
 * The *redis-sink* connector reads data from a Kafka topic and writes it to a Redis stream
 * The *redis-source* connector reads data from a Redis stream and writes it to a Kafka topic
