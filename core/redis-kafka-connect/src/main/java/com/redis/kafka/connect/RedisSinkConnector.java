@@ -43,7 +43,7 @@ public class RedisSinkConnector extends SinkConnector {
 
 	@Override
 	public List<Map<String, String>> taskConfigs(int maxTasks) {
-		return Collections.singletonList(props);
+		return Collections.nCopies(maxTasks, props);
 	}
 
 	@Override

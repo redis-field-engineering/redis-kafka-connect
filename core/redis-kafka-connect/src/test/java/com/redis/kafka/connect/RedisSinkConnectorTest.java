@@ -29,6 +29,7 @@ class RedisSinkConnectorTest {
 		props.put("field1", "value1");
 		connector.start(props);
 		Assertions.assertEquals(props, connector.taskConfigs(123).get(0));
+		Assertions.assertEquals(123, connector.taskConfigs(123).size());
 	}
 
 	@Test
