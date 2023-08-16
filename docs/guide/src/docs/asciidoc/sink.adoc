@@ -125,7 +125,7 @@ redis.key=<key name> <1>
 key.converter=<string or bytes> <2>
 ----
 
-<1><<_collection_key,Set key>>
+<1> <<_collection_key,Set key>>
 <2> <<_key_string,String>> or <<_key_bytes,bytes>>: Kafka record keys to add to the set
 
 The Kafka record value can be any format.
@@ -142,7 +142,7 @@ redis.key=<key name> <1>
 key.converter=<string or bytes> <2>
 ----
 
-<1><<_collection_key,Sorted set key>>
+<1> <<_collection_key,Sorted set key>>
 <2> <<_key_string,String>> or <<_key_bytes,bytes>>: Kafka record keys to add to the set
 
 The Kafka record value should be `float64` and is used for the score.
