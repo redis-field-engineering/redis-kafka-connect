@@ -20,79 +20,88 @@ import java.util.Objects;
 
 public class RedisStreamSourceConfig extends RedisSourceConfig {
 
-	public static final String STREAM_DELIVERY_AT_MOST_ONCE = "at-most-once";
-	public static final String STREAM_DELIVERY_AT_LEAST_ONCE = "at-least-once";
+    public static final String STREAM_DELIVERY_AT_MOST_ONCE = "at-most-once";
 
-	private final String streamName;
-	private final String streamOffset;
-	private final String streamDelivery;
-	private final String streamConsumerGroup;
-	private final String streamConsumerName;
-	private final long streamBlock;
-	private final String topicName;
+    public static final String STREAM_DELIVERY_AT_LEAST_ONCE = "at-least-once";
 
-	public RedisStreamSourceConfig(Map<?, ?> originals) {
-		super(new RedisStreamSourceConfigDef(), originals);
-		this.topicName = getString(RedisStreamSourceConfigDef.TOPIC_CONFIG);
-		this.streamName = getString(RedisStreamSourceConfigDef.STREAM_NAME_CONFIG);
-		this.streamOffset = getString(RedisStreamSourceConfigDef.STREAM_OFFSET_CONFIG);
-		this.streamDelivery = getString(RedisStreamSourceConfigDef.STREAM_DELIVERY_CONFIG);
-		this.streamConsumerGroup = getString(RedisStreamSourceConfigDef.STREAM_CONSUMER_GROUP_CONFIG);
-		this.streamConsumerName = getString(RedisStreamSourceConfigDef.STREAM_CONSUMER_NAME_CONFIG);
-		this.streamBlock = getLong(RedisStreamSourceConfigDef.STREAM_BLOCK_CONFIG);
-	}
+    public static final RedisStreamSourceConfigDef CONFIG = new RedisStreamSourceConfigDef();
 
-	public Long getStreamBlock() {
-		return streamBlock;
-	}
+    private final String streamName;
 
-	public String getStreamName() {
-		return streamName;
-	}
+    private final String streamOffset;
 
-	public String getStreamOffset() {
-		return streamOffset;
-	}
+    private final String streamDelivery;
 
-	public String getStreamDelivery() {
-		return streamDelivery;
-	}
+    private final String streamConsumerGroup;
 
-	public String getStreamConsumerGroup() {
-		return streamConsumerGroup;
-	}
+    private final String streamConsumerName;
 
-	public String getStreamConsumerName() {
-		return streamConsumerName;
-	}
+    private final long streamBlock;
 
-	public String getTopicName() {
-		return topicName;
-	}
+    private final String topicName;
 
-	@Override
-	public int hashCode() {
-		final int prime = 31;
-		int result = super.hashCode();
-		result = prime * result + Objects.hash(batchSize, streamBlock, streamConsumerGroup, streamConsumerName,
-				streamName, streamOffset, streamDelivery, topicName);
-		return result;
-	}
+    public RedisStreamSourceConfig(Map<?, ?> originals) {
+        super(new RedisStreamSourceConfigDef(), originals);
+        this.topicName = getString(RedisStreamSourceConfigDef.TOPIC_CONFIG);
+        this.streamName = getString(RedisStreamSourceConfigDef.STREAM_NAME_CONFIG);
+        this.streamOffset = getString(RedisStreamSourceConfigDef.STREAM_OFFSET_CONFIG);
+        this.streamDelivery = getString(RedisStreamSourceConfigDef.STREAM_DELIVERY_CONFIG);
+        this.streamConsumerGroup = getString(RedisStreamSourceConfigDef.STREAM_CONSUMER_GROUP_CONFIG);
+        this.streamConsumerName = getString(RedisStreamSourceConfigDef.STREAM_CONSUMER_NAME_CONFIG);
+        this.streamBlock = getLong(RedisStreamSourceConfigDef.STREAM_BLOCK_CONFIG);
+    }
 
-	@Override
-	public boolean equals(Object obj) {
-		if (this == obj)
-			return true;
-		if (!super.equals(obj))
-			return false;
-		if (getClass() != obj.getClass())
-			return false;
-		RedisStreamSourceConfig other = (RedisStreamSourceConfig) obj;
-		return Objects.equals(batchSize, other.batchSize) && Objects.equals(streamBlock, other.streamBlock)
-				&& Objects.equals(streamConsumerGroup, other.streamConsumerGroup)
-				&& Objects.equals(streamConsumerName, other.streamConsumerName)
-				&& Objects.equals(streamName, other.streamName) && Objects.equals(streamOffset, other.streamOffset)
-				&& Objects.equals(streamDelivery, other.streamDelivery) && Objects.equals(topicName, other.topicName);
-	}
+    public Long getStreamBlock() {
+        return streamBlock;
+    }
+
+    public String getStreamName() {
+        return streamName;
+    }
+
+    public String getStreamOffset() {
+        return streamOffset;
+    }
+
+    public String getStreamDelivery() {
+        return streamDelivery;
+    }
+
+    public String getStreamConsumerGroup() {
+        return streamConsumerGroup;
+    }
+
+    public String getStreamConsumerName() {
+        return streamConsumerName;
+    }
+
+    public String getTopicName() {
+        return topicName;
+    }
+
+    @Override
+    public int hashCode() {
+        final int prime = 31;
+        int result = super.hashCode();
+        result = prime * result + Objects.hash(batchSize, streamBlock, streamConsumerGroup, streamConsumerName, streamName,
+                streamOffset, streamDelivery, topicName);
+        return result;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj)
+            return true;
+        if (!super.equals(obj))
+            return false;
+        if (getClass() != obj.getClass())
+            return false;
+        RedisStreamSourceConfig other = (RedisStreamSourceConfig) obj;
+        return Objects.equals(batchSize, other.batchSize) && Objects.equals(streamBlock, other.streamBlock)
+                && Objects.equals(streamConsumerGroup, other.streamConsumerGroup)
+                && Objects.equals(streamConsumerName, other.streamConsumerName) && Objects.equals(streamName, other.streamName)
+                && Objects.equals(streamOffset, other.streamOffset) && Objects.equals(streamDelivery, other.streamDelivery)
+                && Objects.equals(topicName, other.topicName);
+    }
 
 }

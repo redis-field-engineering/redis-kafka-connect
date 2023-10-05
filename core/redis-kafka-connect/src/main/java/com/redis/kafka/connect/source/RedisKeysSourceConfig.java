@@ -22,48 +22,52 @@ import java.util.Objects;
 
 public class RedisKeysSourceConfig extends RedisSourceConfig {
 
-	private final List<String> keyPatterns;
-	private final String topicName;
-	private Duration idleTimeout;
+    public static final RedisKeysSourceConfigDef CONFIG = new RedisKeysSourceConfigDef();
 
-	public RedisKeysSourceConfig(Map<?, ?> originals) {
-		super(new RedisKeysSourceConfigDef(), originals);
-		this.topicName = getString(RedisKeysSourceConfigDef.TOPIC_CONFIG);
-		this.keyPatterns = getList(RedisKeysSourceConfigDef.KEY_PATTERNS_CONFIG);
-		this.idleTimeout = Duration.ofMillis(getLong(RedisKeysSourceConfigDef.IDLE_TIMEOUT_CONFIG));
-	}
+    private final List<String> keyPatterns;
 
-	public List<String> getKeyPatterns() {
-		return keyPatterns;
-	}
+    private final String topicName;
 
-	public String getTopicName() {
-		return topicName;
-	}
+    private Duration idleTimeout;
 
-	public Duration getIdleTimeout() {
-		return idleTimeout;
-	}
+    public RedisKeysSourceConfig(Map<?, ?> originals) {
+        super(new RedisKeysSourceConfigDef(), originals);
+        this.topicName = getString(RedisKeysSourceConfigDef.TOPIC_CONFIG);
+        this.keyPatterns = getList(RedisKeysSourceConfigDef.KEY_PATTERNS_CONFIG);
+        this.idleTimeout = Duration.ofMillis(getLong(RedisKeysSourceConfigDef.IDLE_TIMEOUT_CONFIG));
+    }
 
-	@Override
-	public int hashCode() {
-		final int prime = 31;
-		int result = super.hashCode();
-		result = prime * result + Objects.hash(batchSize, keyPatterns, topicName);
-		return result;
-	}
+    public List<String> getKeyPatterns() {
+        return keyPatterns;
+    }
 
-	@Override
-	public boolean equals(Object obj) {
-		if (this == obj)
-			return true;
-		if (!super.equals(obj))
-			return false;
-		if (getClass() != obj.getClass())
-			return false;
-		RedisKeysSourceConfig other = (RedisKeysSourceConfig) obj;
-		return Objects.equals(batchSize, other.batchSize) && Objects.equals(keyPatterns, other.keyPatterns)
-				&& Objects.equals(topicName, other.topicName);
-	}
+    public String getTopicName() {
+        return topicName;
+    }
+
+    public Duration getIdleTimeout() {
+        return idleTimeout;
+    }
+
+    @Override
+    public int hashCode() {
+        final int prime = 31;
+        int result = super.hashCode();
+        result = prime * result + Objects.hash(batchSize, keyPatterns, topicName);
+        return result;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj)
+            return true;
+        if (!super.equals(obj))
+            return false;
+        if (getClass() != obj.getClass())
+            return false;
+        RedisKeysSourceConfig other = (RedisKeysSourceConfig) obj;
+        return Objects.equals(batchSize, other.batchSize) && Objects.equals(keyPatterns, other.keyPatterns)
+                && Objects.equals(topicName, other.topicName);
+    }
 
 }

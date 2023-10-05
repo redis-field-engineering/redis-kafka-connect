@@ -15,49 +15,51 @@
  */
 package com.redis.kafka.connect;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import org.apache.kafka.common.config.ConfigDef;
 import org.apache.kafka.connect.connector.Task;
 import org.apache.kafka.connect.sink.SinkConnector;
 
 import com.redis.kafka.connect.common.ManifestVersionProvider;
-import com.redis.kafka.connect.sink.RedisSinkConfigDef;
+import com.redis.kafka.connect.sink.RedisSinkConfig;
 import com.redis.kafka.connect.sink.RedisSinkTask;
 
 public class RedisSinkConnector extends SinkConnector {
 
-	private Map<String, String> props;
+    private Map<String, String> props;
 
-	@Override
-	public void start(Map<String, String> props) {
-		this.props = props;
-	}
+    @Override
+    public void start(Map<String, String> props) {
+        this.props = props;
+    }
 
-	@Override
-	public Class<? extends Task> taskClass() {
-		return RedisSinkTask.class;
-	}
+    @Override
+    public Class<? extends Task> taskClass() {
+        return RedisSinkTask.class;
+    }
 
-	@Override
-	public List<Map<String, String>> taskConfigs(int maxTasks) {
-		return Collections.singletonList(props);
-	}
+    @Override
+    public List<Map<String, String>> taskConfigs(int maxTasks) {
+        return IntStream.range(0, maxTasks).mapToObj(i -> props).collect(Collectors.toList());
+    }
 
-	@Override
-	public void stop() {
-		// Do nothing
-	}
+    @Override
+    public void stop() {
+        // Do nothing
+    }
 
-	@Override
-	public ConfigDef config() {
-		return new RedisSinkConfigDef();
-	}
+    @Override
+    public ConfigDef config() {
+        return RedisSinkConfig.CONFIG;
+    }
 
-	@Override
-	public String version() {
-		return ManifestVersionProvider.getVersion();
-	}
+    @Override
+    public String version() {
+        return ManifestVersionProvider.getVersion();
+    }
+
 }

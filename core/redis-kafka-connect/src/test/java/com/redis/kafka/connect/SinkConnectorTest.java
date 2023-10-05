@@ -9,7 +9,7 @@ import org.junit.jupiter.api.Test;
 import com.redis.kafka.connect.common.ManifestVersionProvider;
 import com.redis.kafka.connect.sink.RedisSinkTask;
 
-class RedisSinkConnectorTest {
+class SinkConnectorTest {
 
 	@Test
 	void testConfig() {

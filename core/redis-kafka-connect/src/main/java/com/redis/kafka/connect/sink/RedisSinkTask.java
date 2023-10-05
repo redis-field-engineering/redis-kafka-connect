@@ -72,263 +72,266 @@ import io.netty.util.internal.StringUtil;
 
 public class RedisSinkTask extends SinkTask {
 
-	private static final Logger log = LoggerFactory.getLogger(RedisSinkTask.class);
-	private static final String OFFSET_KEY_FORMAT = "com.redis.kafka.connect.sink.offset.%s.%s";
+    private static final Logger log = LoggerFactory.getLogger(RedisSinkTask.class);
 
-	private static final ObjectMapper objectMapper = objectMapper();
+    private static final String OFFSET_KEY_FORMAT = "com.redis.kafka.connect.sink.offset.%s.%s";
 
-	private RedisSinkConfig config;
-	private AbstractRedisClient client;
-	private StatefulRedisModulesConnection<String, String> connection;
-	private Converter jsonConverter;
-	private RedisItemWriter<byte[], byte[], SinkRecord> writer;
+    private static final ObjectMapper objectMapper = objectMapper();
 
-	@Override
-	public String version() {
-		return ManifestVersionProvider.getVersion();
-	}
+    private RedisSinkConfig config;
 
-	private static ObjectMapper objectMapper() {
-		ObjectMapper mapper = new ObjectMapper();
-		mapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
-		mapper.configure(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS, true);
-		mapper.configure(DeserializationFeature.USE_LONG_FOR_INTS, true);
-		return mapper;
-	}
+    private AbstractRedisClient client;
 
-	@Override
-	public void start(final Map<String, String> props) {
-		config = new RedisSinkConfig(props);
-		jsonConverter = new JsonConverter();
-		jsonConverter.configure(Collections.singletonMap("schemas.enable", "false"), false);
-		this.client = config.client();
-		this.connection = RedisModulesUtils.connection(client);
-		writer = new WriterBuilder(client).multiExec(config.isMultiexec()).waitReplicas(config.getWaitReplicas())
-				.waitTimeout(config.getWaitTimeout()).operation(ByteArrayCodec.INSTANCE, operation());
-		writer.open(new ExecutionContext());
-		writer.setPoolOptions(config.poolOptions());
-		final java.util.Set<TopicPartition> assignment = this.context.assignment();
-		if (!assignment.isEmpty()) {
-			Map<TopicPartition, Long> partitionOffsets = new HashMap<>(assignment.size());
-			for (SinkOffsetState state : offsetStates(assignment)) {
-				partitionOffsets.put(state.topicPartition(), state.offset());
-				log.info("Requesting offset {} for {}", state.offset(), state.topicPartition());
-			}
-			for (TopicPartition topicPartition : assignment) {
-				partitionOffsets.putIfAbsent(topicPartition, 0L);
-			}
-			this.context.offset(partitionOffsets);
-		}
-	}
+    private StatefulRedisModulesConnection<String, String> connection;
 
-	private Collection<SinkOffsetState> offsetStates(java.util.Set<TopicPartition> assignment) {
-		Collection<SinkOffsetState> offsetStates = new ArrayList<>();
-		String[] partitionKeys = assignment.stream().map(a -> offsetKey(a.topic(), a.partition()))
-				.toArray(String[]::new);
-		List<KeyValue<String, String>> values = connection.sync().mget(partitionKeys);
-		for (KeyValue<String, String> value : values) {
-			if (value.hasValue()) {
-				try {
-					offsetStates.add(objectMapper.readValue(value.getValue(), SinkOffsetState.class));
-				} catch (IOException e) {
-					throw new DataException(e);
-				}
-			}
-		}
-		return offsetStates;
-	}
+    private Converter jsonConverter;
 
-	private String offsetKey(String topic, Integer partition) {
-		return String.format(OFFSET_KEY_FORMAT, topic, partition);
-	}
+    private RedisItemWriter<byte[], byte[], SinkRecord> writer;
 
-	private Operation<byte[], byte[], SinkRecord, ?> operation() {
-		switch (config.getCommand()) {
-		case HSET:
-			return new Hset<>(this::key, this::map);
-		case JSONSET:
-			return new JsonSet<>(this::key, this::jsonValue);
-		case SET:
-			return new Set<>(this::key, this::value);
-		case XADD:
-			return new Xadd<>(this::collectionKey, this::map, m -> new XAddArgs());
-		case LPUSH:
-			return new Lpush<>(this::collectionKey, this::member);
-		case RPUSH:
-			return new Rpush<>(this::collectionKey, this::member);
-		case SADD:
-			return new Sadd<>(this::collectionKey, this::member);
-		case TSADD:
-			return new TsAdd<>(this::collectionKey, new SampleConverter<>(this::longMember, this::doubleValue));
-		case ZADD:
-			return new Zadd<>(this::collectionKey, new ScoredValueConverter<>(this::member, this::doubleValue));
-		case DEL:
-			return new Del<>(this::key);
-		default:
-			throw new ConfigException(RedisSinkConfigDef.COMMAND_CONFIG, config.getCommand());
-		}
-	}
+    @Override
+    public String version() {
+        return ManifestVersionProvider.getVersion();
+    }
 
-	private byte[] value(SinkRecord sinkRecord) {
-		return bytes("value", sinkRecord.value());
-	}
+    private static ObjectMapper objectMapper() {
+        ObjectMapper mapper = new ObjectMapper();
+        mapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
+        mapper.configure(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS, true);
+        mapper.configure(DeserializationFeature.USE_LONG_FOR_INTS, true);
+        return mapper;
+    }
 
-	private byte[] jsonValue(SinkRecord sinkRecord) {
-		Object value = sinkRecord.value();
-		if (value == null) {
-			return null;
-		}
-		if (value instanceof byte[]) {
-			return (byte[]) value;
-		}
-		if (value instanceof String) {
-			return ((String) value).getBytes(config.getCharset());
-		}
-		return jsonConverter.fromConnectData(sinkRecord.topic(), sinkRecord.valueSchema(), value);
-	}
+    @Override
+    public void start(final Map<String, String> props) {
+        config = new RedisSinkConfig(props);
+        jsonConverter = new JsonConverter();
+        jsonConverter.configure(Collections.singletonMap("schemas.enable", "false"), false);
+        this.client = config.client();
+        this.connection = RedisModulesUtils.connection(client);
+        writer = new WriterBuilder(client).multiExec(config.isMultiexec()).waitReplicas(config.getWaitReplicas())
+                .waitTimeout(config.getWaitTimeout()).operation(ByteArrayCodec.INSTANCE, operation());
+        writer.open(new ExecutionContext());
+        writer.setPoolOptions(config.poolOptions());
+        final java.util.Set<TopicPartition> assignment = this.context.assignment();
+        if (!assignment.isEmpty()) {
+            Map<TopicPartition, Long> partitionOffsets = new HashMap<>(assignment.size());
+            for (SinkOffsetState state : offsetStates(assignment)) {
+                partitionOffsets.put(state.topicPartition(), state.offset());
+                log.info("Requesting offset {} for {}", state.offset(), state.topicPartition());
+            }
+            for (TopicPartition topicPartition : assignment) {
+                partitionOffsets.putIfAbsent(topicPartition, 0L);
+            }
+            this.context.offset(partitionOffsets);
+        }
+    }
 
-	private Long longMember(SinkRecord sinkRecord) {
-		Object key = sinkRecord.key();
-		if (key == null) {
-			return null;
-		}
-		if (key instanceof Number) {
-			return ((Number) key).longValue();
-		}
-		throw new DataException(
-				"The key for the record must be a number. Consider using a single message transformation to transform the data before it is written to Redis.");
-	}
+    private Collection<SinkOffsetState> offsetStates(java.util.Set<TopicPartition> assignment) {
+        Collection<SinkOffsetState> offsetStates = new ArrayList<>();
+        String[] partitionKeys = assignment.stream().map(a -> offsetKey(a.topic(), a.partition())).toArray(String[]::new);
+        List<KeyValue<String, String>> values = connection.sync().mget(partitionKeys);
+        for (KeyValue<String, String> value : values) {
+            if (value.hasValue()) {
+                try {
+                    offsetStates.add(objectMapper.readValue(value.getValue(), SinkOffsetState.class));
+                } catch (IOException e) {
+                    throw new DataException(e);
+                }
+            }
+        }
+        return offsetStates;
+    }
 
-	private Double doubleValue(SinkRecord sinkRecord) {
-		Object value = sinkRecord.value();
-		if (value == null) {
-			return null;
-		}
-		if (value instanceof Number) {
-			return ((Number) value).doubleValue();
-		}
-		throw new DataException(
-				"The value for the record must be a number. Consider using a single message transformation to transform the data before it is written to Redis.");
-	}
+    private String offsetKey(String topic, Integer partition) {
+        return String.format(OFFSET_KEY_FORMAT, topic, partition);
+    }
 
-	private byte[] key(SinkRecord sinkRecord) {
-		if (config.getKeyspace().isEmpty()) {
-			return bytes("key", sinkRecord.key());
-		}
-		String keyspace = keyspace(sinkRecord);
-		String key = keyspace + config.getSeparator() + String.valueOf(sinkRecord.key());
-		return key.getBytes(config.getCharset());
-	}
+    private Operation<byte[], byte[], SinkRecord, ?> operation() {
+        switch (config.getCommand()) {
+            case HSET:
+                return new Hset<>(this::key, this::map);
+            case JSONSET:
+                return new JsonSet<>(this::key, this::jsonValue);
+            case SET:
+                return new Set<>(this::key, this::value);
+            case XADD:
+                return new Xadd<>(this::collectionKey, this::map, m -> new XAddArgs());
+            case LPUSH:
+                return new Lpush<>(this::collectionKey, this::member);
+            case RPUSH:
+                return new Rpush<>(this::collectionKey, this::member);
+            case SADD:
+                return new Sadd<>(this::collectionKey, this::member);
+            case TSADD:
+                return new TsAdd<>(this::collectionKey, new SampleConverter<>(this::longMember, this::doubleValue));
+            case ZADD:
+                return new Zadd<>(this::collectionKey, new ScoredValueConverter<>(this::member, this::doubleValue));
+            case DEL:
+                return new Del<>(this::key);
+            default:
+                throw new ConfigException(RedisSinkConfigDef.COMMAND_CONFIG, config.getCommand());
+        }
+    }
 
-	private byte[] member(SinkRecord sinkRecord) {
-		return bytes("key", sinkRecord.key());
-	}
+    private byte[] value(SinkRecord sinkRecord) {
+        return bytes("value", sinkRecord.value());
+    }
 
-	private String keyspace(SinkRecord sinkRecord) {
-		return config.getKeyspace().replace(RedisSinkConfigDef.TOKEN_TOPIC, sinkRecord.topic());
-	}
+    private byte[] jsonValue(SinkRecord sinkRecord) {
+        Object value = sinkRecord.value();
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof byte[]) {
+            return (byte[]) value;
+        }
+        if (value instanceof String) {
+            return ((String) value).getBytes(config.getCharset());
+        }
+        return jsonConverter.fromConnectData(sinkRecord.topic(), sinkRecord.valueSchema(), value);
+    }
 
-	private byte[] bytes(String source, Object input) {
-		if (input == null) {
-			return null;
-		}
-		if (input instanceof byte[]) {
-			return (byte[]) input;
-		}
-		if (input instanceof String) {
-			return ((String) input).getBytes(config.getCharset());
-		}
-		throw new DataException(String.format(
-				"The %s for the record must be a string or byte array. Consider using the StringConverter or ByteArrayConverter if the data is stored in Kafka in the format needed in Redis.",
-				source));
-	}
+    private Long longMember(SinkRecord sinkRecord) {
+        Object key = sinkRecord.key();
+        if (key == null) {
+            return null;
+        }
+        if (key instanceof Number) {
+            return ((Number) key).longValue();
+        }
+        throw new DataException(
+                "The key for the record must be a number. Consider using a single message transformation to transform the data before it is written to Redis.");
+    }
 
-	private byte[] collectionKey(SinkRecord sinkRecord) {
-		return keyspace(sinkRecord).getBytes(config.getCharset());
-	}
+    private Double doubleValue(SinkRecord sinkRecord) {
+        Object value = sinkRecord.value();
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof Number) {
+            return ((Number) value).doubleValue();
+        }
+        throw new DataException(
+                "The value for the record must be a number. Consider using a single message transformation to transform the data before it is written to Redis.");
+    }
 
-	@SuppressWarnings("unchecked")
-	private Map<byte[], byte[]> map(SinkRecord sinkRecord) {
-		Object value = sinkRecord.value();
-		if (value == null) {
-			return null;
-		}
-		if (value instanceof Struct) {
-			Map<byte[], byte[]> body = new LinkedHashMap<>();
-			Struct struct = (Struct) value;
-			for (Field field : struct.schema().fields()) {
-				Object fieldValue = struct.get(field);
-				body.put(field.name().getBytes(config.getCharset()),
-						fieldValue == null ? null : fieldValue.toString().getBytes(config.getCharset()));
-			}
-			return body;
-		}
-		if (value instanceof Map) {
-			Map<String, Object> map = (Map<String, Object>) value;
-			Map<byte[], byte[]> body = new LinkedHashMap<>();
-			for (Map.Entry<String, Object> e : map.entrySet()) {
-				body.put(e.getKey().getBytes(config.getCharset()),
-						String.valueOf(e.getValue()).getBytes(config.getCharset()));
-			}
-			return body;
-		}
-		throw new ConnectException("Unsupported source value type: " + sinkRecord.valueSchema().type().name());
-	}
+    private byte[] key(SinkRecord sinkRecord) {
+        if (config.getKeyspace().isEmpty()) {
+            return bytes("key", sinkRecord.key());
+        }
+        String keyspace = keyspace(sinkRecord);
+        String key = keyspace + config.getSeparator() + String.valueOf(sinkRecord.key());
+        return key.getBytes(config.getCharset());
+    }
 
-	@Override
-	public void stop() {
-		if (writer != null) {
-			writer.close();
-			writer = null;
-		}
-		if (connection != null) {
-			connection.close();
-			connection = null;
-		}
-		if (client != null) {
-			client.shutdown();
-			client.getResources().shutdown();
-			client = null;
-		}
-	}
+    private byte[] member(SinkRecord sinkRecord) {
+        return bytes("key", sinkRecord.key());
+    }
 
-	@Override
-	public void put(final Collection<SinkRecord> records) {
-		log.debug("Processing {} records", records.size());
-		try {
-			writer.write(new ArrayList<>(records));
-			log.info("Wrote {} records", records.size());
-		} catch (Exception e) {
-			log.warn("Could not write {} records", records.size(), e);
-		}
-		Map<TopicPartition, Long> data = new ConcurrentHashMap<>(100);
-		for (SinkRecord sinkRecord : records) {
-			Assert.isTrue(!StringUtil.isNullOrEmpty(sinkRecord.topic()), "topic cannot be null or empty.");
-			Assert.notNull(sinkRecord.kafkaPartition(), "partition cannot be null.");
-			Assert.isTrue(sinkRecord.kafkaOffset() >= 0, "offset must be greater than or equal 0.");
-			TopicPartition partition = new TopicPartition(sinkRecord.topic(), sinkRecord.kafkaPartition());
-			long current = data.getOrDefault(partition, Long.MIN_VALUE);
-			if (sinkRecord.kafkaOffset() > current) {
-				data.put(partition, sinkRecord.kafkaOffset());
-			}
-		}
-		List<SinkOffsetState> offsetData = data.entrySet().stream()
-				.map(e -> SinkOffsetState.of(e.getKey(), e.getValue())).collect(Collectors.toList());
-		if (!offsetData.isEmpty()) {
-			Map<String, String> offsets = new LinkedHashMap<>(offsetData.size());
-			for (SinkOffsetState e : offsetData) {
-				String key = offsetKey(e.topic(), e.partition());
-				String value;
-				try {
-					value = objectMapper.writeValueAsString(e);
-				} catch (JsonProcessingException e1) {
-					throw new DataException(e1);
-				}
-				offsets.put(key, value);
-				log.trace("put() - Setting offset: {}", e);
-			}
-			connection.sync().mset(offsets);
-		}
-	}
+    private String keyspace(SinkRecord sinkRecord) {
+        return config.getKeyspace().replace(RedisSinkConfigDef.TOKEN_TOPIC, sinkRecord.topic());
+    }
+
+    private byte[] bytes(String source, Object input) {
+        if (input == null) {
+            return null;
+        }
+        if (input instanceof byte[]) {
+            return (byte[]) input;
+        }
+        if (input instanceof String) {
+            return ((String) input).getBytes(config.getCharset());
+        }
+        throw new DataException(String.format(
+                "The %s for the record must be a string or byte array. Consider using the StringConverter or ByteArrayConverter if the data is stored in Kafka in the format needed in Redis.",
+                source));
+    }
+
+    private byte[] collectionKey(SinkRecord sinkRecord) {
+        return keyspace(sinkRecord).getBytes(config.getCharset());
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<byte[], byte[]> map(SinkRecord sinkRecord) {
+        Object value = sinkRecord.value();
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof Struct) {
+            Map<byte[], byte[]> body = new LinkedHashMap<>();
+            Struct struct = (Struct) value;
+            for (Field field : struct.schema().fields()) {
+                Object fieldValue = struct.get(field);
+                body.put(field.name().getBytes(config.getCharset()),
+                        fieldValue == null ? null : fieldValue.toString().getBytes(config.getCharset()));
+            }
+            return body;
+        }
+        if (value instanceof Map) {
+            Map<String, Object> map = (Map<String, Object>) value;
+            Map<byte[], byte[]> body = new LinkedHashMap<>();
+            for (Map.Entry<String, Object> e : map.entrySet()) {
+                body.put(e.getKey().getBytes(config.getCharset()), String.valueOf(e.getValue()).getBytes(config.getCharset()));
+            }
+            return body;
+        }
+        throw new ConnectException("Unsupported source value type: " + sinkRecord.valueSchema().type().name());
+    }
+
+    @Override
+    public void stop() {
+        if (writer != null) {
+            writer.close();
+            writer = null;
+        }
+        if (connection != null) {
+            connection.close();
+            connection = null;
+        }
+        if (client != null) {
+            client.shutdown();
+            client.getResources().shutdown();
+            client = null;
+        }
+    }
+
+    @Override
+    public void put(final Collection<SinkRecord> records) {
+        log.debug("Processing {} records", records.size());
+        try {
+            writer.write(new ArrayList<>(records));
+            log.info("Wrote {} records", records.size());
+        } catch (Exception e) {
+            log.warn("Could not write {} records", records.size(), e);
+        }
+        Map<TopicPartition, Long> data = new ConcurrentHashMap<>(100);
+        for (SinkRecord sinkRecord : records) {
+            Assert.isTrue(!StringUtil.isNullOrEmpty(sinkRecord.topic()), "topic cannot be null or empty.");
+            Assert.notNull(sinkRecord.kafkaPartition(), "partition cannot be null.");
+            Assert.isTrue(sinkRecord.kafkaOffset() >= 0, "offset must be greater than or equal 0.");
+            TopicPartition partition = new TopicPartition(sinkRecord.topic(), sinkRecord.kafkaPartition());
+            long current = data.getOrDefault(partition, Long.MIN_VALUE);
+            if (sinkRecord.kafkaOffset() > current) {
+                data.put(partition, sinkRecord.kafkaOffset());
+            }
+        }
+        List<SinkOffsetState> offsetData = data.entrySet().stream().map(e -> SinkOffsetState.of(e.getKey(), e.getValue()))
+                .collect(Collectors.toList());
+        if (!offsetData.isEmpty()) {
+            Map<String, String> offsets = new LinkedHashMap<>(offsetData.size());
+            for (SinkOffsetState e : offsetData) {
+                String key = offsetKey(e.topic(), e.partition());
+                String value;
+                try {
+                    value = objectMapper.writeValueAsString(e);
+                } catch (JsonProcessingException e1) {
+                    throw new DataException(e1);
+                }
+                offsets.put(key, value);
+                log.trace("put() - Setting offset: {}", e);
+            }
+            connection.sync().mset(offsets);
+        }
+    }
 
 }

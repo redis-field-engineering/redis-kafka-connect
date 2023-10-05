@@ -12,10 +12,11 @@
  */
 package com.redis.kafka.connect.source;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import org.apache.kafka.connect.source.SourceConnector;
 
@@ -23,31 +24,32 @@ import com.redis.kafka.connect.common.ManifestVersionProvider;
 
 public abstract class AbstractRedisSourceConnector extends SourceConnector {
 
-	private Map<String, String> props;
+    private Map<String, String> props;
 
-	@Override
-	public void start(Map<String, String> props) {
-		this.props = props;
-	}
+    @Override
+    public void start(Map<String, String> props) {
+        this.props = props;
+    }
 
-	@Override
-	public List<Map<String, String>> taskConfigs(int maxTasks) {
-		List<Map<String, String>> taskConfigs = new ArrayList<>();
-		for (int i = 0; i < maxTasks; i++) {
-			Map<String, String> taskConfig = new HashMap<>(props);
-			taskConfig.put(RedisStreamSourceTask.TASK_ID, Integer.toString(i));
-			taskConfigs.add(taskConfig);
-		}
-		return taskConfigs;
-	}
+    @Override
+    public List<Map<String, String>> taskConfigs(int maxTasks) {
+        return IntStream.range(0, maxTasks).mapToObj(this::taskConfig).collect(Collectors.toList());
+    }
 
-	@Override
-	public void stop() {
-		// Do nothing
-	}
+    private Map<String, String> taskConfig(int taskId) {
+        Map<String, String> taskConfig = new HashMap<>(props);
+        taskConfig.put(RedisStreamSourceTask.TASK_ID, Integer.toString(taskId));
+        return taskConfig;
+    }
 
-	@Override
-	public String version() {
-		return ManifestVersionProvider.getVersion();
-	}
+    @Override
+    public void stop() {
+        // Do nothing
+    }
+
+    @Override
+    public String version() {
+        return ManifestVersionProvider.getVersion();
+    }
+
 }

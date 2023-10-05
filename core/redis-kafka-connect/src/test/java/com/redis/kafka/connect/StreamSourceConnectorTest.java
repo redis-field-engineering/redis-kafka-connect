@@ -20,7 +20,7 @@ import io.lettuce.core.AbstractRedisClient;
 import io.lettuce.core.RedisCredentials;
 import io.lettuce.core.RedisURI;
 
-class RedisStreamSourceConnectorTest {
+class StreamSourceConnectorTest {
 
 	@Test
 	void testTask() {

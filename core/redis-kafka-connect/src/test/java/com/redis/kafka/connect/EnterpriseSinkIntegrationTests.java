@@ -10,7 +10,7 @@ import com.redis.testcontainers.RedisEnterpriseContainer;
 import com.redis.testcontainers.RedisServer;
 
 @EnabledOnOs(value = OS.LINUX)
-class RedisEnterpriseSinkIntegrationTests extends AbstractSinkIntegrationTests {
+class EnterpriseSinkIntegrationTests extends AbstractSinkIntegrationTests {
 
 	private static final RedisEnterpriseContainer container = new RedisEnterpriseContainer(
 			RedisEnterpriseContainer.DEFAULT_IMAGE_NAME.withTag("latest"))

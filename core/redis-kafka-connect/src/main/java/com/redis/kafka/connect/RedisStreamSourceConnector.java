@@ -15,18 +15,20 @@ package com.redis.kafka.connect;
 import org.apache.kafka.connect.connector.Task;
 
 import com.redis.kafka.connect.source.AbstractRedisSourceConnector;
+import com.redis.kafka.connect.source.RedisStreamSourceConfig;
 import com.redis.kafka.connect.source.RedisStreamSourceConfigDef;
 import com.redis.kafka.connect.source.RedisStreamSourceTask;
 
 public class RedisStreamSourceConnector extends AbstractRedisSourceConnector {
 
-	@Override
-	public Class<? extends Task> taskClass() {
-		return RedisStreamSourceTask.class;
-	}
+    @Override
+    public Class<? extends Task> taskClass() {
+        return RedisStreamSourceTask.class;
+    }
 
-	@Override
-	public RedisStreamSourceConfigDef config() {
-		return new RedisStreamSourceConfigDef();
-	}
+    @Override
+    public RedisStreamSourceConfigDef config() {
+        return RedisStreamSourceConfig.CONFIG;
+    }
+
 }
