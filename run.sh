@@ -98,7 +98,7 @@ curl -X POST -H "Content-Type: application/json" --data '
      "tasks.max":"1",
      "topics":"pageviews",
      "redis.uri":"redis://redis:6379",
-     "redis.type":"JSON",
+     "redis.command":"JSONSET",
      "key.converter": "org.apache.kafka.connect.json.JsonConverter",
      "value.converter": "org.apache.kafka.connect.storage.StringConverter",
      "value.converter.schemas.enable": "false",
