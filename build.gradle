@@ -98,7 +98,7 @@ subprojects { subproj ->
 
 	    dependencies {
 	        testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine'
-            testImplementation group: 'org.testcontainers', name: 'junit-jupiter', version: testcontainersVersion
+            testImplementation group: 'org.testcontainers', name: 'junit-jupiter'
 	        testImplementation(group: 'com.redis.testcontainers', name: 'testcontainers-redis', version: testcontainersRedisVersion) {
 	            exclude group: 'com.redis', module: 'lettucemod'
 	        }
@@ -106,6 +106,15 @@ subprojects { subproj ->
 	
 	    test {
 	        useJUnitPlatform()
+	    }
+	    
+	    bootJar {
+	        enabled = false
+	    }
+	    
+	    jar {
+	        enabled = true
+	        archiveClassifier = ''
 	    }
 	    
 	    configurations.all {
