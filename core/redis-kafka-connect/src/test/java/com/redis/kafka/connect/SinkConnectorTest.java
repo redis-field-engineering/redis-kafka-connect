@@ -28,7 +28,9 @@ class SinkConnectorTest {
 		HashMap<String, String> props = new HashMap<>();
 		props.put("field1", "value1");
 		connector.start(props);
-		Assertions.assertEquals(props, connector.taskConfigs(123).get(0));
+		int maxTasks = 123;
+		Assertions.assertEquals(props, connector.taskConfigs(maxTasks).get(0));
+		Assertions.assertEquals(maxTasks, connector.taskConfigs(maxTasks).size());
 	}
 
 	@Test

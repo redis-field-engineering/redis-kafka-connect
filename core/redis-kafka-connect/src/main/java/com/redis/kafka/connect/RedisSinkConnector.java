@@ -15,10 +15,9 @@
  */
 package com.redis.kafka.connect;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 import org.apache.kafka.common.config.ConfigDef;
 import org.apache.kafka.connect.connector.Task;
@@ -44,7 +43,7 @@ public class RedisSinkConnector extends SinkConnector {
 
     @Override
     public List<Map<String, String>> taskConfigs(int maxTasks) {
-        return IntStream.range(0, maxTasks).mapToObj(i -> props).collect(Collectors.toList());
+        return Collections.nCopies(maxTasks, props);
     }
 
     @Override
