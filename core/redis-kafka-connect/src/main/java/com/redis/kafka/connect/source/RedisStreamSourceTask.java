@@ -24,14 +24,15 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.source.SourceRecord;
 import org.apache.kafka.connect.source.SourceTask;
 import org.springframework.batch.item.ExecutionContext;
 
 import com.redis.kafka.connect.common.ManifestVersionProvider;
-import com.redis.spring.batch.reader.StreamAckPolicy;
 import com.redis.spring.batch.reader.StreamItemReader;
+import com.redis.spring.batch.reader.StreamItemReader.StreamAckPolicy;
 
 import io.lettuce.core.AbstractRedisClient;
 import io.lettuce.core.Consumer;
@@ -87,8 +88,7 @@ public class RedisStreamSourceTask extends SourceTask {
         Consumer<String> consumer = Consumer.from(config.getStreamConsumerGroup(), consumerName);
         String offset = offsetMap().map(m -> (String) m.get(OFFSET_FIELD)).orElse(config.getStreamOffset());
         String stream = config.getStreamName();
-        StreamItemReader<String, String> streamReader = new StreamItemReader<>(client, StringCodec.UTF8, stream);
-        streamReader.setConsumer(consumer);
+        StreamItemReader<String, String> streamReader = new StreamItemReader<>(client, StringCodec.UTF8, stream, consumer);
         streamReader.setOffset(offset);
         streamReader.setBlock(Duration.ofMillis(config.getStreamBlock()));
         streamReader.setCount(config.getBatchSize());
@@ -107,9 +107,8 @@ public class RedisStreamSourceTask extends SourceTask {
         sourceOffsets.add(sourceOffset);
     }
 
-    @Deprecated
     @Override
-    public void commitRecord(SourceRecord sourceRecord) throws InterruptedException {
+    public void commitRecord(SourceRecord sourceRecord, RecordMetadata metadata) throws InterruptedException {
         Map<String, ?> currentOffset = sourceRecord.sourceOffset();
         if (currentOffset != null) {
             addSourceOffset(currentOffset);

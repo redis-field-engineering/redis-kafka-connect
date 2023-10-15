@@ -48,9 +48,6 @@ redis.stream.delivery=at-most-once
 === Multiple Tasks
 Reading from the stream is done through a consumer group so that multiple instances of the connector configured via the `tasks.max` can consume messages in a round-robin fashion.
 
-The connector splits the work based on the number of configured key patterns.
-When the number of tasks is greater than the number of patterns, the number of patterns will be used instead.
-
 [[_stream_source_schema]]
 === Message Schema
 
@@ -123,13 +120,15 @@ If you need assistance please contact your Redis account team.
 [source,properties]
 ----
 connector.class=com.redis.kafka.connect.RedisKeysSourceConnector
-redis.keys.patterns=<glob> <1>
+redis.keys.pattern=<glob> <1>
 redis.keys.timeout=<millis> <2>
 topic=<name> <3>
 ----
-<1> Key pattern to subscribe to. This is the key portion of the pattern that will be used to listen to keyspace events. See {link_redis_keys} for pattern details.
+<1> Key pattern to subscribe to.
+This is the key portion of the pattern that will be used to listen to keyspace events.
 For example `foo:*` translates to pubsub channel `$$__$$keyspace@0$$__$$:foo:*` and will capture changes to keys `foo:1`, `foo:2`, etc.
-Use comma-separated values for multiple patterns (`foo:*,bar:*`)
-<2> Idle timeout in millis. Duration after which the connector will stop if no activity is encountered.
+See {link_redis_keys} for pattern details.
+<2> Idle timeout in millis.
+Duration after which the connector will stop if no activity is encountered.
 <3> Name of the destination topic.
 

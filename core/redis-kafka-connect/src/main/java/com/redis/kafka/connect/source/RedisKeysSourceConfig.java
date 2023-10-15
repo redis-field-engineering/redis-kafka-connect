@@ -16,7 +16,6 @@
 package com.redis.kafka.connect.source;
 
 import java.time.Duration;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
@@ -24,7 +23,7 @@ public class RedisKeysSourceConfig extends RedisSourceConfig {
 
     public static final RedisKeysSourceConfigDef CONFIG = new RedisKeysSourceConfigDef();
 
-    private final List<String> keyPatterns;
+    private final String keyPattern;
 
     private final String topicName;
 
@@ -33,12 +32,12 @@ public class RedisKeysSourceConfig extends RedisSourceConfig {
     public RedisKeysSourceConfig(Map<?, ?> originals) {
         super(new RedisKeysSourceConfigDef(), originals);
         this.topicName = getString(RedisKeysSourceConfigDef.TOPIC_CONFIG);
-        this.keyPatterns = getList(RedisKeysSourceConfigDef.KEY_PATTERNS_CONFIG);
+        this.keyPattern = getString(RedisKeysSourceConfigDef.KEY_PATTERN_CONFIG);
         this.idleTimeout = Duration.ofMillis(getLong(RedisKeysSourceConfigDef.IDLE_TIMEOUT_CONFIG));
     }
 
-    public List<String> getKeyPatterns() {
-        return keyPatterns;
+    public String getKeyPattern() {
+        return keyPattern;
     }
 
     public String getTopicName() {
@@ -53,7 +52,7 @@ public class RedisKeysSourceConfig extends RedisSourceConfig {
     public int hashCode() {
         final int prime = 31;
         int result = super.hashCode();
-        result = prime * result + Objects.hash(batchSize, keyPatterns, topicName);
+        result = prime * result + Objects.hash(batchSize, keyPattern, topicName);
         return result;
     }
 
@@ -66,7 +65,7 @@ public class RedisKeysSourceConfig extends RedisSourceConfig {
         if (getClass() != obj.getClass())
             return false;
         RedisKeysSourceConfig other = (RedisKeysSourceConfig) obj;
-        return Objects.equals(batchSize, other.batchSize) && Objects.equals(keyPatterns, other.keyPatterns)
+        return Objects.equals(batchSize, other.batchSize) && Objects.equals(keyPattern, other.keyPattern)
                 && Objects.equals(topicName, other.topicName);
     }
 

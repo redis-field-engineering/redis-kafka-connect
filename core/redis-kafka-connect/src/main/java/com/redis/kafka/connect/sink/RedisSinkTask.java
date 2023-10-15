@@ -48,11 +48,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.redis.kafka.connect.common.ManifestVersionProvider;
 import com.redis.lettucemod.api.StatefulRedisModulesConnection;
 import com.redis.lettucemod.util.RedisModulesUtils;
-import com.redis.spring.batch.RedisItemWriter;
-import com.redis.spring.batch.RedisItemWriter.WriterBuilder;
-import com.redis.spring.batch.common.Operation;
-import com.redis.spring.batch.convert.SampleConverter;
-import com.redis.spring.batch.convert.ScoredValueConverter;
+import com.redis.spring.batch.common.ToSampleFunction;
+import com.redis.spring.batch.common.ToScoredValueFunction;
+import com.redis.spring.batch.writer.OperationItemWriter;
+import com.redis.spring.batch.writer.WriteOperation;
 import com.redis.spring.batch.writer.operation.Del;
 import com.redis.spring.batch.writer.operation.Hset;
 import com.redis.spring.batch.writer.operation.JsonSet;
@@ -66,7 +65,6 @@ import com.redis.spring.batch.writer.operation.Zadd;
 
 import io.lettuce.core.AbstractRedisClient;
 import io.lettuce.core.KeyValue;
-import io.lettuce.core.XAddArgs;
 import io.lettuce.core.codec.ByteArrayCodec;
 import io.netty.util.internal.StringUtil;
 
@@ -86,7 +84,7 @@ public class RedisSinkTask extends SinkTask {
 
     private Converter jsonConverter;
 
-    private RedisItemWriter<byte[], byte[], SinkRecord> writer;
+    private OperationItemWriter<byte[], byte[], SinkRecord> writer;
 
     @Override
     public String version() {
@@ -106,12 +104,14 @@ public class RedisSinkTask extends SinkTask {
         config = new RedisSinkConfig(props);
         jsonConverter = new JsonConverter();
         jsonConverter.configure(Collections.singletonMap("schemas.enable", "false"), false);
-        this.client = config.client();
-        this.connection = RedisModulesUtils.connection(client);
-        writer = new WriterBuilder(client).multiExec(config.isMultiexec()).waitReplicas(config.getWaitReplicas())
-                .waitTimeout(config.getWaitTimeout()).operation(ByteArrayCodec.INSTANCE, operation());
+        client = config.client();
+        connection = RedisModulesUtils.connection(client);
+        writer = new OperationItemWriter<>(client, ByteArrayCodec.INSTANCE, operation());
+        writer.setMultiExec(config.isMultiexec());
+        writer.setWaitReplicas(config.getWaitReplicas());
+        writer.setWaitTimeout(config.getWaitTimeout());
+        writer.setPoolSize(config.getPoolSize());
         writer.open(new ExecutionContext());
-        writer.setPoolOptions(config.poolOptions());
         final java.util.Set<TopicPartition> assignment = this.context.assignment();
         if (!assignment.isEmpty()) {
             Map<TopicPartition, Long> partitionOffsets = new HashMap<>(assignment.size());
@@ -146,28 +146,57 @@ public class RedisSinkTask extends SinkTask {
         return String.format(OFFSET_KEY_FORMAT, topic, partition);
     }
 
-    private Operation<byte[], byte[], SinkRecord, ?> operation() {
+    private WriteOperation<byte[], byte[], SinkRecord> operation() {
         switch (config.getCommand()) {
             case HSET:
-                return new Hset<>(this::key, this::map);
+                Hset<byte[], byte[], SinkRecord> hset = new Hset<>();
+                hset.setKeyFunction(this::key);
+                hset.setMapFunction(this::map);
+                return hset;
             case JSONSET:
-                return new JsonSet<>(this::key, this::jsonValue);
+                JsonSet<byte[], byte[], SinkRecord> jsonSet = new JsonSet<>();
+                jsonSet.setKeyFunction(this::key);
+                jsonSet.setValueFunction(this::jsonValue);
+                return jsonSet;
             case SET:
-                return new Set<>(this::key, this::value);
+                Set<byte[], byte[], SinkRecord> set = new Set<>();
+                set.setKeyFunction(this::key);
+                set.setValueFunction(this::value);
+                return set;
             case XADD:
-                return new Xadd<>(this::collectionKey, this::map, m -> new XAddArgs());
+                Xadd<byte[], byte[], SinkRecord> xadd = new Xadd<>();
+                xadd.setKeyFunction(this::collectionKey);
+                xadd.setBodyFunction(this::map);
+                return xadd;
             case LPUSH:
-                return new Lpush<>(this::collectionKey, this::member);
+                Lpush<byte[], byte[], SinkRecord> lpush = new Lpush<>();
+                lpush.setKeyFunction(this::collectionKey);
+                lpush.setValueFunction(this::member);
+                return lpush;
             case RPUSH:
-                return new Rpush<>(this::collectionKey, this::member);
+                Rpush<byte[], byte[], SinkRecord> rpush = new Rpush<>();
+                rpush.setKeyFunction(this::collectionKey);
+                rpush.setValueFunction(this::member);
+                return rpush;
             case SADD:
-                return new Sadd<>(this::collectionKey, this::member);
+                Sadd<byte[], byte[], SinkRecord> sadd = new Sadd<>();
+                sadd.setKeyFunction(this::collectionKey);
+                sadd.setValueFunction(this::member);
+                return sadd;
             case TSADD:
-                return new TsAdd<>(this::collectionKey, new SampleConverter<>(this::longMember, this::doubleValue));
+                TsAdd<byte[], byte[], SinkRecord> tsAdd = new TsAdd<>();
+                tsAdd.setKeyFunction(this::collectionKey);
+                tsAdd.setSampleFunction(new ToSampleFunction<>(this::longMember, this::doubleValue));
+                return tsAdd;
             case ZADD:
-                return new Zadd<>(this::collectionKey, new ScoredValueConverter<>(this::member, this::doubleValue));
+                Zadd<byte[], byte[], SinkRecord> zadd = new Zadd<>();
+                zadd.setKeyFunction(this::collectionKey);
+                zadd.setValueFunction(new ToScoredValueFunction<>(this::member, this::doubleValue));
+                return zadd;
             case DEL:
-                return new Del<>(this::key);
+                Del<byte[], byte[], SinkRecord> del = new Del<>();
+                del.setKeyFunction(this::key);
+                return del;
             default:
                 throw new ConfigException(RedisSinkConfigDef.COMMAND_CONFIG, config.getCommand());
         }

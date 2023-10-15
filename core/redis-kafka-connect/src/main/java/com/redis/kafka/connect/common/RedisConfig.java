@@ -21,75 +21,104 @@ import java.util.Map;
 
 import org.apache.kafka.common.config.AbstractConfig;
 import org.apache.kafka.common.config.types.Password;
+import org.springframework.util.StringUtils;
 
-import com.redis.lettucemod.util.ClientBuilder;
-import com.redis.lettucemod.util.RedisURIBuilder;
-import com.redis.spring.batch.common.PoolOptions;
+import com.redis.lettucemod.RedisModulesClient;
+import com.redis.lettucemod.cluster.RedisModulesClusterClient;
 
 import io.lettuce.core.AbstractRedisClient;
+import io.lettuce.core.ClientOptions;
 import io.lettuce.core.RedisURI;
-import io.lettuce.core.SslVerifyMode;
-import io.netty.util.internal.StringUtil;
+import io.lettuce.core.SslOptions;
+import io.lettuce.core.SslOptions.Builder;
+import io.lettuce.core.cluster.ClusterClientOptions;
 
 public abstract class RedisConfig extends AbstractConfig {
 
-	protected RedisConfig(RedisConfigDef config, Map<?, ?> originals) {
-		super(config, originals);
-	}
+    private static final char[] EMPTY_PASSWORD = new char[0];
 
-	public RedisURI uri() {
-		RedisURIBuilder builder = RedisURIBuilder.create();
-		String uri = getString(RedisConfigDef.URI_CONFIG);
-		if (StringUtil.isNullOrEmpty(uri)) {
-			builder.host(getString(RedisConfigDef.HOST_CONFIG));
-			builder.port(getInt(RedisConfigDef.PORT_CONFIG));
-		} else {
-			builder.uri(uri);
-		}
-		if (Boolean.TRUE.equals(getBoolean(RedisConfigDef.INSECURE_CONFIG))) {
-			builder.sslVerifyMode(SslVerifyMode.NONE);
-		}
-		builder.ssl(getBoolean(RedisConfigDef.TLS_CONFIG));
-		String username = getString(RedisConfigDef.USERNAME_CONFIG);
-		if (!StringUtil.isNullOrEmpty(username)) {
-			builder.username(username);
-		}
-		Password password = getPassword(RedisConfigDef.PASSWORD_CONFIG);
-		if (password != null && !StringUtil.isNullOrEmpty(password.value())) {
-			builder.password(password.value().toCharArray());
-		}
-		Long timeout = getLong(RedisConfigDef.TIMEOUT_CONFIG);
-		if (timeout != null) {
-			builder.timeout(Duration.ofSeconds(timeout));
-		}
-		return builder.build();
-	}
+    protected RedisConfig(RedisConfigDef config, Map<?, ?> originals) {
+        super(config, originals);
+    }
 
-	private AbstractRedisClient client(RedisURI uri) {
-		ClientBuilder builder = ClientBuilder.create(uri);
-		builder.cluster(getBoolean(RedisConfigDef.CLUSTER_CONFIG));
-		String keyFile = getString(RedisConfigDef.KEY_CONFIG);
-		if (!StringUtil.isNullOrEmpty(keyFile)) {
-			builder.key(new File(keyFile));
-			builder.keyCert(new File(getString(RedisConfigDef.KEY_CERT_CONFIG)));
-			Password password = getPassword(RedisConfigDef.KEY_PASSWORD_CONFIG);
-			if (password != null && !StringUtil.isNullOrEmpty(password.value())) {
-				builder.keyPassword(password.value().toCharArray());
-			}
-		}
-		String cacert = getString(RedisConfigDef.CACERT_CONFIG);
-		if (!StringUtil.isNullOrEmpty(cacert)) {
-			builder.trustManager(new File(cacert));
-		}
-		return builder.build();
-	}
+    public RedisURI uri() {
+        RedisURI.Builder builder = redisURIBuilder();
+        Boolean ssl = getBoolean(RedisConfigDef.TLS_CONFIG);
+        if (Boolean.TRUE.equals(ssl)) {
+            builder.withSsl(ssl);
+            Boolean insecure = getBoolean(RedisConfigDef.INSECURE_CONFIG);
+            if (Boolean.TRUE.equals(insecure)) {
+                builder.withVerifyPeer(false);
+            }
+        }
+        Password password = getPassword(RedisConfigDef.PASSWORD_CONFIG);
+        if (password != null) {
+            String passwordString = password.value();
+            if (StringUtils.hasLength(passwordString)) {
+                String username = getString(RedisConfigDef.USERNAME_CONFIG);
+                if (StringUtils.hasLength(username)) {
+                    builder.withAuthentication(username, passwordString);
+                } else {
+                    builder.withPassword((CharSequence) passwordString);
+                }
+            }
+        }
+        Long timeout = getLong(RedisConfigDef.TIMEOUT_CONFIG);
+        if (timeout != null) {
+            builder.withTimeout(Duration.ofSeconds(timeout));
+        }
+        return builder.build();
+    }
 
-	public AbstractRedisClient client() {
-		return client(uri());
-	}
+    private RedisURI.Builder redisURIBuilder() {
+        String uri = getString(RedisConfigDef.URI_CONFIG);
+        if (StringUtils.hasLength(uri)) {
+            return RedisURI.builder(RedisURI.create(uri));
+        }
+        String host = getString(RedisConfigDef.HOST_CONFIG);
+        int port = getInt(RedisConfigDef.PORT_CONFIG);
+        return RedisURI.Builder.redis(host, port);
+    }
 
-	public PoolOptions poolOptions() {
-		return PoolOptions.builder().maxTotal(getInt(RedisConfigDef.POOL_MAX_CONFIG)).build();
-	}
+    private AbstractRedisClient client(RedisURI uri) {
+        Boolean cluster = getBoolean(RedisConfigDef.CLUSTER_CONFIG);
+        if (Boolean.TRUE.equals(cluster)) {
+            RedisModulesClusterClient client = RedisModulesClusterClient.create(uri);
+            client.setOptions(clientOptions(ClusterClientOptions.builder()).build());
+            return client;
+        }
+        RedisModulesClient client = RedisModulesClient.create(uri);
+        client.setOptions(clientOptions(ClientOptions.builder()).build());
+        return client;
+    }
+
+    private <B extends ClientOptions.Builder> B clientOptions(B builder) {
+        builder.sslOptions(sslOptions());
+        return builder;
+    }
+
+    private SslOptions sslOptions() {
+        Builder options = SslOptions.builder();
+        String key = getString(RedisConfigDef.KEY_CONFIG);
+        if (StringUtils.hasLength(key)) {
+            String cert = getString(RedisConfigDef.KEY_CERT_CONFIG);
+            Password password = getPassword(RedisConfigDef.KEY_PASSWORD_CONFIG);
+            char[] passwordCharArray = password == null ? EMPTY_PASSWORD : password.value().toCharArray();
+            options.keyManager(new File(cert), new File(key), passwordCharArray);
+        }
+        String cacert = getString(RedisConfigDef.CACERT_CONFIG);
+        if (StringUtils.hasLength(cacert)) {
+            options.trustManager(new File(cacert));
+        }
+        return options.build();
+    }
+
+    public AbstractRedisClient client() {
+        return client(uri());
+    }
+
+    public int getPoolSize() {
+        return getInt(RedisConfigDef.POOL_MAX_CONFIG);
+    }
 
 }

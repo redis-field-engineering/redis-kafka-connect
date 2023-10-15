@@ -30,111 +30,119 @@ import org.springframework.batch.item.ExecutionContext;
 import org.springframework.batch.item.ItemStreamException;
 
 import com.redis.kafka.connect.common.ManifestVersionProvider;
-import com.redis.spring.batch.RedisItemReader.LiveReaderBuilder;
-import com.redis.spring.batch.RedisItemReader.ScanReaderBuilder;
-import com.redis.spring.batch.common.DataStructure;
-import com.redis.spring.batch.reader.LiveRedisItemReader;
+import com.redis.spring.batch.RedisItemReader.ReaderMode;
+import com.redis.spring.batch.common.KeyValue;
+import com.redis.spring.batch.reader.KeyValueItemReader;
+import com.redis.spring.batch.reader.StructItemReader;
 
 import io.lettuce.core.AbstractRedisClient;
+import io.lettuce.core.codec.StringCodec;
 
 public class RedisKeysSourceTask extends SourceTask {
 
-	public static final Schema KEY_SCHEMA = Schema.STRING_SCHEMA;
+    public static final Schema KEY_SCHEMA = Schema.STRING_SCHEMA;
 
-	/**
-	 * The offsets that have been processed and that are to be acknowledged by the
-	 * reader in {@link RedisKeysSourceTask#commit()}.
-	 */
-	private final List<Map<String, ?>> sourceOffsets = new ArrayList<>();
-	private final DataStructureConverter converter = new DataStructureConverter();
-	private final Clock clock;
-	private String topic;
-	private int batchSize;
-	private LiveRedisItemReader<String, String, DataStructure<String>> reader;
-	private AbstractRedisClient client;
+    /**
+     * The offsets that have been processed and that are to be acknowledged by the reader in
+     * {@link RedisKeysSourceTask#commit()}.
+     */
+    private final List<Map<String, ?>> sourceOffsets = new ArrayList<>();
 
-	public RedisKeysSourceTask() {
-		this(Clock.systemDefaultZone());
-	}
+    private final ToStructFunction converter = new ToStructFunction();
 
-	public RedisKeysSourceTask(Clock clock) {
-		this.clock = clock;
-	}
+    private final Clock clock;
 
-	@Override
-	public String version() {
-		return ManifestVersionProvider.getVersion();
-	}
+    private String topic;
 
-	public LiveRedisItemReader<String, String, DataStructure<String>> getReader() {
-		return reader;
-	}
+    private int batchSize;
 
-	@Override
-	public void start(Map<String, String> props) {
-		RedisKeysSourceConfig config = new RedisKeysSourceConfig(props);
-		this.topic = config.getTopicName();
-		this.batchSize = Math.toIntExact(config.getBatchSize());
-		this.client = config.client();
-		int database = config.uri().getDatabase();
-		String[] keyPatterns = config.getKeyPatterns().toArray(new String[0]);
-		LiveReaderBuilder builder = new ScanReaderBuilder(client).live().poolOptions(config.poolOptions())
-				.database(database).keyPatterns(keyPatterns).chunkSize(batchSize);
-		if (!config.getIdleTimeout().isNegative() && !config.getIdleTimeout().isZero()) {
-			builder.idleTimeout(config.getIdleTimeout());
-		}
-		this.reader = builder.dataStructure();
-		try {
-			reader.open(new ExecutionContext());
-		} catch (ItemStreamException e) {
-			throw new RetriableException("Could not open reader", e);
-		}
-	}
+    private StructItemReader<String, String> reader;
 
-	private void addSourceOffset(Map<String, ?> sourceOffset) {
-		sourceOffsets.add(sourceOffset);
-	}
+    private AbstractRedisClient client;
 
-	@Deprecated
-	@Override
-	public void commitRecord(SourceRecord sourceRecord) throws InterruptedException {
-		Map<String, ?> currentOffset = sourceRecord.sourceOffset();
-		if (currentOffset != null) {
-			addSourceOffset(currentOffset);
-		}
-	}
+    public RedisKeysSourceTask() {
+        this(Clock.systemDefaultZone());
+    }
 
-	@Override
-	public void commit() throws InterruptedException {
-		// do nothing
-	}
+    public RedisKeysSourceTask(Clock clock) {
+        this.clock = clock;
+    }
 
-	@Override
-	public void stop() {
-		if (reader != null) {
-			reader.close();
-			reader = null;
-		}
-		if (client != null) {
-			client.shutdown();
-			client.getResources().shutdown();
-			client = null;
-		}
-	}
+    @Override
+    public String version() {
+        return ManifestVersionProvider.getVersion();
+    }
 
-	private SourceRecord convert(DataStructure<String> input) {
-		Map<String, ?> partition = new HashMap<>();
-		Map<String, ?> offset = new HashMap<>();
-		String key = input.getKey();
-		long epoch = clock.instant().toEpochMilli();
-		return new SourceRecord(partition, offset, topic, null, KEY_SCHEMA, key, DataStructureConverter.VALUE_SCHEMA,
-				converter.apply(input), epoch);
-	}
+    public KeyValueItemReader<String, String> getReader() {
+        return reader;
+    }
 
-	@Override
-	public List<SourceRecord> poll() {
-		// TODO: return heartbeat if no records
-		return reader.read(batchSize).stream().map(this::convert).collect(Collectors.toList());
-	}
+    @Override
+    public void start(Map<String, String> props) {
+        RedisKeysSourceConfig config = new RedisKeysSourceConfig(props);
+        this.topic = config.getTopicName();
+        this.batchSize = Math.toIntExact(config.getBatchSize());
+        this.client = config.client();
+        reader = new StructItemReader<>(client, StringCodec.UTF8);
+        reader.setMode(ReaderMode.LIVE);
+        reader.setPoolSize(config.getPoolSize());
+        reader.setDatabase(config.uri().getDatabase());
+        reader.setKeyPattern(config.getKeyPattern());
+        reader.setChunkSize(batchSize);
+        if (!config.getIdleTimeout().isNegative() && !config.getIdleTimeout().isZero()) {
+            reader.setIdleTimeout(config.getIdleTimeout());
+        }
+        try {
+            reader.open(new ExecutionContext());
+        } catch (ItemStreamException e) {
+            throw new RetriableException("Could not open reader", e);
+        }
+    }
+
+    private void addSourceOffset(Map<String, ?> sourceOffset) {
+        sourceOffsets.add(sourceOffset);
+    }
+
+    @Deprecated
+    @Override
+    public void commitRecord(SourceRecord sourceRecord) throws InterruptedException {
+        Map<String, ?> currentOffset = sourceRecord.sourceOffset();
+        if (currentOffset != null) {
+            addSourceOffset(currentOffset);
+        }
+    }
+
+    @Override
+    public void commit() throws InterruptedException {
+        // do nothing
+    }
+
+    @Override
+    public void stop() {
+        if (reader != null) {
+            reader.close();
+            reader = null;
+        }
+        if (client != null) {
+            client.shutdown();
+            client.getResources().shutdown();
+            client = null;
+        }
+    }
+
+    private SourceRecord convert(KeyValue<String> input) {
+        Map<String, ?> partition = new HashMap<>();
+        Map<String, ?> offset = new HashMap<>();
+        String key = input.getKey();
+        long epoch = clock.instant().toEpochMilli();
+        return new SourceRecord(partition, offset, topic, null, KEY_SCHEMA, key, ToStructFunction.VALUE_SCHEMA,
+                converter.apply(input), epoch);
+    }
+
+    @Override
+    public List<SourceRecord> poll() {
+        // TODO: return heartbeat if no records
+        return reader.read(batchSize).stream().map(this::convert).collect(Collectors.toList());
+    }
 
 }

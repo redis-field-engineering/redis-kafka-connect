@@ -41,13 +41,15 @@ import com.redis.kafka.connect.sink.RedisSinkConfigDef;
 import com.redis.kafka.connect.sink.RedisSinkTask;
 import com.redis.lettucemod.timeseries.Sample;
 import com.redis.lettucemod.timeseries.TimeRange;
+import com.redis.spring.batch.common.DataType;
+import com.redis.spring.batch.test.AbstractTestBase;
 
 import io.lettuce.core.KeyValue;
 import io.lettuce.core.Range;
 import io.lettuce.core.ScoredValue;
 import io.lettuce.core.StreamMessage;
 
-abstract class AbstractSinkIntegrationTests extends AbstractIntegrationTests {
+abstract class AbstractSinkIntegrationTests extends AbstractTestBase {
 
     public static final int PARTITION = 1;
 
@@ -77,6 +79,11 @@ abstract class AbstractSinkIntegrationTests extends AbstractIntegrationTests {
 
         return new SinkRecord(topic, PARTITION, key.schema(), key.value(), null, null, OFFSET, TIMESTAMP,
                 TimestampType.CREATE_TIME);
+    }
+
+    @Override
+    protected DataType[] generatorDataTypes() {
+        return AbstractTestBase.REDIS_MODULES_GENERATOR_TYPES;
     }
 
     protected Map<String, String> map(String... args) {
@@ -312,7 +319,7 @@ abstract class AbstractSinkIntegrationTests extends AbstractIntegrationTests {
         put(topic, RedisCommand.JSONSET, records);
         for (Person person : persons) {
             String json = connection.sync().jsonGet(topic + ":" + person.getId());
-            assertEquals(person, mapper.readValue(json, Person[].class)[0]);
+            assertEquals(person, mapper.readValue(json, Person.class));
         }
     }
 

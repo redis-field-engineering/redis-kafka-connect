@@ -8,6 +8,7 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
 import org.apache.kafka.clients.producer.RecordMetadata;
@@ -21,37 +22,30 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.batch.core.Job;
-import org.springframework.batch.core.JobParameters;
-import org.springframework.batch.core.configuration.annotation.JobBuilderFactory;
-import org.springframework.batch.core.configuration.annotation.StepBuilderFactory;
-import org.springframework.batch.core.launch.support.SimpleJobLauncher;
-import org.springframework.batch.core.repository.JobRepository;
-import org.springframework.batch.core.step.builder.SimpleStepBuilder;
-import org.springframework.batch.support.transaction.ResourcelessTransactionManager;
+import org.springframework.batch.core.JobExecutionException;
 import org.springframework.util.Assert;
 
 import com.redis.kafka.connect.common.RedisConfigDef;
-import com.redis.kafka.connect.source.DataStructureConverter;
 import com.redis.kafka.connect.source.RedisKeysSourceConfigDef;
 import com.redis.kafka.connect.source.RedisKeysSourceTask;
 import com.redis.kafka.connect.source.RedisStreamSourceConfig;
 import com.redis.kafka.connect.source.RedisStreamSourceConfigDef;
 import com.redis.kafka.connect.source.RedisStreamSourceTask;
+import com.redis.kafka.connect.source.ToStructFunction;
 import com.redis.lettucemod.api.sync.RedisModulesCommands;
-import com.redis.spring.batch.RedisItemWriter;
-import com.redis.spring.batch.RedisItemWriter.WriterBuilder;
-import com.redis.spring.batch.common.DataStructure;
-import com.redis.spring.batch.common.Utils;
-import com.redis.spring.batch.reader.GeneratorItemReader;
-import com.redis.spring.batch.reader.GeneratorItemReader.Type;
-import com.redis.spring.batch.reader.LiveRedisItemReader;
+import com.redis.spring.batch.common.DataType;
+import com.redis.spring.batch.gen.GeneratorItemReader;
+import com.redis.spring.batch.reader.KeyValueItemReader;
+import com.redis.spring.batch.test.AbstractTestBase;
+import com.redis.spring.batch.writer.StructItemWriter;
 
+import io.lettuce.core.codec.StringCodec;
 import io.lettuce.core.models.stream.PendingMessages;
 
-abstract class AbstractSourceIntegrationTests extends AbstractIntegrationTests {
+abstract class AbstractSourceIntegrationTests extends AbstractTestBase {
 
     private static final Logger log = LoggerFactory.getLogger(AbstractSourceIntegrationTests.class);
 
@@ -59,10 +53,21 @@ abstract class AbstractSourceIntegrationTests extends AbstractIntegrationTests {
 
     private RedisKeysSourceTask keysSourceTask;
 
+    @Override
+    protected DataType[] generatorDataTypes() {
+        return AbstractTestBase.REDIS_GENERATOR_TYPES;
+    }
+
     @BeforeEach
-    public void createTask() {
+    public void setupTasks() {
         streamSourceTask = new RedisStreamSourceTask();
         keysSourceTask = new RedisKeysSourceTask();
+    }
+
+    @AfterEach
+    public void teardownTasks() {
+        keysSourceTask.stop();
+        streamSourceTask.stop();
     }
 
     // Used to initialize a task with a previous connect offset (as though records
@@ -131,12 +136,6 @@ abstract class AbstractSourceIntegrationTests extends AbstractIntegrationTests {
             body.put(args[index * 2], args[index * 2 + 1]);
         }
         return body;
-    }
-
-    @AfterEach
-    public void teardown() {
-        keysSourceTask.stop();
-        streamSourceTask.stop();
     }
 
     @Test
@@ -220,7 +219,7 @@ abstract class AbstractSourceIntegrationTests extends AbstractIntegrationTests {
         connection.sync().xadd(stream, body);
 
         // create a new task, same config
-        createTask();
+        setupTasks();
         startStreamSourceTask(RedisStreamSourceConfigDef.TOPIC_CONFIG, topicPrefix + RedisStreamSourceConfigDef.TOKEN_STREAM,
                 RedisStreamSourceConfigDef.STREAM_NAME_CONFIG, stream);
 
@@ -257,7 +256,7 @@ abstract class AbstractSourceIntegrationTests extends AbstractIntegrationTests {
         String id6 = connection.sync().xadd(stream, body);
 
         // create a new task, same config
-        createTask();
+        setupTasks();
         startStreamSourceTask(RedisStreamSourceConfigDef.TOPIC_CONFIG, topicPrefix + RedisStreamSourceConfigDef.TOKEN_STREAM,
                 RedisStreamSourceConfigDef.STREAM_NAME_CONFIG, stream);
 
@@ -299,7 +298,7 @@ abstract class AbstractSourceIntegrationTests extends AbstractIntegrationTests {
         log.info("ID6: " + id6);
 
         // create a new task, same config
-        createTask();
+        setupTasks();
         // this means connect committed records, but StreamSourceTask didn't get a
         // chance to ack first
         initializeTask(id3);
@@ -340,7 +339,7 @@ abstract class AbstractSourceIntegrationTests extends AbstractIntegrationTests {
         String id6 = connection.sync().xadd(stream, body);
 
         // create a new task, same config
-        createTask();
+        setupTasks();
         startStreamSourceTask(RedisStreamSourceConfigDef.TOPIC_CONFIG, topicPrefix + RedisStreamSourceConfigDef.TOKEN_STREAM,
                 RedisStreamSourceConfigDef.STREAM_NAME_CONFIG, stream, RedisStreamSourceConfigDef.STREAM_DELIVERY_CONFIG,
                 RedisStreamSourceConfig.STREAM_DELIVERY_AT_MOST_ONCE);
@@ -378,7 +377,7 @@ abstract class AbstractSourceIntegrationTests extends AbstractIntegrationTests {
         String id6 = connection.sync().xadd(stream, body);
 
         // create a new task, same config except AT_MOST_ONCE
-        createTask();
+        setupTasks();
         startStreamSourceTask(RedisStreamSourceConfigDef.TOPIC_CONFIG, topicPrefix + RedisStreamSourceConfigDef.TOKEN_STREAM,
                 RedisStreamSourceConfigDef.STREAM_NAME_CONFIG, stream, RedisStreamSourceConfigDef.STREAM_DELIVERY_CONFIG,
                 RedisStreamSourceConfig.STREAM_DELIVERY_AT_MOST_ONCE);
@@ -404,32 +403,24 @@ abstract class AbstractSourceIntegrationTests extends AbstractIntegrationTests {
     }
 
     @Test
-    void pollKeys() throws Exception {
-        enableKeyspaceNotifications();
+    void pollKeys(TestInfo info) throws Exception {
+        enableKeyspaceNotifications(client);
         String topic = "mytopic";
         startKeysSourceTask(RedisKeysSourceConfigDef.TOPIC_CONFIG, topic, RedisKeysSourceConfigDef.IDLE_TIMEOUT_CONFIG, "3000");
-        LiveRedisItemReader<String, String, DataStructure<String>> reader = keysSourceTask.getReader();
+        KeyValueItemReader<String, String> reader = keysSourceTask.getReader();
         Awaitility.await().until(reader::isOpen);
         int count = 100;
-        GeneratorItemReader generator = new GeneratorItemReader();
-        generator.setTypes(Type.values());
-        generator.setMaxItemCount(count);
-        RedisItemWriter<String, String, DataStructure<String>> writer = new WriterBuilder(client).dataStructure();
-        JobRepository jobRepository = Utils.inMemoryJobRepository();
-        SimpleJobLauncher jobLauncher = new SimpleJobLauncher();
-        jobLauncher.setJobRepository(jobRepository);
-        jobLauncher.afterPropertiesSet();
-        ResourcelessTransactionManager transactionManager = new ResourcelessTransactionManager();
-        StepBuilderFactory stepBuilderFactory = new StepBuilderFactory(jobRepository, transactionManager);
-        SimpleStepBuilder<DataStructure<String>, DataStructure<String>> step = stepBuilderFactory.get("pollKeys-" + redisURI)
-                .chunk(1);
-        step.reader(generator);
-        step.writer(writer);
-        JobBuilderFactory jobBuilderFactory = new JobBuilderFactory(jobRepository);
-        Job job = jobBuilderFactory.get("pollKeys-" + redisURI).start(step.build()).build();
-        jobLauncher.run(job, new JobParameters());
-        List<SourceRecord> sourceRecords = new ArrayList<>();
-        Awaitility.await().until(() -> {
+        final List<SourceRecord> sourceRecords = new ArrayList<>();
+        Executors.newSingleThreadScheduledExecutor().execute(() -> {
+            GeneratorItemReader generator = generator(count);
+            StructItemWriter<String, String> writer = new StructItemWriter<>(client, StringCodec.UTF8);
+            try {
+                run(info, step(info, 1, generator, null, writer));
+            } catch (JobExecutionException e) {
+                throw new RuntimeException("Could not execute data gen");
+            }
+        });
+        awaitUntil(() -> {
             sourceRecords.addAll(keysSourceTask.poll());
             return sourceRecords.size() >= count;
         });
@@ -440,17 +431,6 @@ abstract class AbstractSourceIntegrationTests extends AbstractIntegrationTests {
                 Assertions.assertEquals(compare.expected, compare.actual);
             }
         }
-
-        // DataStructure<String> stringDS = new DataStructure<>();
-        // stringDS.setKey(stringKey);
-        // stringDS.setValue(stringValue);
-        // stringDS.setType(DataStructure.STRING);
-        // DataStructure<String> hashDS = new DataStructure<>();
-        // hashDS.setKey(hashKey);
-        // hashDS.setValue(hashValue);
-        // hashDS.setType(DataStructure.HASH);
-        // Assertions.assertEquals(converter.apply(stringDS), sourceRecords.get(0).value());
-        // Assertions.assertEquals(converter.apply(hashDS), sourceRecords.get(1).value());
     }
 
     private static class Compare {
@@ -467,24 +447,24 @@ abstract class AbstractSourceIntegrationTests extends AbstractIntegrationTests {
     }
 
     private Compare values(Struct struct) {
-        String key = struct.getString(DataStructureConverter.FIELD_KEY);
-        String type = struct.getString(DataStructureConverter.FIELD_TYPE);
-        Assertions.assertEquals(connection.sync().type(key), type);
+        String key = struct.getString(ToStructFunction.FIELD_KEY);
+        DataType type = DataType.of(struct.getString(ToStructFunction.FIELD_TYPE));
+        Assertions.assertEquals(connection.sync().type(key), type.getString());
         RedisModulesCommands<String, String> commands = connection.sync();
         switch (type) {
-            case DataStructure.HASH:
-                return compare(commands.hgetall(key), struct.getMap(DataStructureConverter.FIELD_HASH));
-            case DataStructure.JSON:
-                return compare(commands.jsonGet(key, "."), struct.getString(DataStructureConverter.FIELD_JSON));
-            case DataStructure.LIST:
-                return compare(commands.lrange(key, 0, -1), struct.getArray(DataStructureConverter.FIELD_LIST));
-            case DataStructure.SET:
-                return compare(commands.smembers(key), new HashSet<>(struct.getArray(DataStructureConverter.FIELD_SET)));
-            case DataStructure.STRING:
-                return compare(commands.get(key), struct.getString(DataStructureConverter.FIELD_STRING));
-            case DataStructure.ZSET:
-                return compare(DataStructureConverter.zsetMap(commands.zrangeWithScores(key, 0, -1)),
-                        struct.getMap(DataStructureConverter.FIELD_ZSET));
+            case HASH:
+                return compare(commands.hgetall(key), struct.getMap(ToStructFunction.FIELD_HASH));
+            case JSON:
+                return compare(commands.jsonGet(key, "."), struct.getString(ToStructFunction.FIELD_JSON));
+            case LIST:
+                return compare(commands.lrange(key, 0, -1), struct.getArray(ToStructFunction.FIELD_LIST));
+            case SET:
+                return compare(commands.smembers(key), new HashSet<>(struct.getArray(ToStructFunction.FIELD_SET)));
+            case STRING:
+                return compare(commands.get(key), struct.getString(ToStructFunction.FIELD_STRING));
+            case ZSET:
+                return compare(ToStructFunction.zsetMap(commands.zrangeWithScores(key, 0, -1)),
+                        struct.getMap(ToStructFunction.FIELD_ZSET));
             default:
                 return null;
         }
