@@ -127,7 +127,7 @@ curl -X POST -H "Content-Type: application/json" --data '
      "tasks.max":"1",
      "connector.class":"com.redis.kafka.connect.RedisKeysSourceConnector",
      "redis.uri":"redis://redis:6379",
-     "redis.keys.patterns":"mykey:*",
+     "redis.keys.pattern":"mykey:*",
      "topic": "mykeys"
 }}' http://localhost:8083/connectors -w "\n"
 
