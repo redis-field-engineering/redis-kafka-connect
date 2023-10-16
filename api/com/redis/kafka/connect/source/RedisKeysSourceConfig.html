@@ -97,7 +97,7 @@ loadScripts(document, 'script');</script>
 </ul>
 <ul class="subNavList">
 <li>Detail:&nbsp;</li>
-<li>Field&nbsp;|&nbsp;</li>
+<li><a href="#field.detail">Field</a>&nbsp;|&nbsp;</li>
 <li><a href="#constructor.detail">Constr</a>&nbsp;|&nbsp;</li>
 <li><a href="#method.detail">Method</a></li>
 </ul>
@@ -163,6 +163,19 @@ extends <a href="RedisSourceConfig.html" title="class in com.redis.kafka.connect
 <!--   -->
 </a>
 <h3>Field Summary</h3>
+<table class="memberSummary">
+<caption><span>Fields</span><span class="tabEnd">&nbsp;</span></caption>
+<tr>
+<th class="colFirst" scope="col">Modifier and Type</th>
+<th class="colSecond" scope="col">Field</th>
+<th class="colLast" scope="col">Description</th>
+</tr>
+<tr class="altColor">
+<td class="colFirst"><code>static <a href="RedisKeysSourceConfigDef.html" title="class in com.redis.kafka.connect.source">RedisKeysSourceConfigDef</a></code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#CONFIG">CONFIG</a></span></code></th>
+<td class="colLast">&nbsp;</td>
+</tr>
+</table>
 <ul class="blockList">
 <li class="blockList"><a id="fields.inherited.from.class.com.redis.kafka.connect.source.RedisSourceConfig">
 <!--   -->
@@ -226,8 +239,8 @@ extends <a href="RedisSourceConfig.html" title="class in com.redis.kafka.connect
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr id="i2" class="altColor">
-<td class="colFirst"><code><a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/List.html?is-external=true" title="class or interface in java.util" class="externalLink">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;</code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getKeyPatterns()">getKeyPatterns</a></span>()</code></th>
+<td class="colFirst"><code><a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a></code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getKeyPattern()">getKeyPattern</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr id="i3" class="rowColor">
@@ -253,14 +266,14 @@ extends <a href="RedisSourceConfig.html" title="class in com.redis.kafka.connect
 <!--   -->
 </a>
 <h3>Methods inherited from class&nbsp;com.redis.kafka.connect.common.<a href="../common/RedisConfig.html" title="class in com.redis.kafka.connect.common">RedisConfig</a></h3>
-<code><a href="../common/RedisConfig.html#client()">client</a>, <a href="../common/RedisConfig.html#poolOptions()">poolOptions</a>, <a href="../common/RedisConfig.html#uri()">uri</a></code></li>
+<code><a href="../common/RedisConfig.html#client()">client</a>, <a href="../common/RedisConfig.html#getPoolSize()">getPoolSize</a>, <a href="../common/RedisConfig.html#uri()">uri</a></code></li>
 </ul>
 <ul class="blockList">
 <li class="blockList"><a id="methods.inherited.from.class.org.apache.kafka.common.config.AbstractConfig">
 <!--   -->
 </a>
 <h3>Methods inherited from class&nbsp;org.apache.kafka.common.config.AbstractConfig</h3>
-<code>documentationOf, get, getBoolean, getClass, getConfiguredInstance, getConfiguredInstances, getConfiguredInstances, getConfiguredInstances, getDouble, getInt, getList, getLong, getPassword, getShort, getString, ignore, logUnused, originals, originalsStrings, originalsWithPrefix, originalsWithPrefix, postProcessParsedConfig, typeOf, unused, values, valuesWithPrefixAllOrNothing, valuesWithPrefixOverride</code></li>
+<code>documentationOf, get, getBoolean, getClass, getConfiguredInstance, getConfiguredInstance, getConfiguredInstances, getConfiguredInstances, getConfiguredInstances, getDouble, getInt, getList, getLong, getPassword, getShort, getString, ignore, logUnused, nonInternalValues, originals, originals, originalsStrings, originalsWithPrefix, originalsWithPrefix, postProcessParsedConfig, typeOf, unused, values, valuesWithPrefixAllOrNothing, valuesWithPrefixOverride</code></li>
 </ul>
 <ul class="blockList">
 <li class="blockList"><a id="methods.inherited.from.class.java.lang.Object">
@@ -278,6 +291,25 @@ extends <a href="RedisSourceConfig.html" title="class in com.redis.kafka.connect
 <div class="details">
 <ul class="blockList">
 <li class="blockList">
+<!-- ============ FIELD DETAIL =========== -->
+<section>
+<ul class="blockList">
+<li class="blockList"><a id="field.detail">
+<!--   -->
+</a>
+<h3>Field Detail</h3>
+<a id="CONFIG">
+<!--   -->
+</a>
+<ul class="blockListLast">
+<li class="blockList">
+<h4>CONFIG</h4>
+<pre>public static final&nbsp;<a href="RedisKeysSourceConfigDef.html" title="class in com.redis.kafka.connect.source">RedisKeysSourceConfigDef</a> CONFIG</pre>
+</li>
+</ul>
+</li>
+</ul>
+</section>
 <!-- ========= CONSTRUCTOR DETAIL ======== -->
 <section>
 <ul class="blockList">
@@ -304,13 +336,13 @@ extends <a href="RedisSourceConfig.html" title="class in com.redis.kafka.connect
 <!--   -->
 </a>
 <h3>Method Detail</h3>
-<a id="getKeyPatterns()">
+<a id="getKeyPattern()">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
-<h4>getKeyPatterns</h4>
-<pre class="methodSignature">public&nbsp;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/List.html?is-external=true" title="class or interface in java.util" class="externalLink">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;&nbsp;getKeyPatterns()</pre>
+<h4>getKeyPattern</h4>
+<pre class="methodSignature">public&nbsp;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;getKeyPattern()</pre>
 </li>
 </ul>
 <a id="getTopicName()">
@@ -417,7 +449,7 @@ extends <a href="RedisSourceConfig.html" title="class in com.redis.kafka.connect
 </ul>
 <ul class="subNavList">
 <li>Detail:&nbsp;</li>
-<li>Field&nbsp;|&nbsp;</li>
+<li><a href="#field.detail">Field</a>&nbsp;|&nbsp;</li>
 <li><a href="#constructor.detail">Constr</a>&nbsp;|&nbsp;</li>
 <li><a href="#method.detail">Method</a></li>
 </ul>

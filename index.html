@@ -92,7 +92,7 @@ $(addBlockSwitches);
 <h1>Redis Kafka Connector</h1>
 <div class="details">
 <span id="author" class="author">Julien Ruaux</span><br>
-<span id="revnumber">version 0.8.0</span>
+<span id="revnumber">version 0.9.0</span>
 </div>
 <div id="toc" class="toc2">
 <div id="toctitle">Table of Contents</div>
@@ -481,9 +481,17 @@ redis.key=&lt;key name&gt; <i class="conum" data-value="1"></i><b>(1)</b>
 key.converter=&lt;string or bytes&gt; <i class="conum" data-value="2"></i><b>(2)</b></code></pre>
 </div>
 </div>
-<div class="paragraph">
-<p>&lt;1&gt;<a href="#_collection_key">Set key</a>
-&lt;2&gt; <a href="#_key_string">String</a> or <a href="#_key_bytes">bytes</a>: Kafka record keys to add to the set</p>
+<div class="colist arabic">
+<table>
+<tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td><a href="#_collection_key">Set key</a></td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td><a href="#_key_string">String</a> or <a href="#_key_bytes">bytes</a>: Kafka record keys to add to the set</td>
+</tr>
+</table>
 </div>
 <div class="paragraph">
 <p>The Kafka record value can be any format.
@@ -502,9 +510,17 @@ redis.key=&lt;key name&gt; <i class="conum" data-value="1"></i><b>(1)</b>
 key.converter=&lt;string or bytes&gt; <i class="conum" data-value="2"></i><b>(2)</b></code></pre>
 </div>
 </div>
-<div class="paragraph">
-<p>&lt;1&gt;<a href="#_collection_key">Sorted set key</a>
-&lt;2&gt; <a href="#_key_string">String</a> or <a href="#_key_bytes">bytes</a>: Kafka record keys to add to the set</p>
+<div class="colist arabic">
+<table>
+<tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td><a href="#_collection_key">Sorted set key</a></td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td><a href="#_key_string">String</a> or <a href="#_key_bytes">bytes</a>: Kafka record keys to add to the set</td>
+</tr>
+</table>
 </div>
 <div class="paragraph">
 <p>The Kafka record value should be <code>float64</code> and is used for the score.
@@ -817,10 +833,6 @@ The default is at-least-once delivery.</p>
 <div class="paragraph">
 <p>Reading from the stream is done through a consumer group so that multiple instances of the connector configured via the <code>tasks.max</code> can consume messages in a round-robin fashion.</p>
 </div>
-<div class="paragraph">
-<p>The connector splits the work based on the number of configured key patterns.
-When the number of tasks is greater than the number of patterns, the number of patterns will be used instead.</p>
-</div>
 </div>
 <div class="sect3">
 <h4 id="_stream_source_schema"><a class="anchor" href="#_stream_source_schema"></a>5.1.3. Message Schema</h4>
@@ -926,6 +938,10 @@ For example, <code>redis_${stream}</code> and stream <code>orders</code> &#8658;
 <p>The keys source connector captures changes happening to keys in a Redis database and publishes keys and values to a Kafka topic.
 The data structure key will be mapped to the record key, and the value will be mapped to the record value.</p>
 </div>
+<div class="paragraph">
+<p><strong>Make sure the Redis database has keyspace notifications enabled</strong> using <code>notify-keyspace-events = KA</code> in <code>redis.conf</code> or via <code>CONFIG SET</code>.
+For more details see <a href="https://redis.io/docs/manual/keyspace-notifications">Redis Keyspace Notifications</a>.</p>
+</div>
 <div class="admonitionblock warning">
 <table>
 <tr>
@@ -953,7 +969,7 @@ If you need assistance please contact your Redis account team.</p>
 <div class="listingblock">
 <div class="content">
 <pre class="prettyprint highlight"><code data-lang="properties">connector.class=com.redis.kafka.connect.RedisKeysSourceConnector
-redis.keys.patterns=&lt;glob&gt; <i class="conum" data-value="1"></i><b>(1)</b>
+redis.keys.pattern=&lt;glob&gt; <i class="conum" data-value="1"></i><b>(1)</b>
 redis.keys.timeout=&lt;millis&gt; <i class="conum" data-value="2"></i><b>(2)</b>
 topic=&lt;name&gt; <i class="conum" data-value="3"></i><b>(3)</b></code></pre>
 </div>
@@ -962,13 +978,15 @@ topic=&lt;name&gt; <i class="conum" data-value="3"></i><b>(3)</b></code></pre>
 <table>
 <tr>
 <td><i class="conum" data-value="1"></i><b>1</b></td>
-<td>Key pattern to subscribe to. This is the key portion of the pattern that will be used to listen to keyspace events. See <a href="https://redis.io/commands/keys/">Redis KEYS</a> for pattern details.
+<td>Key pattern to subscribe to.
+This is the key portion of the pattern that will be used to listen to keyspace events.
 For example <code>foo:*</code> translates to pubsub channel <code>__keyspace@0__:foo:*</code> and will capture changes to keys <code>foo:1</code>, <code>foo:2</code>, etc.
-Use comma-separated values for multiple patterns (<code>foo:*,bar:*</code>)</td>
+See <a href="https://redis.io/commands/keys/">Redis KEYS</a> for pattern details.</td>
 </tr>
 <tr>
 <td><i class="conum" data-value="2"></i><b>2</b></td>
-<td>Idle timeout in millis. Duration after which the connector will stop if no activity is encountered.</td>
+<td>Idle timeout in millis.
+Duration after which the connector will stop if no activity is encountered.</td>
 </tr>
 <tr>
 <td><i class="conum" data-value="3"></i><b>3</b></td>
@@ -1155,8 +1173,8 @@ xread COUNT 10 STREAMS pageviews 0</code></pre>
 </div>
 <div id="footer">
 <div id="footer-text">
-Version 0.8.0<br>
-Last updated 2023-06-28 12:42:36 UTC
+Version 0.9.0<br>
+Last updated 2023-10-16 07:54:26 UTC
 </div>
 </div>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prettify/r298/prettify.min.css">
