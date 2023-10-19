@@ -26,6 +26,7 @@ import java.util.stream.Collectors;
 
 import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.connect.errors.ConnectException;
+import org.apache.kafka.connect.errors.RetriableException;
 import org.apache.kafka.connect.source.SourceRecord;
 import org.apache.kafka.connect.source.SourceTask;
 import org.springframework.batch.item.ExecutionContext;
@@ -36,6 +37,7 @@ import com.redis.spring.batch.reader.StreamItemReader.StreamAckPolicy;
 
 import io.lettuce.core.AbstractRedisClient;
 import io.lettuce.core.Consumer;
+import io.lettuce.core.RedisCommandTimeoutException;
 import io.lettuce.core.StreamMessage;
 import io.lettuce.core.codec.StringCodec;
 
@@ -144,6 +146,8 @@ public class RedisStreamSourceTask extends SourceTask {
         List<StreamMessage<String, String>> messages;
         try {
             messages = reader.readMessages();
+        } catch (RedisCommandTimeoutException e) {
+            throw new RetriableException("Timeout while reading stream messages", e);
         } catch (Exception e) {
             throw new ConnectException("Could not read messages from stream", e);
         }

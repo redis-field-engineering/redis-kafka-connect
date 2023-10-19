@@ -15,7 +15,6 @@
  */
 package com.redis.kafka.connect.sink;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -23,15 +22,18 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.Map.Entry;
+import java.util.stream.Collector;
 import java.util.stream.Collectors;
 
+import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.config.ConfigException;
 import org.apache.kafka.connect.data.Field;
 import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.errors.DataException;
+import org.apache.kafka.connect.errors.RetriableException;
 import org.apache.kafka.connect.json.JsonConverter;
 import org.apache.kafka.connect.sink.SinkRecord;
 import org.apache.kafka.connect.sink.SinkTask;
@@ -39,7 +41,7 @@ import org.apache.kafka.connect.storage.Converter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.batch.item.ExecutionContext;
-import org.springframework.util.Assert;
+import org.springframework.util.CollectionUtils;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -65,8 +67,9 @@ import com.redis.spring.batch.writer.operation.Zadd;
 
 import io.lettuce.core.AbstractRedisClient;
 import io.lettuce.core.KeyValue;
+import io.lettuce.core.RedisCommandTimeoutException;
+import io.lettuce.core.RedisConnectionException;
 import io.lettuce.core.codec.ByteArrayCodec;
-import io.netty.util.internal.StringUtil;
 
 public class RedisSinkTask extends SinkTask {
 
@@ -75,6 +78,9 @@ public class RedisSinkTask extends SinkTask {
     private static final String OFFSET_KEY_FORMAT = "com.redis.kafka.connect.sink.offset.%s.%s";
 
     private static final ObjectMapper objectMapper = objectMapper();
+
+    private static final Collector<SinkOffsetState, ?, Map<String, String>> offsetCollector = Collectors
+            .toMap(RedisSinkTask::offsetKey, RedisSinkTask::offsetValue);
 
     private RedisSinkConfig config;
 
@@ -107,42 +113,45 @@ public class RedisSinkTask extends SinkTask {
         client = config.client();
         connection = RedisModulesUtils.connection(client);
         writer = new OperationItemWriter<>(client, ByteArrayCodec.INSTANCE, operation());
-        writer.setMultiExec(config.isMultiexec());
+        writer.setMultiExec(config.isMultiExec());
         writer.setWaitReplicas(config.getWaitReplicas());
         writer.setWaitTimeout(config.getWaitTimeout());
         writer.setPoolSize(config.getPoolSize());
         writer.open(new ExecutionContext());
-        final java.util.Set<TopicPartition> assignment = this.context.assignment();
-        if (!assignment.isEmpty()) {
-            Map<TopicPartition, Long> partitionOffsets = new HashMap<>(assignment.size());
-            for (SinkOffsetState state : offsetStates(assignment)) {
-                partitionOffsets.put(state.topicPartition(), state.offset());
-                log.info("Requesting offset {} for {}", state.offset(), state.topicPartition());
-            }
-            for (TopicPartition topicPartition : assignment) {
-                partitionOffsets.putIfAbsent(topicPartition, 0L);
-            }
-            this.context.offset(partitionOffsets);
+        java.util.Set<TopicPartition> assignment = this.context.assignment();
+        if (CollectionUtils.isEmpty(assignment)) {
+            return;
         }
+        Map<TopicPartition, Long> partitionOffsets = new HashMap<>(assignment.size());
+        for (SinkOffsetState state : offsetStates(assignment)) {
+            partitionOffsets.put(state.topicPartition(), state.offset());
+            log.info("Requesting offset {} for {}", state.offset(), state.topicPartition());
+        }
+        for (TopicPartition topicPartition : assignment) {
+            partitionOffsets.putIfAbsent(topicPartition, 0L);
+        }
+        this.context.offset(partitionOffsets);
     }
 
     private Collection<SinkOffsetState> offsetStates(java.util.Set<TopicPartition> assignment) {
-        Collection<SinkOffsetState> offsetStates = new ArrayList<>();
-        String[] partitionKeys = assignment.stream().map(a -> offsetKey(a.topic(), a.partition())).toArray(String[]::new);
+        String[] partitionKeys = assignment.stream().map(this::offsetKey).toArray(String[]::new);
         List<KeyValue<String, String>> values = connection.sync().mget(partitionKeys);
-        for (KeyValue<String, String> value : values) {
-            if (value.hasValue()) {
-                try {
-                    offsetStates.add(objectMapper.readValue(value.getValue(), SinkOffsetState.class));
-                } catch (IOException e) {
-                    throw new DataException(e);
-                }
-            }
-        }
-        return offsetStates;
+        return values.stream().filter(KeyValue::hasValue).map(this::offsetState).collect(Collectors.toList());
     }
 
-    private String offsetKey(String topic, Integer partition) {
+    private String offsetKey(TopicPartition partition) {
+        return offsetKey(partition.topic(), partition.partition());
+    }
+
+    private SinkOffsetState offsetState(KeyValue<String, String> value) {
+        try {
+            return objectMapper.readValue(value.getValue(), SinkOffsetState.class);
+        } catch (JsonProcessingException e) {
+            throw new DataException("Could not parse sink offset state", e);
+        }
+    }
+
+    private static String offsetKey(String topic, Integer partition) {
         return String.format(OFFSET_KEY_FORMAT, topic, partition);
     }
 
@@ -208,9 +217,6 @@ public class RedisSinkTask extends SinkTask {
 
     private byte[] jsonValue(SinkRecord sinkRecord) {
         Object value = sinkRecord.value();
-        if (value == null) {
-            return null;
-        }
         if (value instanceof byte[]) {
             return (byte[]) value;
         }
@@ -262,9 +268,6 @@ public class RedisSinkTask extends SinkTask {
     }
 
     private byte[] bytes(String source, Object input) {
-        if (input == null) {
-            return null;
-        }
         if (input instanceof byte[]) {
             return (byte[]) input;
         }
@@ -283,9 +286,6 @@ public class RedisSinkTask extends SinkTask {
     @SuppressWarnings("unchecked")
     private Map<byte[], byte[]> map(SinkRecord sinkRecord) {
         Object value = sinkRecord.value();
-        if (value == null) {
-            return null;
-        }
         if (value instanceof Struct) {
             Map<byte[], byte[]> body = new LinkedHashMap<>();
             Struct struct = (Struct) value;
@@ -311,16 +311,13 @@ public class RedisSinkTask extends SinkTask {
     public void stop() {
         if (writer != null) {
             writer.close();
-            writer = null;
         }
         if (connection != null) {
             connection.close();
-            connection = null;
         }
         if (client != null) {
             client.shutdown();
             client.getResources().shutdown();
-            client = null;
         }
     }
 
@@ -330,36 +327,37 @@ public class RedisSinkTask extends SinkTask {
         try {
             writer.write(new ArrayList<>(records));
             log.info("Wrote {} records", records.size());
-        } catch (Exception e) {
-            log.warn("Could not write {} records", records.size(), e);
+        } catch (RedisConnectionException e) {
+            throw new RetriableException("Could not get connection to Redis", e);
+        } catch (RedisCommandTimeoutException e) {
+            throw new RetriableException("Timeout while writing sink records", e);
         }
-        Map<TopicPartition, Long> data = new ConcurrentHashMap<>(100);
-        for (SinkRecord sinkRecord : records) {
-            Assert.isTrue(!StringUtil.isNullOrEmpty(sinkRecord.topic()), "topic cannot be null or empty.");
-            Assert.notNull(sinkRecord.kafkaPartition(), "partition cannot be null.");
-            Assert.isTrue(sinkRecord.kafkaOffset() >= 0, "offset must be greater than or equal 0.");
-            TopicPartition partition = new TopicPartition(sinkRecord.topic(), sinkRecord.kafkaPartition());
-            long current = data.getOrDefault(partition, Long.MIN_VALUE);
-            if (sinkRecord.kafkaOffset() > current) {
-                data.put(partition, sinkRecord.kafkaOffset());
-            }
-        }
-        List<SinkOffsetState> offsetData = data.entrySet().stream().map(e -> SinkOffsetState.of(e.getKey(), e.getValue()))
-                .collect(Collectors.toList());
-        if (!offsetData.isEmpty()) {
-            Map<String, String> offsets = new LinkedHashMap<>(offsetData.size());
-            for (SinkOffsetState e : offsetData) {
-                String key = offsetKey(e.topic(), e.partition());
-                String value;
-                try {
-                    value = objectMapper.writeValueAsString(e);
-                } catch (JsonProcessingException e1) {
-                    throw new DataException(e1);
-                }
-                offsets.put(key, value);
-                log.trace("put() - Setting offset: {}", e);
-            }
+    }
+
+    @Override
+    public void flush(Map<TopicPartition, OffsetAndMetadata> currentOffsets) {
+        Map<String, String> offsets = currentOffsets.entrySet().stream().map(this::offsetState).collect(offsetCollector);
+        log.trace("Writing offsets: {}", offsets);
+        try {
             connection.sync().mset(offsets);
+        } catch (RedisCommandTimeoutException e) {
+            throw new RetriableException("Could not write offsets", e);
+        }
+    }
+
+    private SinkOffsetState offsetState(Entry<TopicPartition, OffsetAndMetadata> entry) {
+        return SinkOffsetState.of(entry.getKey(), entry.getValue().offset());
+    }
+
+    private static String offsetKey(SinkOffsetState state) {
+        return offsetKey(state.topic(), state.partition());
+    }
+
+    private static String offsetValue(SinkOffsetState state) {
+        try {
+            return objectMapper.writeValueAsString(state);
+        } catch (JsonProcessingException e) {
+            throw new DataException("Could not serialize sink offset state", e);
         }
     }
 
