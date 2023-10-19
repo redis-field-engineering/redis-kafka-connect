@@ -80,10 +80,10 @@ echo -e "\nAdding Redis Kafka Sink Connector for the 'pageviews' topic into the 
 curl -X POST -H "Content-Type: application/json" --data '
   {"name": "redis-sink",
    "config": {
-     "connector.class":"com.redis.kafka.connect.RedisSinkConnector",
-     "tasks.max":"1",
-     "topics":"pageviews",
-     "redis.uri":"redis://redis:6379",
+     "connector.class": "com.redis.kafka.connect.RedisSinkConnector",
+     "tasks.max": "1",
+     "topics": "pageviews",
+     "redis.uri": "redis://redis:6379",
      "key.converter": "org.apache.kafka.connect.storage.StringConverter",
      "value.converter": "org.apache.kafka.connect.json.JsonConverter",
      "value.converter.schemas.enable": "false"
@@ -94,17 +94,17 @@ echo -e "\nAdding Redis Kafka Sink Connector for the 'pageviews' topic into Redi
 curl -X POST -H "Content-Type: application/json" --data '
   {"name": "redis-sink-json",
    "config": {
-     "connector.class":"com.redis.kafka.connect.RedisSinkConnector",
-     "tasks.max":"1",
-     "topics":"pageviews",
-     "redis.uri":"redis://redis:6379",
-     "redis.command":"JSONSET",
+     "connector.class": "com.redis.kafka.connect.RedisSinkConnector",
+     "tasks.max": "1",
      "key.converter": "org.apache.kafka.connect.json.JsonConverter",
-     "value.converter": "org.apache.kafka.connect.storage.StringConverter",
-     "value.converter.schemas.enable": "false",
+     "redis.command": "JSONSET",
+     "redis.uri": "redis://redis:6379",
+     "topics": "pageviews",
      "transforms": "Cast",
+     "transforms.Cast.spec": "string",
      "transforms.Cast.type": "org.apache.kafka.connect.transforms.Cast$Key",
-     "transforms.Cast.spec": "string"
+     "value.converter": "org.apache.kafka.connect.storage.StringConverter",
+     "value.converter.schemas.enable": "false"
 }}' http://localhost:8083/connectors -w "\n"
 
 sleep 2
@@ -112,10 +112,10 @@ echo -e "\nAdding Redis Kafka Source Connector for the 'mystream' stream:"
 curl -X POST -H "Content-Type: application/json" --data '
   {"name": "redis-source",
    "config": {
-     "tasks.max":"1",
-     "connector.class":"com.redis.kafka.connect.RedisStreamSourceConnector",
-     "redis.uri":"redis://redis:6379",
-     "redis.stream.name":"mystream",
+     "tasks.max": "1",
+     "connector.class": "com.redis.kafka.connect.RedisStreamSourceConnector",
+     "redis.uri": "redis://redis:6379",
+     "redis.stream.name": "mystream",
      "topic": "mystream"
 }}' http://localhost:8083/connectors -w "\n"
 
@@ -124,10 +124,10 @@ echo -e "\nAdding Keys Source Connector for keys 'mykey:*':"
 curl -X POST -H "Content-Type: application/json" --data '
   {"name": "redis-keys-source",
    "config": {
-     "tasks.max":"1",
-     "connector.class":"com.redis.kafka.connect.RedisKeysSourceConnector",
-     "redis.uri":"redis://redis:6379",
-     "redis.keys.pattern":"mykey:*",
+     "tasks.max": "1",
+     "connector.class": "com.redis.kafka.connect.RedisKeysSourceConnector",
+     "redis.uri": "redis://redis:6379",
+     "redis.keys.pattern": "mykey:*",
      "topic": "mykeys"
 }}' http://localhost:8083/connectors -w "\n"
 
