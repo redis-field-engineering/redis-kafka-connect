@@ -38,7 +38,7 @@ public class RedisSinkConfig extends RedisConfig {
 
     private final String separator;
 
-    private final boolean multiexec;
+    private final boolean multiExec;
 
     private final int waitReplicas;
 
@@ -51,7 +51,7 @@ public class RedisSinkConfig extends RedisConfig {
         command = RedisCommand.valueOf(getString(RedisSinkConfigDef.COMMAND_CONFIG));
         keyspace = getString(RedisSinkConfigDef.KEY_CONFIG).trim();
         separator = getString(RedisSinkConfigDef.SEPARATOR_CONFIG).trim();
-        multiexec = Boolean.TRUE.equals(getBoolean(RedisSinkConfigDef.MULTIEXEC_CONFIG));
+        multiExec = Boolean.TRUE.equals(getBoolean(RedisSinkConfigDef.MULTIEXEC_CONFIG));
         waitReplicas = getInt(RedisSinkConfigDef.WAIT_REPLICAS_CONFIG);
         waitTimeout = Duration.ofMillis(getLong(RedisSinkConfigDef.WAIT_TIMEOUT_CONFIG));
     }
@@ -72,8 +72,8 @@ public class RedisSinkConfig extends RedisConfig {
         return separator;
     }
 
-    public boolean isMultiexec() {
-        return multiexec;
+    public boolean isMultiExec() {
+        return multiExec;
     }
 
     public int getWaitReplicas() {
@@ -88,7 +88,7 @@ public class RedisSinkConfig extends RedisConfig {
     public int hashCode() {
         final int prime = 31;
         int result = super.hashCode();
-        result = prime * result + Objects.hash(charset, keyspace, separator, multiexec, command, waitReplicas, waitTimeout);
+        result = prime * result + Objects.hash(charset, keyspace, separator, multiExec, command, waitReplicas, waitTimeout);
         return result;
     }
 
@@ -102,7 +102,7 @@ public class RedisSinkConfig extends RedisConfig {
             return false;
         RedisSinkConfig other = (RedisSinkConfig) obj;
         return Objects.equals(charset, other.charset) && Objects.equals(keyspace, other.keyspace)
-                && Objects.equals(separator, other.separator) && multiexec == other.multiexec && command == other.command
+                && Objects.equals(separator, other.separator) && multiExec == other.multiExec && command == other.command
                 && waitReplicas == other.waitReplicas && waitTimeout == other.waitTimeout;
     }
 
