@@ -19,7 +19,7 @@ Documentation is available at link:{doc-url}[{doc-url}].
 
 == Downloading
 
-The connector is published on https://www.confluent.io/hub/redis/redis-enterprise-kafka[Confluent Hub] and {project-url}/releases/latest[Github].
+The connector is published on https://www.confluent.io/hub/redis/redis-kafka-connect[Confluent Hub] and {project-url}/releases/latest[Github].
 
 == Support
 
