@@ -9,9 +9,9 @@ project:
   license: Apache-2.0
   java:
     groupId: com.redis
-    version: 11
+    version: '11'
     multiProject: true
-  inceptionYear: 2021
+  inceptionYear: '2021'
   tags:
     - 'kafka'
     - 'connect'
@@ -60,7 +60,7 @@ announce:
 
 distributions:
   redis-redis-kafka-connect:
-    type: binary
+    type: BINARY
     artifacts:
       - path: core/redis-kafka-connect/build/confluent/{{distributionName}}-{{projectVersion}}.zip
         transform: '{{distributionName}}-{{projectEffectiveVersion}}.zip'
