@@ -1,4 +1,4 @@
-name: Release
+name: Publish
 
 on:
   workflow_dispatch:
@@ -12,8 +12,8 @@ on:
         required: true
 
 jobs:
-  release:
-    name: Release
+  publish:
+    name: Publish
     uses: redis-field-engineering/redis-github-workflows/.github/workflows/publish.yml@main
     with:
       branch: ${{ github.event.inputs.branch }}
