@@ -5,7 +5,7 @@ Select one of the methods below to install {project-title}.
 
 == Download
 
-Download the latest release archive from https://github.com/{github-owner}/{github-repo}/releases[here].
+Download the latest release archive from the link:{project-url}/releases[releases page].
 
 == Confluent Hub
 
@@ -14,4 +14,4 @@ Download the latest release archive from https://github.com/{github-owner}/{gith
 
 == Manually
 
-Follow the instructions in {link_manual_install}
+Follow the instructions in {link_manual_install}.

@@ -1,3 +1,4 @@
+:link_releases:         link:https://github.com/redis-field-engineering/redis-kafka-connect/releases[releases page]
 :link_redis_enterprise: link:https://redis.com/redis-enterprise-software/overview/[Redis Enterprise]
 :link_lettuce_uri:      link:https://github.com/lettuce-io/lettuce-core/wiki/Redis-URI-and-connection-details#uri-syntax[Redis URI Syntax]
 :link_redis_notif:      link:https://redis.io/docs/manual/keyspace-notifications[Redis Keyspace Notifications]

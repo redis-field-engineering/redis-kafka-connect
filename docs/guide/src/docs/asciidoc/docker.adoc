@@ -12,11 +12,11 @@ https://docs.docker.com/get-docker/[Docker]
 
 == Run the example
 
-Clone the https://github.com/{github-owner}/{github-repo}.git[{github-repo}] repository and execute `run.sh` in `docker` directory:
+Clone the link:{project-scm}[github repository] and execute `run.sh` in `docker` directory:
 
 [source,console,subs="attributes"]
 ----
-git clone https://github.com/{github-owner}/{github-repo}.git
+git clone {project-scm}
 ./run.sh
 ----
 
