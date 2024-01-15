@@ -12,6 +12,8 @@ import org.apache.kafka.common.config.ConfigValue;
 import com.redis.kafka.connect.common.RedisConfigDef;
 import com.redis.kafka.connect.sink.RedisSinkConfig.RedisCommand;
 
+import com.redis.kafka.connect.sink.RedisSinkConfig.MessageToCollectionEntryMap;
+
 public class RedisSinkConfigDef extends RedisConfigDef {
 
     public static final String TOKEN_TOPIC = "${topic}";
@@ -65,6 +67,12 @@ public class RedisSinkConfigDef extends RedisConfigDef {
     protected static final Set<RedisCommand> MULTI_EXEC_COMMANDS = Stream
             .of(RedisCommand.XADD, RedisCommand.LPUSH, RedisCommand.RPUSH, RedisCommand.SADD, RedisCommand.ZADD)
             .collect(Collectors.toSet());
+    
+    public static final String MESSAGE_TO_COLLECTION_ENTRY_MAP_DOC = "For Redis Lists and Sets, map either the Record's 'Key' or 'Value' to the Redis Collection entry";
+    
+    public static final String MESSAGE_TO_COLLECTION_ENTRY_MAP_CONFIG = "streamkap.messageToCollection.mapping";
+    
+    public static final MessageToCollectionEntryMap MESSAGE_TO_COLLECTION_ENTRY_MAP_DEFAULT = MessageToCollectionEntryMap.KEY;
 
     public RedisSinkConfigDef() {
         define();
@@ -83,6 +91,7 @@ public class RedisSinkConfigDef extends RedisConfigDef {
         define(MULTIEXEC_CONFIG, Type.BOOLEAN, MULTIEXEC_DEFAULT, Importance.MEDIUM, MULTIEXEC_DOC);
         define(WAIT_REPLICAS_CONFIG, Type.INT, WAIT_REPLICAS_DEFAULT, Importance.MEDIUM, WAIT_REPLICAS_DOC);
         define(WAIT_TIMEOUT_CONFIG, Type.LONG, WAIT_TIMEOUT_DEFAULT, Importance.MEDIUM, WAIT_TIMEOUT_DOC);
+        define(MESSAGE_TO_COLLECTION_ENTRY_MAP_CONFIG, Type.STRING, MESSAGE_TO_COLLECTION_ENTRY_MAP_DEFAULT.name(), Importance.LOW, MESSAGE_TO_COLLECTION_ENTRY_MAP_DOC);
     }
 
     @Override
@@ -110,5 +119,4 @@ public class RedisSinkConfigDef extends RedisConfigDef {
     private RedisCommand redisCommand(Map<String, String> props) {
         return RedisCommand.valueOf(props.getOrDefault(COMMAND_CONFIG, COMMAND_DEFAULT.name()));
     }
-
 }

@@ -48,6 +48,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.redis.kafka.connect.common.ManifestVersionProvider;
+import com.redis.kafka.connect.sink.RedisSinkConfig.MessageToCollectionEntryMap;
+import com.redis.kafka.connect.sink.RedisSinkConfig.RedisCommand;
 import com.redis.lettucemod.api.StatefulRedisModulesConnection;
 import com.redis.lettucemod.util.RedisModulesUtils;
 import com.redis.spring.batch.common.ToSampleFunction;
@@ -179,18 +181,18 @@ public class RedisSinkTask extends SinkTask {
                 return xadd;
             case LPUSH:
                 Lpush<byte[], byte[], SinkRecord> lpush = new Lpush<>();
-                lpush.setKeyFunction(this::collectionKey);
-                lpush.setValueFunction(this::member);
+                lpush.setKeyFunction(this::key);
+                lpush.setValueFunction(this::value);
                 return lpush;
             case RPUSH:
                 Rpush<byte[], byte[], SinkRecord> rpush = new Rpush<>();
-                rpush.setKeyFunction(this::collectionKey);
-                rpush.setValueFunction(this::member);
+                rpush.setKeyFunction(this::key);
+                rpush.setValueFunction(this::value);
                 return rpush;
             case SADD:
                 Sadd<byte[], byte[], SinkRecord> sadd = new Sadd<>();
-                sadd.setKeyFunction(this::collectionKey);
-                sadd.setValueFunction(this::member);
+                sadd.setKeyFunction(this::key);
+                sadd.setValueFunction(this::value);
                 return sadd;
             case TSADD:
                 TsAdd<byte[], byte[], SinkRecord> tsAdd = new TsAdd<>();
@@ -212,6 +214,16 @@ public class RedisSinkTask extends SinkTask {
     }
 
     private byte[] value(SinkRecord sinkRecord) {
+        /**
+         * @author Jonathon Ogden
+         * Retain default collection value behaviour (Kafka message key to Redis collection value) for Redis Lists and Sets if user isn't mapping Kafka message values to Redis collection entries
+         */
+        if ((config.getCommand().equals(RedisCommand.LPUSH) || config.getCommand().equals(RedisCommand.RPUSH)
+                || config.getCommand().equals(RedisCommand.SADD))
+                && config.getMapping().equals(MessageToCollectionEntryMap.KEY)) {
+            return member(sinkRecord);
+        }
+        
         return bytes("value", sinkRecord.value());
     }
 
@@ -254,6 +266,17 @@ public class RedisSinkTask extends SinkTask {
         if (config.getKeyspace().isEmpty()) {
             return bytes("key", sinkRecord.key());
         }
+        
+        /**
+         * @author Jonathon Ogden
+         * Retain default collection key behaviour (topic name) for Redis Lists and Sets if user isn't mapping Kafka message values to Redis collection entries
+         */
+        if ((config.getCommand().equals(RedisCommand.LPUSH) || config.getCommand().equals(RedisCommand.RPUSH)
+                || config.getCommand().equals(RedisCommand.SADD))
+                && config.getMapping().equals(MessageToCollectionEntryMap.KEY)) {
+            return collectionKey(sinkRecord);
+        }
+        
         String keyspace = keyspace(sinkRecord);
         String key = keyspace + config.getSeparator() + String.valueOf(sinkRecord.key());
         return key.getBytes(config.getCharset());
