@@ -56,7 +56,8 @@ import com.redis.spring.batch.writer.OperationItemWriter;
 import com.redis.spring.batch.writer.WriteOperation;
 import com.redis.spring.batch.writer.operation.Del;
 import com.redis.spring.batch.writer.operation.Hset;
-import com.redis.spring.batch.writer.operation.JsonSet;
+//import com.redis.spring.batch.writer.operation.JsonSet;
+import com.redis.kafka.connect.operation.JsonSet;
 import com.redis.spring.batch.writer.operation.Lpush;
 import com.redis.spring.batch.writer.operation.Rpush;
 //import com.redis.spring.batch.writer.operation.Sadd;
@@ -167,6 +168,7 @@ public class RedisSinkTask extends SinkTask {
                 JsonSet<byte[], byte[], SinkRecord> jsonSet = new JsonSet<>();
                 jsonSet.setKeyFunction(this::key);
                 jsonSet.setValueFunction(this::jsonValue);
+                jsonSet.setConditionFunction(this::isNullValue);
                 return jsonSet;
             case SET:
                 Set<byte[], byte[], SinkRecord> set = new Set<>();
