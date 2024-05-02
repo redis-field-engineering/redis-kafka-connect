@@ -1,7 +1,8 @@
 [[_sink]]
 = Sink Connector Guide
+:name: Redis Kafka Sink Connector
 
-The sink connector consumes records from a Kafka topic and writes the data to Redis.
+The {name} consumes records from a Kafka topic and writes the data to Redis.
 It includes the following features:
 
 * <<_sink_at_least_once_delivery,At least once delivery>>
@@ -11,17 +12,17 @@ It includes the following features:
 
 [[_sink_at_least_once_delivery]]
 == At least once delivery
-The sink connector guarantees that records from the Kafka topic are delivered at least once.
+The {name} guarantees that records from the Kafka topic are delivered at least once.
 
 [[_sink_tasks]]
 == Multiple tasks
 
-The sink connector supports running one or more tasks.
+The {name} supports running one or more tasks.
 You can specify the number of tasks with the `tasks.max` configuration property.
 
 [[_sink_data_structures]]
 == Redis Data Structures
-The sink connector supports the following Redis data-structure types as targets:
+The {name} supports the following Redis data-structure types as targets:
 
 [[_collection_key]]
 * Collections: <<_sink_stream,stream>>, <<_sink_list,list>>, <<_sink_set,set>>, <<_sink_zset,sorted set>>, <<_sink_timeseries,time series>>
@@ -167,10 +168,10 @@ The Kafka record value must be a number (e.g. `float64`) as it is used as the sa
 [[_sink_data_formats]]
 == Data Formats
 
-The sink connector supports different data formats for record keys and values depending on the target Redis data structure.
+The {name} supports different data formats for record keys and values depending on the target Redis data structure.
 
 === Kafka Record Keys
-The sink connector expects Kafka record keys in a specific format depending on the configured target <<_sink_data_structures,Redis data structure>>:
+The {name} expects Kafka record keys in a specific format depending on the configured target <<_sink_data_structures,Redis data structure>>:
 
 [options="header",cols="h,1,1"]
 |====

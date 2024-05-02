@@ -1,7 +1,8 @@
 [[_source]]
 = Source Connector Guide
+:name: Redis Kafka Source Connector
 
-{project-title} includes 2 source connectors:
+The {name} includes 2 source connectors:
 
 * <<_stream_source,Stream>>
 * <<_keys_source,Keys>>
@@ -20,7 +21,7 @@ It includes the following features:
 
 === Delivery Guarantees
 
-The stream source connector can be configured to ack stream messages either automatically (at-most-once delivery) or explicitly (at-least-once delivery).
+The {name} can be configured to ack stream messages either automatically (at-most-once delivery) or explicitly (at-least-once delivery).
 The default is at-least-once delivery.
 
 [[_stream_source_at_least_once_delivery]]

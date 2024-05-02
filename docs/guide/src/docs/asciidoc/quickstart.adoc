@@ -1,0 +1,212 @@
+[[_quick_start]]
+= Quick Start
+
+This section shows how to configure the {project-title} to import/export data between Redis and Apache Kafka and provides a hands-on look at the functionality of the source and sink connectors.
+
+== Requirements
+
+Download and install the following software:
+
+* https://docs.docker.com/get-docker/[Docker]
+* https://git-scm.com/book/en/v2/Getting-Started-Installing-Git[Git]
+
+== Start the Sandbox
+
+The sandbox starts the following Docker services:
+
+* Redis Stack
+* Apache Kafka
+* Kafka Connect with the {project-title} installed
+
+To start the sandbox run the following command:
+
+`docker compose up`
+
+After Docker downloads and starts the services you should see the following output:
+
+[source,console]
+-----
+[+] Running 8/0
+ ✔ Container redis            Created
+ ✔ Container zookeeper        Created
+ ✔ Container broker           Created
+ ✔ Container schema-registry  Created
+ ✔ Container rest-proxy       Created
+ ✔ Container connect          Created
+ ✔ Container ksqldb-server    Created
+ ✔ Container control-center   Created
+-----
+
+== Add Connectors
+
+Now that the required services are up and running, we can add connectors to Kafka Connect to transfer data between Redis and Kafka:
+
+* Add a sink connector to transfer data from Kafka to Redis
+* Add a source connector to transfer data from Redis to Kafka
+
+=== Add a Datagen
+
+https://github.com/confluentinc/kafka-connect-datagen/[Kafka Connect Datagen] is a Kafka Connect source connector for generating mock data.
+
+Create the Datagen connector with the following command:
+
+[source,console]
+-----
+curl -X POST -H "Content-Type: application/json" --data '
+  { "name": "datagen-pageviews",
+    "config": {
+      "connector.class": "io.confluent.kafka.connect.datagen.DatagenConnector",
+      "kafka.topic": "pageviews",
+      "quickstart": "pageviews",
+      "key.converter": "org.apache.kafka.connect.json.JsonConverter",
+      "value.converter": "org.apache.kafka.connect.json.JsonConverter",
+      "value.converter.schemas.enable": "false",
+      "producer.interceptor.classes": "io.confluent.monitoring.clients.interceptor.MonitoringProducerInterceptor",
+      "max.interval": 200,
+      "iterations": 10000000,
+      "tasks.max": "1"
+}}' http://localhost:8083/connectors -w "\n"
+-----
+
+This automatically creates the Kafka topic `pageviews` and produces data with a schema configuration from https://github.com/confluentinc/kafka-connect-datagen/blob/master/src/main/resources/pageviews_schema.avro
+
+[NOTE]
+====
+Why do I see the message 'Failed to connect'?
+
+It takes up to three minutes for the Kafka Connect REST API to start.
+If you receive the following error, wait three minutes and run the preceding command again.
+
+`curl: (7) Failed to connect to connect port 8083: Connection refused`
+====
+
+To confirm that you added the Datagen connector, run the following command:
+
+`curl -X GET http://localhost:8083/connectors`
+
+
+=== Add a Sink Connector
+
+The command below adds a {project-title} sink connector configured with these properties:
+
+* The class Kafka Connect uses to instantiate the connector
+* The Kafka topic from which the connector reads data
+* The connection URI of the Redis database to which the connector writes data
+* The Redis command to use for writing data (`JSONSET`)
+* Key and value converters to correctly handle incoming `pageviews` data
+* A https://docs.confluent.io/platform/current/connect/transforms/overview.html[Single Message Transform] to extract a key from `pageviews` messages.
+
+[source,console]
+-----
+curl -X POST -H "Content-Type: application/json" --data '
+  {"name": "redis-sink-json",
+   "config": {
+     "connector.class":"com.redis.kafka.connect.RedisSinkConnector",
+     "tasks.max":"1",
+     "topics":"pageviews",
+     "redis.uri":"redis://redis:6379",
+     "redis.command":"JSONSET",
+     "key.converter": "org.apache.kafka.connect.json.JsonConverter",
+     "value.converter": "org.apache.kafka.connect.storage.StringConverter",
+     "value.converter.schemas.enable": "false",
+     "transforms": "Cast",
+     "transforms.Cast.type": "org.apache.kafka.connect.transforms.Cast$Key",
+     "transforms.Cast.spec": "string"
+}}' http://localhost:8083/connectors -w "\n"
+-----
+
+You can check that Kafka messages are being written to Redis with this command:
+
+`docker compose exec redis /opt/redis-stack/bin/redis-cli "keys" "*"`
+
+You should see the following output:
+
+[source,console]
+-----
+  1) "pageviews:6021"
+  2) "pageviews:211"
+  3) "pageviews:281"
+  ...
+-----
+
+To retrieve the contents of a specific key use this command:
+
+`docker compose exec redis /opt/redis-stack/bin/redis-cli "JSON.GET" "pageviews:1451"`
+
+=> `"{\"viewtime\":1451,\"userid\":\"User_6\",\"pageid\":\"Page_35\"}"`
+
+=== Add a Source Connector
+
+The following command adds a source connector configured with these properties:
+
+* The class Kafka Connect uses to instantiate the connector
+* The connection URI of the Redis database the connector connects to
+* The name of the Redis stream from which the connector reads messages
+* The Kafka topic to which the connector writes data
+
+[source,console]
+-----
+curl -X POST -H "Content-Type: application/json" --data '
+{ "name": "redis-source",
+  "config": {
+    "tasks.max":"1",
+    "connector.class":"com.redis.kafka.connect.RedisStreamSourceConnector",
+    "redis.uri":"redis://redis:6379",
+    "redis.stream.name":"mystream",
+    "topic": "mystream"
+  }
+}' http://localhost:8083/connectors -w "\n"
+-----
+
+Now add a message to the `mystream` Redis stream:
+
+`docker compose exec redis /opt/redis-stack/bin/redis-cli "xadd" "mystream" "*" "field1" "value11" "field2" "value21"`
+
+Examine the topics in the Kafka UI: http://localhost:9021 or http://localhost:8000/.
+The `mystream` topic should have the previously sent stream message.
+
+
+== End-to-end Example
+
+The project {project-scm}[repository] contains a script that runs all the steps shown previously.
+
+Clone the {project-scm}[{project-name}] repository and execute `run.sh` in `docker` directory:
+
+[source,console,subs="attributes"]
+----
+git clone {project-scm}
+cd {project-name}
+./run.sh
+----
+
+This will:
+
+* Run `docker compose up`
+* Wait for Redis, Kafka, and Kafka Connect to be ready
+* Register the Confluent Datagen Connector
+* Register the Redis Kafka Sink Connector
+* Register the Redis Kafka Source Connector
+* Publish some events to Kafka via the Datagen connector
+* Write the events to Redis
+* Send messages to a Redis stream
+* Write the Redis stream messages back into Kafka
+
+Once running, examine the topics in the Kafka http://localhost:9021/[control center]:
+
+The `pageviews` topic should contain the 10 simple documents added, each similar to:
+
+[source,json]
+----
+include::{includedir}/../resources/pageviews.json[]
+----
+
+* The `pageviews` stream should contain the 10 change events.
+
+Examine the stream in Redis:
+[source,console]
+----
+docker compose exec redis /usr/local/bin/redis-cli
+xread COUNT 10 STREAMS pageviews 0
+----
+
+Messages added to the `mystream` stream will show up in the `mystream` topic
