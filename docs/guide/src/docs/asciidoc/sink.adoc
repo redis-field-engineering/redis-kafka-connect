@@ -10,6 +10,17 @@ It includes the following features:
 * <<_sink_data_structures,Redis Data Structures>>
 * <<_sink_data_formats,Supported Data Formats>>
 
+== Class Name
+
+The sink connector class name is `com.redis.kafka.connect.RedisSinkConnector`.
+
+The corresponding configuration property would be:
+
+[source,properties]
+----
+`connector.class = com.redis.kafka.connect.RedisSinkConnector`
+----
+
 [[_sink_at_least_once_delivery]]
 == At least once delivery
 The {name} guarantees that records from the Kafka topic are delivered at least once.
@@ -19,6 +30,7 @@ The {name} guarantees that records from the Kafka topic are delivered at least o
 
 The {name} supports running one or more tasks.
 You can specify the number of tasks with the `tasks.max` configuration property.
+
 
 [[_sink_data_structures]]
 == Redis Data Structures

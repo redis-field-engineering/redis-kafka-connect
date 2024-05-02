@@ -209,4 +209,22 @@ docker compose exec redis /usr/local/bin/redis-cli
 xread COUNT 10 STREAMS pageviews 0
 ----
 
-Messages added to the `mystream` stream will show up in the `mystream` topic
+Messages added to the `mystream` stream will show up in the `mystream` topic.
+
+
+== Confluent Cloud
+
+This section describes configuration aspects that are specific to using {project-title} in Confluent Cloud.
+
+=== Egress Endpoints
+
+It is required to specify https://docs.confluent.io/cloud/current/connectors/bring-your-connector/custom-connector-qs.html#cc-byoc-endpoints[egress endpoints] in order for the connector to reach the Redis database.
+
+=== Sensitive Properties
+
+The following are https://docs.confluent.io/cloud/current/connectors/bring-your-connector/custom-connector-qs.html#sensitive[sensitive properties] that must be marked as such in Confluent Cloud UI.
+
+* `redis.uri`: URI of the Redis database to connect to, e.g. `redis://redis-12000.redis.com:12000`
+* `redis.username`: Username to use to connect to Redis
+* `redis.password`: Password to use to connect to Redis
+* `redis.key.password`: Password of the private key file

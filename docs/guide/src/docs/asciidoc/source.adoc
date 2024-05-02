@@ -19,6 +19,17 @@ It includes the following features:
 * <<_stream_source_schema,Schema>>
 * <<_stream_source_config,Configuration>>
 
+=== Class Name
+
+The stream source connector class name is `com.redis.kafka.connect.RedisStreamSourceConnector`.
+
+The corresponding configuration property would be:
+
+[source,properties]
+----
+`connector.class = com.redis.kafka.connect.RedisStreamSourceConnector`
+----
+
 === Delivery Guarantees
 
 The {name} can be configured to ack stream messages either automatically (at-most-once delivery) or explicitly (at-least-once delivery).
@@ -114,6 +125,17 @@ With a big-enough set the connector could fall behind and the internal queue cou
 Some preliminary sizing using Redis statistics and `bigkeys`/`memkeys` is recommended.
 If you need assistance please contact your Redis account team.
 ====
+
+=== Class Name
+
+The keys source connector class name is `com.redis.kafka.connect.RedisKeysSourceConnector`.
+
+The corresponding configuration property would be:
+
+[source,properties]
+----
+`connector.class = com.redis.kafka.connect.RedisKeysSourceConnector`
+----
 
 [[_keys_source_config]]
 === Configuration
