@@ -97,35 +97,52 @@ $(addBlockSwitches);
 <div id="toc" class="toc2">
 <div id="toctitle">Table of Contents</div>
 <ul class="sectlevel1">
-<li><a href="#_introduction">1. Introduction</a></li>
-<li><a href="#_install">2. Install</a>
+<li><a href="#_overview">1. Overview</a></li>
+<li><a href="#_quick_start">2. Quick Start</a>
 <ul class="sectlevel2">
-<li><a href="#_download">2.1. Download</a></li>
-<li><a href="#_confluent_hub">2.2. Confluent Hub</a></li>
-<li><a href="#_manually">2.3. Manually</a></li>
+<li><a href="#_requirements">2.1. Requirements</a></li>
+<li><a href="#_start_the_sandbox">2.2. Start the Sandbox</a></li>
+<li><a href="#_add_connectors">2.3. Add Connectors</a>
+<ul class="sectlevel3">
+<li><a href="#_add_a_datagen">2.3.1. Add a Datagen</a></li>
+<li><a href="#_add_a_sink_connector">2.3.2. Add a Sink Connector</a></li>
+<li><a href="#_add_a_source_connector">2.3.3. Add a Source Connector</a></li>
+</ul>
+</li>
+<li><a href="#_end_to_end_example">2.4. End-to-end Example</a></li>
+<li><a href="#_confluent_cloud">2.5. Confluent Cloud</a>
+<ul class="sectlevel3">
+<li><a href="#_egress_endpoints">2.5.1. Egress Endpoints</a></li>
+<li><a href="#_sensitive_properties">2.5.2. Sensitive Properties</a></li>
+</ul>
+</li>
+<li><a href="#_download">2.6. Download</a></li>
+<li><a href="#_confluent_hub">2.7. Confluent Hub</a></li>
+<li><a href="#_manually">2.8. Manually</a></li>
 </ul>
 </li>
 <li><a href="#_connect">3. Connect to Redis</a></li>
 <li><a href="#_sink">4. Sink Connector Guide</a>
 <ul class="sectlevel2">
-<li><a href="#_sink_at_least_once_delivery">4.1. At least once delivery</a></li>
-<li><a href="#_sink_tasks">4.2. Multiple tasks</a></li>
-<li><a href="#_sink_data_structures">4.3. Redis Data Structures</a>
+<li><a href="#_class_name">4.1. Class Name</a></li>
+<li><a href="#_sink_at_least_once_delivery">4.2. At least once delivery</a></li>
+<li><a href="#_sink_tasks">4.3. Multiple tasks</a></li>
+<li><a href="#_sink_data_structures">4.4. Redis Data Structures</a>
 <ul class="sectlevel3">
-<li><a href="#_sink_hash">4.3.1. Hash</a></li>
-<li><a href="#_sink_string">4.3.2. String</a></li>
-<li><a href="#_sink_json">4.3.3. JSON</a></li>
-<li><a href="#_sink_stream">4.3.4. Stream</a></li>
-<li><a href="#_sink_list">4.3.5. List</a></li>
-<li><a href="#_sink_set">4.3.6. Set</a></li>
-<li><a href="#_sink_zset">4.3.7. Sorted Set</a></li>
-<li><a href="#_sink_timeseries">4.3.8. Time Series</a></li>
+<li><a href="#_sink_hash">4.4.1. Hash</a></li>
+<li><a href="#_sink_string">4.4.2. String</a></li>
+<li><a href="#_sink_json">4.4.3. JSON</a></li>
+<li><a href="#_sink_stream">4.4.4. Stream</a></li>
+<li><a href="#_sink_list">4.4.5. List</a></li>
+<li><a href="#_sink_set">4.4.6. Set</a></li>
+<li><a href="#_sink_zset">4.4.7. Sorted Set</a></li>
+<li><a href="#_sink_timeseries">4.4.8. Time Series</a></li>
 </ul>
 </li>
-<li><a href="#_sink_data_formats">4.4. Data Formats</a>
+<li><a href="#_sink_data_formats">4.5. Data Formats</a>
 <ul class="sectlevel3">
-<li><a href="#_kafka_record_keys">4.4.1. Kafka Record Keys</a></li>
-<li><a href="#_kafka_record_values">4.4.2. Kafka Record Values</a></li>
+<li><a href="#_kafka_record_keys">4.5.1. Kafka Record Keys</a></li>
+<li><a href="#_kafka_record_values">4.5.2. Kafka Record Values</a></li>
 </ul>
 </li>
 </ul>
@@ -134,30 +151,26 @@ $(addBlockSwitches);
 <ul class="sectlevel2">
 <li><a href="#_stream_source">5.1. Stream</a>
 <ul class="sectlevel3">
-<li><a href="#_delivery_guarantees">5.1.1. Delivery Guarantees</a></li>
-<li><a href="#_stream_source_tasks">5.1.2. Multiple Tasks</a></li>
-<li><a href="#_stream_source_schema">5.1.3. Message Schema</a></li>
-<li><a href="#_stream_source_config">5.1.4. Configuration</a></li>
+<li><a href="#_class_name_2">5.1.1. Class Name</a></li>
+<li><a href="#_delivery_guarantees">5.1.2. Delivery Guarantees</a></li>
+<li><a href="#_stream_source_tasks">5.1.3. Multiple Tasks</a></li>
+<li><a href="#_stream_source_schema">5.1.4. Message Schema</a></li>
+<li><a href="#_stream_source_config">5.1.5. Configuration</a></li>
 </ul>
 </li>
 <li><a href="#_keys_source">5.2. Keys</a>
 <ul class="sectlevel3">
-<li><a href="#_keys_source_config">5.2.1. Configuration</a></li>
+<li><a href="#_class_name_3">5.2.1. Class Name</a></li>
+<li><a href="#_keys_source_config">5.2.2. Configuration</a></li>
 </ul>
 </li>
 </ul>
 </li>
-<li><a href="#_docker">6. Quick Start with Docker</a>
+<li><a href="#_resources">6. Resources</a>
 <ul class="sectlevel2">
-<li><a href="#_requirements">6.1. Requirements</a></li>
-<li><a href="#_run_the_example">6.2. Run the example</a></li>
-</ul>
-</li>
-<li><a href="#_resources">7. Resources</a>
-<ul class="sectlevel2">
-<li><a href="#_kafka">7.1. Kafka</a></li>
-<li><a href="#_kafka_connect">7.2. Kafka Connect</a></li>
-<li><a href="#_redis">7.3. Redis</a></li>
+<li><a href="#_kafka">6.1. Kafka</a></li>
+<li><a href="#_kafka_connect">6.2. Kafka Connect</a></li>
+<li><a href="#_redis">6.3. Redis</a></li>
 </ul>
 </li>
 </ul>
@@ -165,10 +178,10 @@ $(addBlockSwitches);
 </div>
 <div id="content">
 <div class="sect1">
-<h2 id="_introduction"><a class="anchor" href="#_introduction"></a>1. Introduction</h2>
+<h2 id="_overview"><a class="anchor" href="#_overview"></a>1. Overview</h2>
 <div class="sectionbody">
 <div class="paragraph">
-<p>Redis Kafka Connector is used to import and export data between Apache Kafka and Redis.</p>
+<p>Redis Kafka Connector is a Confluent-verified connector that stores data from Kafka topics into Redis and pushes data from Redis into Kafka topics.</p>
 </div>
 <div class="paragraph">
 <p><span class="image"><img src="images/redis-kafka-connector.svg" alt="redis kafka connector"></span></p>
@@ -201,19 +214,392 @@ $(addBlockSwitches);
 </div>
 </div>
 <div class="sect1">
-<h2 id="_install"><a class="anchor" href="#_install"></a>2. Install</h2>
+<h2 id="_quick_start"><a class="anchor" href="#_quick_start"></a>2. Quick Start</h2>
 <div class="sectionbody">
+<div class="paragraph">
+<p>This section shows how to configure the Redis Kafka Connector to import/export data between Redis and Apache Kafka and provides a hands-on look at the functionality of the source and sink connectors.</p>
+</div>
+<div class="sect2">
+<h3 id="_requirements"><a class="anchor" href="#_requirements"></a>2.1. Requirements</h3>
+<div class="paragraph">
+<p>Download and install the following software:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><a href="https://docs.docker.com/get-docker/">Docker</a></p>
+</li>
+<li>
+<p><a href="https://git-scm.com/book/en/v2/Getting-Started-Installing-Git">Git</a></p>
+</li>
+</ul>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_start_the_sandbox"><a class="anchor" href="#_start_the_sandbox"></a>2.2. Start the Sandbox</h3>
+<div class="paragraph">
+<p>The sandbox starts the following Docker services:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>Redis Stack</p>
+</li>
+<li>
+<p>Apache Kafka</p>
+</li>
+<li>
+<p>Kafka Connect with the Redis Kafka Connector installed</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>To start the sandbox run the following command:</p>
+</div>
+<div class="paragraph">
+<p><code>docker compose up</code></p>
+</div>
+<div class="paragraph">
+<p>After Docker downloads and starts the services you should see the following output:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="prettyprint highlight"><code data-lang="console">[+] Running 8/0
+ ✔ Container redis            Created
+ ✔ Container zookeeper        Created
+ ✔ Container broker           Created
+ ✔ Container schema-registry  Created
+ ✔ Container rest-proxy       Created
+ ✔ Container connect          Created
+ ✔ Container ksqldb-server    Created
+ ✔ Container control-center   Created</code></pre>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_add_connectors"><a class="anchor" href="#_add_connectors"></a>2.3. Add Connectors</h3>
+<div class="paragraph">
+<p>Now that the required services are up and running, we can add connectors to Kafka Connect to transfer data between Redis and Kafka:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>Add a sink connector to transfer data from Kafka to Redis</p>
+</li>
+<li>
+<p>Add a source connector to transfer data from Redis to Kafka</p>
+</li>
+</ul>
+</div>
+<div class="sect3">
+<h4 id="_add_a_datagen"><a class="anchor" href="#_add_a_datagen"></a>2.3.1. Add a Datagen</h4>
+<div class="paragraph">
+<p><a href="https://github.com/confluentinc/kafka-connect-datagen/">Kafka Connect Datagen</a> is a Kafka Connect source connector for generating mock data.</p>
+</div>
+<div class="paragraph">
+<p>Create the Datagen connector with the following command:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="prettyprint highlight"><code data-lang="console">curl -X POST -H "Content-Type: application/json" --data '
+  { "name": "datagen-pageviews",
+    "config": {
+      "connector.class": "io.confluent.kafka.connect.datagen.DatagenConnector",
+      "kafka.topic": "pageviews",
+      "quickstart": "pageviews",
+      "key.converter": "org.apache.kafka.connect.json.JsonConverter",
+      "value.converter": "org.apache.kafka.connect.json.JsonConverter",
+      "value.converter.schemas.enable": "false",
+      "producer.interceptor.classes": "io.confluent.monitoring.clients.interceptor.MonitoringProducerInterceptor",
+      "max.interval": 200,
+      "iterations": 10000000,
+      "tasks.max": "1"
+}}' http://localhost:8083/connectors -w "\n"</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>This automatically creates the Kafka topic <code>pageviews</code> and produces data with a schema configuration from <a href="https://github.com/confluentinc/kafka-connect-datagen/blob/master/src/main/resources/pageviews_schema.avro" class="bare">https://github.com/confluentinc/kafka-connect-datagen/blob/master/src/main/resources/pageviews_schema.avro</a></p>
+</div>
+<div class="admonitionblock note">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+<div class="paragraph">
+<p>Why do I see the message 'Failed to connect'?</p>
+</div>
+<div class="paragraph">
+<p>It takes up to three minutes for the Kafka Connect REST API to start.
+If you receive the following error, wait three minutes and run the preceding command again.</p>
+</div>
+<div class="paragraph">
+<p><code>curl: (7) Failed to connect to connect port 8083: Connection refused</code></p>
+</div>
+</td>
+</tr>
+</table>
+</div>
+<div class="paragraph">
+<p>To confirm that you added the Datagen connector, run the following command:</p>
+</div>
+<div class="paragraph">
+<p><code>curl -X GET <a href="http://localhost:8083/connectors" class="bare">http://localhost:8083/connectors</a></code></p>
+</div>
+</div>
+<div class="sect3">
+<h4 id="_add_a_sink_connector"><a class="anchor" href="#_add_a_sink_connector"></a>2.3.2. Add a Sink Connector</h4>
+<div class="paragraph">
+<p>The command below adds a Redis Kafka Connector sink connector configured with these properties:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>The class Kafka Connect uses to instantiate the connector</p>
+</li>
+<li>
+<p>The Kafka topic from which the connector reads data</p>
+</li>
+<li>
+<p>The connection URI of the Redis database to which the connector writes data</p>
+</li>
+<li>
+<p>The Redis command to use for writing data (<code>JSONSET</code>)</p>
+</li>
+<li>
+<p>Key and value converters to correctly handle incoming <code>pageviews</code> data</p>
+</li>
+<li>
+<p>A <a href="https://docs.confluent.io/platform/current/connect/transforms/overview.html">Single Message Transform</a> to extract a key from <code>pageviews</code> messages.</p>
+</li>
+</ul>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="prettyprint highlight"><code data-lang="console">curl -X POST -H "Content-Type: application/json" --data '
+  {"name": "redis-sink-json",
+   "config": {
+     "connector.class":"com.redis.kafka.connect.RedisSinkConnector",
+     "tasks.max":"1",
+     "topics":"pageviews",
+     "redis.uri":"redis://redis:6379",
+     "redis.command":"JSONSET",
+     "key.converter": "org.apache.kafka.connect.json.JsonConverter",
+     "value.converter": "org.apache.kafka.connect.storage.StringConverter",
+     "value.converter.schemas.enable": "false",
+     "transforms": "Cast",
+     "transforms.Cast.type": "org.apache.kafka.connect.transforms.Cast$Key",
+     "transforms.Cast.spec": "string"
+}}' http://localhost:8083/connectors -w "\n"</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>You can check that Kafka messages are being written to Redis with this command:</p>
+</div>
+<div class="paragraph">
+<p><code>docker compose exec redis /opt/redis-stack/bin/redis-cli "keys" "*"</code></p>
+</div>
+<div class="paragraph">
+<p>You should see the following output:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="prettyprint highlight"><code data-lang="console">  1) "pageviews:6021"
+  2) "pageviews:211"
+  3) "pageviews:281"
+  ...</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>To retrieve the contents of a specific key use this command:</p>
+</div>
+<div class="paragraph">
+<p><code>docker compose exec redis /opt/redis-stack/bin/redis-cli "JSON.GET" "pageviews:1451"</code></p>
+</div>
+<div class="paragraph">
+<p>&#8658; <code>"{\"viewtime\":1451,\"userid\":\"User_6\",\"pageid\":\"Page_35\"}"</code></p>
+</div>
+</div>
+<div class="sect3">
+<h4 id="_add_a_source_connector"><a class="anchor" href="#_add_a_source_connector"></a>2.3.3. Add a Source Connector</h4>
+<div class="paragraph">
+<p>The following command adds a source connector configured with these properties:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>The class Kafka Connect uses to instantiate the connector</p>
+</li>
+<li>
+<p>The connection URI of the Redis database the connector connects to</p>
+</li>
+<li>
+<p>The name of the Redis stream from which the connector reads messages</p>
+</li>
+<li>
+<p>The Kafka topic to which the connector writes data</p>
+</li>
+</ul>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="prettyprint highlight"><code data-lang="console">curl -X POST -H "Content-Type: application/json" --data '
+{ "name": "redis-source",
+  "config": {
+    "tasks.max":"1",
+    "connector.class":"com.redis.kafka.connect.RedisStreamSourceConnector",
+    "redis.uri":"redis://redis:6379",
+    "redis.stream.name":"mystream",
+    "topic": "mystream"
+  }
+}' http://localhost:8083/connectors -w "\n"</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Now add a message to the <code>mystream</code> Redis stream:</p>
+</div>
+<div class="paragraph">
+<p><code>docker compose exec redis /opt/redis-stack/bin/redis-cli "xadd" "mystream" "*" "field1" "value11" "field2" "value21"</code></p>
+</div>
+<div class="paragraph">
+<p>Examine the topics in the Kafka UI: <a href="http://localhost:9021" class="bare">http://localhost:9021</a> or <a href="http://localhost:8000/" class="bare">http://localhost:8000/</a>.
+The <code>mystream</code> topic should have the previously sent stream message.</p>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_end_to_end_example"><a class="anchor" href="#_end_to_end_example"></a>2.4. End-to-end Example</h3>
+<div class="paragraph">
+<p>The project <a href="https://github.com/redis-field-engineering/redis-kafka-connect.git">repository</a> contains a script that runs all the steps shown previously.</p>
+</div>
+<div class="paragraph">
+<p>Clone the <a href="https://github.com/redis-field-engineering/redis-kafka-connect.git">redis-kafka-connect</a> repository and execute <code>run.sh</code> in <code>docker</code> directory:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="prettyprint highlight"><code data-lang="console">git clone https://github.com/redis-field-engineering/redis-kafka-connect.git
+cd redis-kafka-connect
+./run.sh</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>This will:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>Run <code>docker compose up</code></p>
+</li>
+<li>
+<p>Wait for Redis, Kafka, and Kafka Connect to be ready</p>
+</li>
+<li>
+<p>Register the Confluent Datagen Connector</p>
+</li>
+<li>
+<p>Register the Redis Kafka Sink Connector</p>
+</li>
+<li>
+<p>Register the Redis Kafka Source Connector</p>
+</li>
+<li>
+<p>Publish some events to Kafka via the Datagen connector</p>
+</li>
+<li>
+<p>Write the events to Redis</p>
+</li>
+<li>
+<p>Send messages to a Redis stream</p>
+</li>
+<li>
+<p>Write the Redis stream messages back into Kafka</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>Once running, examine the topics in the Kafka <a href="http://localhost:9021/">control center</a>:</p>
+</div>
+<div class="paragraph">
+<p>The <code>pageviews</code> topic should contain the 10 simple documents added, each similar to:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="prettyprint highlight"><code data-lang="json">{
+  "viewtime": {
+    "$numberLong": "81"
+  },
+  "pageid": "Page_1",
+  "userid": "User_8"
+}</code></pre>
+</div>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>The <code>pageviews</code> stream should contain the 10 change events.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>Examine the stream in Redis:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="prettyprint highlight"><code data-lang="console">docker compose exec redis /usr/local/bin/redis-cli
+xread COUNT 10 STREAMS pageviews 0</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Messages added to the <code>mystream</code> stream will show up in the <code>mystream</code> topic.</p>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_confluent_cloud"><a class="anchor" href="#_confluent_cloud"></a>2.5. Confluent Cloud</h3>
+<div class="paragraph">
+<p>This section describes configuration aspects that are specific to using Redis Kafka Connector in Confluent Cloud.</p>
+</div>
+<div class="sect3">
+<h4 id="_egress_endpoints"><a class="anchor" href="#_egress_endpoints"></a>2.5.1. Egress Endpoints</h4>
+<div class="paragraph">
+<p>It is required to specify <a href="https://docs.confluent.io/cloud/current/connectors/bring-your-connector/custom-connector-qs.html#cc-byoc-endpoints">egress endpoints</a> in order for the connector to reach the Redis database.</p>
+</div>
+</div>
+<div class="sect3">
+<h4 id="_sensitive_properties"><a class="anchor" href="#_sensitive_properties"></a>2.5.2. Sensitive Properties</h4>
+<div class="paragraph">
+<p>The following are <a href="https://docs.confluent.io/cloud/current/connectors/bring-your-connector/custom-connector-qs.html#sensitive">sensitive properties</a> that must be marked as such in Confluent Cloud UI.</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><code>redis.uri</code>: URI of the Redis database to connect to, e.g. <code>redis://redis-12000.redis.com:12000</code></p>
+</li>
+<li>
+<p><code>redis.username</code>: Username to use to connect to Redis</p>
+</li>
+<li>
+<p><code>redis.password</code>: Password to use to connect to Redis</p>
+</li>
+<li>
+<p><code>redis.key.password</code>: Password of the private key file
+= Install</p>
+</li>
+</ul>
+</div>
 <div class="paragraph">
 <p>Select one of the methods below to install Redis Kafka Connector.</p>
 </div>
+</div>
+</div>
 <div class="sect2">
-<h3 id="_download"><a class="anchor" href="#_download"></a>2.1. Download</h3>
+<h3 id="_download"><a class="anchor" href="#_download"></a>2.6. Download</h3>
 <div class="paragraph">
-<p>Download the latest release archive from the <a href="https://github.com/redis-field-engineering/redis-kafka-connect/releases">releases page</a>.</p>
+<p>Download the latest release archive from <a href="https://github.com/{github-owner}/{github-repo}/releases">here</a>.</p>
 </div>
 </div>
 <div class="sect2">
-<h3 id="_confluent_hub"><a class="anchor" href="#_confluent_hub"></a>2.2. Confluent Hub</h3>
+<h3 id="_confluent_hub"><a class="anchor" href="#_confluent_hub"></a>2.7. Confluent Hub</h3>
 <div class="olist arabic">
 <ol class="arabic">
 <li>
@@ -226,9 +612,9 @@ $(addBlockSwitches);
 </div>
 </div>
 <div class="sect2">
-<h3 id="_manually"><a class="anchor" href="#_manually"></a>2.3. Manually</h3>
+<h3 id="_manually"><a class="anchor" href="#_manually"></a>2.8. Manually</h3>
 <div class="paragraph">
-<p>Follow the instructions in <a href="https://docs.confluent.io/home/connect/community.html#manually-installing-community-connectors/">Manually Installing Community Connectors</a>.</p>
+<p>Follow the instructions in <a href="https://docs.confluent.io/home/connect/community.html#manually-installing-community-connectors/">Manually Installing Community Connectors</a></p>
 </div>
 </div>
 </div>
@@ -274,7 +660,7 @@ redis.password=pass</code></pre>
 <h2 id="_sink"><a class="anchor" href="#_sink"></a>4. Sink Connector Guide</h2>
 <div class="sectionbody">
 <div class="paragraph">
-<p>The sink connector consumes records from a Kafka topic and writes the data to Redis.
+<p>The Redis Kafka Sink Connector consumes records from a Kafka topic and writes the data to Redis.
 It includes the following features:</p>
 </div>
 <div class="ulist">
@@ -294,22 +680,36 @@ It includes the following features:</p>
 </ul>
 </div>
 <div class="sect2">
-<h3 id="_sink_at_least_once_delivery"><a class="anchor" href="#_sink_at_least_once_delivery"></a>4.1. At least once delivery</h3>
+<h3 id="_class_name"><a class="anchor" href="#_class_name"></a>4.1. Class Name</h3>
 <div class="paragraph">
-<p>The sink connector guarantees that records from the Kafka topic are delivered at least once.</p>
+<p>The sink connector class name is <code>com.redis.kafka.connect.RedisSinkConnector</code>.</p>
+</div>
+<div class="paragraph">
+<p>The corresponding configuration property would be:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="prettyprint highlight"><code data-lang="properties">`connector.class = com.redis.kafka.connect.RedisSinkConnector`</code></pre>
+</div>
 </div>
 </div>
 <div class="sect2">
-<h3 id="_sink_tasks"><a class="anchor" href="#_sink_tasks"></a>4.2. Multiple tasks</h3>
+<h3 id="_sink_at_least_once_delivery"><a class="anchor" href="#_sink_at_least_once_delivery"></a>4.2. At least once delivery</h3>
 <div class="paragraph">
-<p>The sink connector supports running one or more tasks.
+<p>The Redis Kafka Sink Connector guarantees that records from the Kafka topic are delivered at least once.</p>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_sink_tasks"><a class="anchor" href="#_sink_tasks"></a>4.3. Multiple tasks</h3>
+<div class="paragraph">
+<p>The Redis Kafka Sink Connector supports running one or more tasks.
 You can specify the number of tasks with the <code>tasks.max</code> configuration property.</p>
 </div>
 </div>
 <div class="sect2">
-<h3 id="_sink_data_structures"><a class="anchor" href="#_sink_data_structures"></a>4.3. Redis Data Structures</h3>
+<h3 id="_sink_data_structures"><a class="anchor" href="#_sink_data_structures"></a>4.4. Redis Data Structures</h3>
 <div class="paragraph">
-<p>The sink connector supports the following Redis data-structure types as targets:</p>
+<p>The Redis Kafka Sink Connector supports the following Redis data-structure types as targets:</p>
 </div>
 <div id="_collection_key" class="ulist">
 <ul>
@@ -334,7 +734,7 @@ You can specify the number of tasks with the <code>tasks.max</code> configuratio
 </ul>
 </div>
 <div class="sect3">
-<h4 id="_sink_hash"><a class="anchor" href="#_sink_hash"></a>4.3.1. Hash</h4>
+<h4 id="_sink_hash"><a class="anchor" href="#_sink_hash"></a>4.4.1. Hash</h4>
 <div class="paragraph">
 <p>Use the following properties to write Kafka records as Redis hashes:</p>
 </div>
@@ -360,7 +760,7 @@ If value is null the key is deleted.</td>
 </div>
 </div>
 <div class="sect3">
-<h4 id="_sink_string"><a class="anchor" href="#_sink_string"></a>4.3.2. String</h4>
+<h4 id="_sink_string"><a class="anchor" href="#_sink_string"></a>4.4.2. String</h4>
 <div class="paragraph">
 <p>Use the following properties to write Kafka records as Redis strings:</p>
 </div>
@@ -386,7 +786,7 @@ If value is null the key is deleted.</td>
 </div>
 </div>
 <div class="sect3">
-<h4 id="_sink_json"><a class="anchor" href="#_sink_json"></a>4.3.3. JSON</h4>
+<h4 id="_sink_json"><a class="anchor" href="#_sink_json"></a>4.4.3. JSON</h4>
 <div class="paragraph">
 <p>Use the following properties to write Kafka records as RedisJSON documents:</p>
 </div>
@@ -412,7 +812,7 @@ If value is null the key is deleted.</td>
 </div>
 </div>
 <div class="sect3">
-<h4 id="_sink_stream"><a class="anchor" href="#_sink_stream"></a>4.3.4. Stream</h4>
+<h4 id="_sink_stream"><a class="anchor" href="#_sink_stream"></a>4.4.4. Stream</h4>
 <div class="paragraph">
 <p>Use the following properties to store Kafka records as Redis stream messages:</p>
 </div>
@@ -437,7 +837,7 @@ value.converter=&lt;Avro or JSON&gt; <i class="conum" data-value="2"></i><b>(2)<
 </div>
 </div>
 <div class="sect3">
-<h4 id="_sink_list"><a class="anchor" href="#_sink_list"></a>4.3.5. List</h4>
+<h4 id="_sink_list"><a class="anchor" href="#_sink_list"></a>4.4.5. List</h4>
 <div class="paragraph">
 <p>Use the following properties to add Kafka record keys to a Redis list:</p>
 </div>
@@ -470,7 +870,7 @@ If a value is null then the member is removed from the list (instead of pushed t
 </div>
 </div>
 <div class="sect3">
-<h4 id="_sink_set"><a class="anchor" href="#_sink_set"></a>4.3.6. Set</h4>
+<h4 id="_sink_set"><a class="anchor" href="#_sink_set"></a>4.4.6. Set</h4>
 <div class="paragraph">
 <p>Use the following properties to add Kafka record keys to a Redis set:</p>
 </div>
@@ -499,7 +899,7 @@ If a value is null then the member is removed from the set (instead of added to 
 </div>
 </div>
 <div class="sect3">
-<h4 id="_sink_zset"><a class="anchor" href="#_sink_zset"></a>4.3.7. Sorted Set</h4>
+<h4 id="_sink_zset"><a class="anchor" href="#_sink_zset"></a>4.4.7. Sorted Set</h4>
 <div class="paragraph">
 <p>Use the following properties to add Kafka record keys to a Redis sorted set:</p>
 </div>
@@ -528,7 +928,7 @@ If the score is null then the member is removed from the sorted set (instead of 
 </div>
 </div>
 <div class="sect3">
-<h4 id="_sink_timeseries"><a class="anchor" href="#_sink_timeseries"></a>4.3.8. Time Series</h4>
+<h4 id="_sink_timeseries"><a class="anchor" href="#_sink_timeseries"></a>4.4.8. Time Series</h4>
 <div class="paragraph">
 <p>Use the following properties to write Kafka records as RedisTimeSeries samples:</p>
 </div>
@@ -555,14 +955,14 @@ redis.key=&lt;key name&gt; <i class="conum" data-value="1"></i><b>(1)</b></code>
 </div>
 </div>
 <div class="sect2">
-<h3 id="_sink_data_formats"><a class="anchor" href="#_sink_data_formats"></a>4.4. Data Formats</h3>
+<h3 id="_sink_data_formats"><a class="anchor" href="#_sink_data_formats"></a>4.5. Data Formats</h3>
 <div class="paragraph">
-<p>The sink connector supports different data formats for record keys and values depending on the target Redis data structure.</p>
+<p>The Redis Kafka Sink Connector supports different data formats for record keys and values depending on the target Redis data structure.</p>
 </div>
 <div class="sect3">
-<h4 id="_kafka_record_keys"><a class="anchor" href="#_kafka_record_keys"></a>4.4.1. Kafka Record Keys</h4>
+<h4 id="_kafka_record_keys"><a class="anchor" href="#_kafka_record_keys"></a>4.5.1. Kafka Record Keys</h4>
 <div class="paragraph">
-<p>The sink connector expects Kafka record keys in a specific format depending on the configured target <a href="#_sink_data_structures">Redis data structure</a>:</p>
+<p>The Redis Kafka Sink Connector expects Kafka record keys in a specific format depending on the configured target <a href="#_sink_data_structures">Redis data structure</a>:</p>
 </div>
 <table class="tableblock frame-all grid-all stretch">
 <colgroup>
@@ -644,7 +1044,7 @@ redis.key=&lt;key name&gt; <i class="conum" data-value="1"></i><b>(1)</b></code>
 </div>
 </div>
 <div class="sect3">
-<h4 id="_kafka_record_values"><a class="anchor" href="#_kafka_record_values"></a>4.4.2. Kafka Record Values</h4>
+<h4 id="_kafka_record_values"><a class="anchor" href="#_kafka_record_values"></a>4.5.2. Kafka Record Values</h4>
 <div class="paragraph">
 <p>Multiple data formats are supported for Kafka record values depending on the configured target <a href="#_sink_data_structures">Redis data structure</a>.
 Each data structure expects a specific format.
@@ -762,7 +1162,7 @@ value.converter.schemas.enable=&lt;true|false&gt; <i class="conum" data-value="1
 <h2 id="_source"><a class="anchor" href="#_source"></a>5. Source Connector Guide</h2>
 <div class="sectionbody">
 <div class="paragraph">
-<p>Redis Kafka Connector includes 2 source connectors:</p>
+<p>The Redis Kafka Source Connector includes 2 source connectors:</p>
 </div>
 <div class="ulist">
 <ul>
@@ -800,9 +1200,23 @@ It includes the following features:</p>
 </ul>
 </div>
 <div class="sect3">
-<h4 id="_delivery_guarantees"><a class="anchor" href="#_delivery_guarantees"></a>5.1.1. Delivery Guarantees</h4>
+<h4 id="_class_name_2"><a class="anchor" href="#_class_name_2"></a>5.1.1. Class Name</h4>
 <div class="paragraph">
-<p>The stream source connector can be configured to ack stream messages either automatically (at-most-once delivery) or explicitly (at-least-once delivery).
+<p>The stream source connector class name is <code>com.redis.kafka.connect.RedisStreamSourceConnector</code>.</p>
+</div>
+<div class="paragraph">
+<p>The corresponding configuration property would be:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="prettyprint highlight"><code data-lang="properties">`connector.class = com.redis.kafka.connect.RedisStreamSourceConnector`</code></pre>
+</div>
+</div>
+</div>
+<div class="sect3">
+<h4 id="_delivery_guarantees"><a class="anchor" href="#_delivery_guarantees"></a>5.1.2. Delivery Guarantees</h4>
+<div class="paragraph">
+<p>The Redis Kafka Source Connector can be configured to ack stream messages either automatically (at-most-once delivery) or explicitly (at-least-once delivery).
 The default is at-least-once delivery.</p>
 </div>
 <div class="sect4">
@@ -829,13 +1243,13 @@ The default is at-least-once delivery.</p>
 </div>
 </div>
 <div class="sect3">
-<h4 id="_stream_source_tasks"><a class="anchor" href="#_stream_source_tasks"></a>5.1.2. Multiple Tasks</h4>
+<h4 id="_stream_source_tasks"><a class="anchor" href="#_stream_source_tasks"></a>5.1.3. Multiple Tasks</h4>
 <div class="paragraph">
 <p>Reading from the stream is done through a consumer group so that multiple instances of the connector configured via the <code>tasks.max</code> can consume messages in a round-robin fashion.</p>
 </div>
 </div>
 <div class="sect3">
-<h4 id="_stream_source_schema"><a class="anchor" href="#_stream_source_schema"></a>5.1.3. Message Schema</h4>
+<h4 id="_stream_source_schema"><a class="anchor" href="#_stream_source_schema"></a>5.1.4. Message Schema</h4>
 <div class="sect4">
 <h5 id="_key_schema"><a class="anchor" href="#_key_schema"></a>Key Schema</h5>
 <div class="paragraph">
@@ -881,7 +1295,7 @@ The default is at-least-once delivery.</p>
 </div>
 </div>
 <div class="sect3">
-<h4 id="_stream_source_config"><a class="anchor" href="#_stream_source_config"></a>5.1.4. Configuration</h4>
+<h4 id="_stream_source_config"><a class="anchor" href="#_stream_source_config"></a>5.1.5. Configuration</h4>
 <div class="listingblock">
 <div class="content">
 <pre class="prettyprint highlight"><code data-lang="properties">connector.class=com.redis.kafka.connect.RedisStreamSourceConnector
@@ -965,7 +1379,21 @@ If you need assistance please contact your Redis account team.</p>
 </table>
 </div>
 <div class="sect3">
-<h4 id="_keys_source_config"><a class="anchor" href="#_keys_source_config"></a>5.2.1. Configuration</h4>
+<h4 id="_class_name_3"><a class="anchor" href="#_class_name_3"></a>5.2.1. Class Name</h4>
+<div class="paragraph">
+<p>The keys source connector class name is <code>com.redis.kafka.connect.RedisKeysSourceConnector</code>.</p>
+</div>
+<div class="paragraph">
+<p>The corresponding configuration property would be:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="prettyprint highlight"><code data-lang="properties">`connector.class = com.redis.kafka.connect.RedisKeysSourceConnector`</code></pre>
+</div>
+</div>
+</div>
+<div class="sect3">
+<h4 id="_keys_source_config"><a class="anchor" href="#_keys_source_config"></a>5.2.2. Configuration</h4>
 <div class="listingblock">
 <div class="content">
 <pre class="prettyprint highlight"><code data-lang="properties">connector.class=com.redis.kafka.connect.RedisKeysSourceConnector
@@ -999,120 +1427,10 @@ Duration after which the connector will stop if no activity is encountered.</td>
 </div>
 </div>
 <div class="sect1">
-<h2 id="_docker"><a class="anchor" href="#_docker"></a>6. Quick Start with Docker</h2>
-<div class="sectionbody">
-<div class="paragraph">
-<p>This section provides a hands-on look at the functionality of the Redis Kafka Source and Sink Connectors:</p>
-</div>
-<div class="ulist">
-<ul>
-<li>
-<p>The <strong>redis-sink</strong> connector reads data from a Kafka topic and writes it to a Redis stream</p>
-</li>
-<li>
-<p>The <strong>redis-source</strong> connector reads data from a Redis stream and writes it to a Kafka topic</p>
-</li>
-</ul>
-</div>
-<div class="sect2">
-<h3 id="_requirements"><a class="anchor" href="#_requirements"></a>6.1. Requirements</h3>
-<div class="paragraph">
-<p><a href="https://docs.docker.com/get-docker/">Docker</a></p>
-</div>
-</div>
-<div class="sect2">
-<h3 id="_run_the_example"><a class="anchor" href="#_run_the_example"></a>6.2. Run the example</h3>
-<div class="paragraph">
-<p>Clone the <a href="https://github.com/redis-field-engineering/redis-kafka-connect.git">github repository</a> and execute <code>run.sh</code> in <code>docker</code> directory:</p>
-</div>
-<div class="listingblock">
-<div class="content">
-<pre class="prettyprint highlight"><code data-lang="console">git clone https://github.com/redis-field-engineering/redis-kafka-connect.git
-./run.sh</code></pre>
-</div>
-</div>
-<div class="paragraph">
-<p>This will:</p>
-</div>
-<div class="ulist">
-<ul>
-<li>
-<p>Run <code>docker-compose up</code></p>
-</li>
-<li>
-<p>Wait for Redis, Kafka, and Kafka Connect to be ready</p>
-</li>
-<li>
-<p>Register the Confluent Datagen Connector</p>
-</li>
-<li>
-<p>Register the Redis Kafka Sink Connector</p>
-</li>
-<li>
-<p>Register the Redis Kafka Source Connector</p>
-</li>
-<li>
-<p>Publish some events to Kafka via the Datagen connector</p>
-</li>
-<li>
-<p>Write the events to Redis</p>
-</li>
-<li>
-<p>Send messages to a Redis stream</p>
-</li>
-<li>
-<p>Write the Redis stream messages back into Kafka</p>
-</li>
-</ul>
-</div>
-<div class="paragraph">
-<p>Once running, examine the topics in the Kafka control center: <a href="http://localhost:9021/" class="bare">http://localhost:9021/</a></p>
-</div>
-<div class="ulist">
-<ul>
-<li>
-<p>The <code>pageviews</code> topic should contain the 10 simple documents added, each similar to:</p>
-</li>
-</ul>
-</div>
-<div class="listingblock">
-<div class="content">
-<pre class="prettyprint highlight"><code data-lang="json">{
-  "viewtime": {
-    "$numberLong": "81"
-  },
-  "pageid": "Page_1",
-  "userid": "User_8"
-}</code></pre>
-</div>
-</div>
-<div class="ulist">
-<ul>
-<li>
-<p>The <code>pageviews</code> stream should contain the 10 change events.</p>
-</li>
-</ul>
-</div>
-<div class="paragraph">
-<p>Examine the stream in Redis:</p>
-</div>
-<div class="listingblock">
-<div class="content">
-<pre class="prettyprint highlight"><code data-lang="console">docker-compose exec redis /usr/local/bin/redis-cli
-xread COUNT 10 STREAMS pageviews 0</code></pre>
-</div>
-</div>
-<div class="paragraph">
-<p>Messages added to the <code>mystream</code> stream will show up in the <code>mystream</code> topic</p>
-</div>
-</div>
-</div>
-</div>
-<div class="sect1">
-<h2 id="_resources"><a class="anchor" href="#_resources"></a>7. Resources</h2>
+<h2 id="_resources"><a class="anchor" href="#_resources"></a>6. Resources</h2>
 <div class="sectionbody">
 <div class="sect2">
-<h3 id="_kafka"><a class="anchor" href="#_kafka"></a>7.1. Kafka</h3>
+<h3 id="_kafka"><a class="anchor" href="#_kafka"></a>6.1. Kafka</h3>
 <div class="dlist">
 <dl>
 <dt class="hdlist1">What is Apache Kafka?</dt>
@@ -1135,7 +1453,7 @@ xread COUNT 10 STREAMS pageviews 0</code></pre>
 </div>
 </div>
 <div class="sect2">
-<h3 id="_kafka_connect"><a class="anchor" href="#_kafka_connect"></a>7.2. Kafka Connect</h3>
+<h3 id="_kafka_connect"><a class="anchor" href="#_kafka_connect"></a>6.2. Kafka Connect</h3>
 <div class="dlist">
 <dl>
 <dt class="hdlist1">Introduction to Kafka Connectors</dt>
@@ -1150,7 +1468,7 @@ xread COUNT 10 STREAMS pageviews 0</code></pre>
 </div>
 </div>
 <div class="sect2">
-<h3 id="_redis"><a class="anchor" href="#_redis"></a>7.3. Redis</h3>
+<h3 id="_redis"><a class="anchor" href="#_redis"></a>6.3. Redis</h3>
 <div class="dlist">
 <dl>
 <dt class="hdlist1">Redis</dt>
@@ -1174,7 +1492,7 @@ xread COUNT 10 STREAMS pageviews 0</code></pre>
 <div id="footer">
 <div id="footer-text">
 Version 0.9.0<br>
-Last updated 2023-12-21 11:59:35 UTC
+Last updated 2024-05-06 15:45:35 UTC
 </div>
 </div>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prettify/r298/prettify.min.css">
