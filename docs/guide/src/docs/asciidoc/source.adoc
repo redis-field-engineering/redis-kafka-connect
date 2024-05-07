@@ -4,21 +4,15 @@
 
 The {name} includes 2 source connectors:
 
-* <<_stream_source,Stream>>
-* <<_keys_source,Keys>>
+* <<_source_stream,Stream>>
+* <<_source_keys,Keys>>
 
-[[_stream_source]]
+[[_source_stream]]
 == Stream
 
 The stream source connector reads from a Redis stream and publishes messages to a Kafka topic.
-It includes the following features:
 
-* <<_stream_source_at_least_once_delivery,At least once delivery>>
-* <<_stream_source_at_most_once_delivery,At most once delivery>>
-* <<_stream_source_tasks,Multiple tasks>>
-* <<_stream_source_schema,Schema>>
-* <<_stream_source_config,Configuration>>
-
+[[_source_stream_class]]
 === Class Name
 
 The stream source connector class name is `com.redis.kafka.connect.RedisStreamSourceConnector`.
@@ -27,39 +21,41 @@ The corresponding configuration property would be:
 
 [source,properties]
 ----
-`connector.class = com.redis.kafka.connect.RedisStreamSourceConnector`
+connector.class = com.redis.kafka.connect.RedisStreamSourceConnector
 ----
 
+[[_source_stream_delivery]]
 === Delivery Guarantees
 
 The {name} can be configured to ack stream messages either automatically (at-most-once delivery) or explicitly (at-least-once delivery).
 The default is at-least-once delivery.
 
-[[_stream_source_at_least_once_delivery]]
 ==== At-Least-Once
 
 In this mode, each stream message is acknowledged after it has been written to the corresponding topic.
 
 [source,properties]
 ----
-redis.stream.delivery=at-least-once
+redis.stream.delivery = at-least-once
 ----
 
-[[_stream_source_at_most_once_delivery]]
 ==== At-Most-Once
 
 In this mode, stream messages are acknowledged as soon as they are read.
 
 [source,properties]
 ----
-redis.stream.delivery=at-most-once
+redis.stream.delivery = at-most-once
 ----
 
-[[_stream_source_tasks]]
+[[_source_stream_tasks]]
 === Multiple Tasks
 Reading from the stream is done through a consumer group so that multiple instances of the connector configured via the `tasks.max` can consume messages in a round-robin fashion.
 
-[[_stream_source_schema]]
+[[_source_stream_redis_client]]
+include::{includedir}/_redis_client.adoc[leveloffset=+2]
+
+[[_source_stream_schema]]
 === Message Schema
 
 ==== Key Schema
@@ -78,24 +74,24 @@ The value schema defines the following fields:
 |body  |Map of STRING|Stream message body
 |====
 
-[[_stream_source_config]]
+[[_source_stream_config]]
 === Configuration
 
 [source,properties]
 ----
-connector.class=com.redis.kafka.connect.RedisStreamSourceConnector
-redis.stream.name=<name> <1>
-redis.stream.offset=<offset> <2>
-redis.stream.block=<millis> <3>
-redis.stream.consumer.group=<group> <4>
-redis.stream.consumer.name=<name> <5>
-redis.stream.delivery=<mode> <6>
-topic=<name> <7>
+connector.class             = com.redis.kafka.connect.RedisStreamSourceConnector
+redis.stream.name           = <name> <1>
+redis.stream.offset         = <offset> <2>
+redis.stream.block          = <millis> <3>
+redis.stream.consumer.group = <group> <4>
+redis.stream.consumer.name  = <name> <5>
+redis.stream.delivery       = <mode> <6>
+topic                       = <name> <7>
 ----
 
 <1> Name of the stream to read from.
-<2> https://redis.io/commands/xread#incomplete-ids[Message ID] to start reading from (default: `0-0`).
-<3> Maximum https://redis.io/commands/xread[XREAD] wait duration in milliseconds (default: `100`).
+<2> {link_stream_msg_id} to start reading from (default: `0-0`).
+<3> Maximum {link_xread} wait duration in milliseconds (default: `100`).
 <4> Name of the stream consumer group (default: `kafka-consumer-group`).
 <5> Name of the stream consumer (default: `consumer-${task}`).
 May contain `${task}` as a placeholder for the task id.
@@ -105,7 +101,7 @@ For example, `foo${task}` and task `123` => consumer `foo123`.
 May contain `${stream}` as a placeholder for the originating stream name.
 For example, `redis_${stream}` and stream `orders` => topic `redis_orders`.
 
-[[_keys_source]]
+[[_source_keys]]
 == Keys
 
 The keys source connector captures changes happening to keys in a Redis database and publishes keys and values to a Kafka topic.
@@ -113,6 +109,9 @@ The data structure key will be mapped to the record key, and the value will be m
 
 **Make sure the Redis database has keyspace notifications enabled** using `notify-keyspace-events = KA` in `redis.conf` or via `CONFIG SET`.
 For more details see {link_redis_notif}.
+
+[[[[_source_keys_delivery]]
+=== Delivery Guarantees
 
 [WARNING]
 ====
@@ -126,6 +125,7 @@ Some preliminary sizing using Redis statistics and `bigkeys`/`memkeys` is recomm
 If you need assistance please contact your Redis account team.
 ====
 
+[[_source_keys_class]]
 === Class Name
 
 The keys source connector class name is `com.redis.kafka.connect.RedisKeysSourceConnector`.
@@ -134,17 +134,20 @@ The corresponding configuration property would be:
 
 [source,properties]
 ----
-`connector.class = com.redis.kafka.connect.RedisKeysSourceConnector`
+connector.class = com.redis.kafka.connect.RedisKeysSourceConnector
 ----
 
-[[_keys_source_config]]
+[[_source_keys_redis_client]]
+include::{includedir}/_redis_client.adoc[leveloffset=+2]
+
+[[_source_keys_config]]
 === Configuration
 [source,properties]
 ----
-connector.class=com.redis.kafka.connect.RedisKeysSourceConnector
-redis.keys.pattern=<glob> <1>
-redis.keys.timeout=<millis> <2>
-topic=<name> <3>
+connector.class    = com.redis.kafka.connect.RedisKeysSourceConnector
+redis.keys.pattern = <glob> <1>
+redis.keys.timeout = <millis> <2>
+topic              = <name> <3>
 ----
 <1> Key pattern to subscribe to.
 This is the key portion of the pattern that will be used to listen to keyspace events.

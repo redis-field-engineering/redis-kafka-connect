@@ -1,0 +1,47 @@
+[[_docker]]
+= Docker Example
+
+The project {project-scm}[repository] contains a script that runs all the steps shown in the <<_quickstart,Quick Start>>.
+
+Clone the {project-scm}[{project-name}] repository and execute `run.sh` in `docker` directory:
+
+[source,console,subs="attributes"]
+----
+git clone {project-scm}
+cd {project-name}
+./run.sh
+----
+
+This will:
+
+* Run `docker compose up`
+* Wait for Redis, Kafka, and Kafka Connect to be ready
+* Register the Confluent Datagen Connector
+* Register the Redis Kafka Sink Connector
+* Register the Redis Kafka Source Connector
+* Publish some events to Kafka via the Datagen connector
+* Write the events to Redis
+* Send messages to a Redis stream
+* Write the Redis stream messages back into Kafka
+
+Once running, examine the topics in the Kafka http://localhost:9021/[Control Center]:
+
+The `pageviews` topic should contain the 10 simple documents added, each similar to:
+
+[source,json]
+----
+include::{includedir}/../resources/pageviews.json[]
+----
+
+* The `pageviews` stream should contain the 10 change events.
+
+Examine the stream in Redis:
+
+[source,console]
+----
+docker compose exec redis /usr/local/bin/redis-cli
+xread COUNT 10 STREAMS pageviews 0
+----
+
+Messages added to the `mystream` stream will show up in the `mystream` topic.
+

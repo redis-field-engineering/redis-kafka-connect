@@ -1,4 +1,4 @@
-[[_quick_start]]
+[[_quickstart]]
 = Quick Start
 
 This section shows how to configure the {project-title} to import/export data between Redis and Apache Kafka and provides a hands-on look at the functionality of the source and sink connectors.
@@ -7,8 +7,8 @@ This section shows how to configure the {project-title} to import/export data be
 
 Download and install the following software:
 
-* https://docs.docker.com/get-docker/[Docker]
-* https://git-scm.com/book/en/v2/Getting-Started-Installing-Git[Git]
+* {link_docker}
+* {link_git}
 
 == Start the Sandbox
 
@@ -20,7 +20,10 @@ The sandbox starts the following Docker services:
 
 To start the sandbox run the following command:
 
-`docker compose up`
+[source,console]
+-----
+docker compose up
+-----
 
 After Docker downloads and starts the services you should see the following output:
 
@@ -46,7 +49,7 @@ Now that the required services are up and running, we can add connectors to Kafk
 
 === Add a Datagen
 
-https://github.com/confluentinc/kafka-connect-datagen/[Kafka Connect Datagen] is a Kafka Connect source connector for generating mock data.
+{link_datagen} is a Kafka Connect source connector for generating mock data.
 
 Create the Datagen connector with the following command:
 
@@ -68,7 +71,7 @@ curl -X POST -H "Content-Type: application/json" --data '
 }}' http://localhost:8083/connectors -w "\n"
 -----
 
-This automatically creates the Kafka topic `pageviews` and produces data with a schema configuration from https://github.com/confluentinc/kafka-connect-datagen/blob/master/src/main/resources/pageviews_schema.avro
+This automatically creates the Kafka topic `pageviews` and produces data with a schema configuration from {link_pageviews_avro}
 
 [NOTE]
 ====
@@ -94,7 +97,7 @@ The command below adds a {project-title} sink connector configured with these pr
 * The connection URI of the Redis database to which the connector writes data
 * The Redis command to use for writing data (`JSONSET`)
 * Key and value converters to correctly handle incoming `pageviews` data
-* A https://docs.confluent.io/platform/current/connect/transforms/overview.html[Single Message Transform] to extract a key from `pageviews` messages.
+* A {link_smt} to extract a key from `pageviews` messages.
 
 [source,console]
 -----
@@ -165,66 +168,22 @@ Now add a message to the `mystream` Redis stream:
 Examine the topics in the Kafka UI: http://localhost:9021 or http://localhost:8000/.
 The `mystream` topic should have the previously sent stream message.
 
+== Custom Connector
 
-== End-to-end Example
-
-The project {project-scm}[repository] contains a script that runs all the steps shown previously.
-
-Clone the {project-scm}[{project-name}] repository and execute `run.sh` in `docker` directory:
-
-[source,console,subs="attributes"]
-----
-git clone {project-scm}
-cd {project-name}
-./run.sh
-----
-
-This will:
-
-* Run `docker compose up`
-* Wait for Redis, Kafka, and Kafka Connect to be ready
-* Register the Confluent Datagen Connector
-* Register the Redis Kafka Sink Connector
-* Register the Redis Kafka Source Connector
-* Publish some events to Kafka via the Datagen connector
-* Write the events to Redis
-* Send messages to a Redis stream
-* Write the Redis stream messages back into Kafka
-
-Once running, examine the topics in the Kafka http://localhost:9021/[control center]:
-
-The `pageviews` topic should contain the 10 simple documents added, each similar to:
-
-[source,json]
-----
-include::{includedir}/../resources/pageviews.json[]
-----
-
-* The `pageviews` stream should contain the 10 change events.
-
-Examine the stream in Redis:
-[source,console]
-----
-docker compose exec redis /usr/local/bin/redis-cli
-xread COUNT 10 STREAMS pageviews 0
-----
-
-Messages added to the `mystream` stream will show up in the `mystream` topic.
-
-
-== Confluent Cloud
-
-This section describes configuration aspects that are specific to using {project-title} in Confluent Cloud.
+This section describes configuration aspects that are specific to using {project-title} as a {link_custom_connector} in Confluent Cloud.
 
 === Egress Endpoints
 
-It is required to specify https://docs.confluent.io/cloud/current/connectors/bring-your-connector/custom-connector-qs.html#cc-byoc-endpoints[egress endpoints] in order for the connector to reach the Redis database.
+It is required to specify {link_egress_endpoints} in order for the connector to reach the Redis database.
 
 === Sensitive Properties
 
-The following are https://docs.confluent.io/cloud/current/connectors/bring-your-connector/custom-connector-qs.html#sensitive[sensitive properties] that must be marked as such in Confluent Cloud UI.
+The following are {link_sensitive_props} that must be marked as such in Confluent Cloud UI.
 
 * `redis.uri`: URI of the Redis database to connect to, e.g. `redis://redis-12000.redis.com:12000`
 * `redis.username`: Username to use to connect to Redis
 * `redis.password`: Password to use to connect to Redis
 * `redis.key.password`: Password of the private key file
+
+include::{includedir}/docker.adoc[leveloffset=+1]
+
