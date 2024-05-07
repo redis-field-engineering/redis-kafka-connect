@@ -1,0 +1,96 @@
+:name: Stream Source Connector
+[[_source_stream]]
+= {name}
+
+The {name} reads from a Redis stream and publishes messages to a Kafka topic.
+
+[[_source_stream_class]]
+== Class Name
+
+The {name} class name is `com.redis.kafka.connect.RedisStreamSourceConnector`.
+
+The corresponding configuration property would be:
+
+[source,properties]
+----
+connector.class = com.redis.kafka.connect.RedisStreamSourceConnector
+----
+
+[[_source_stream_delivery]]
+== Delivery Guarantees
+
+The {name} can be configured to ack stream messages either automatically (at-most-once delivery) or explicitly (at-least-once delivery).
+The default is at-least-once delivery.
+
+=== At-Least-Once
+
+In this mode, each stream message is acknowledged after it has been written to the corresponding topic.
+
+[source,properties]
+----
+redis.stream.delivery = at-least-once
+----
+
+=== At-Most-Once
+
+In this mode, stream messages are acknowledged as soon as they are read.
+
+[source,properties]
+----
+redis.stream.delivery = at-most-once
+----
+
+[[_source_stream_tasks]]
+== Tasks
+
+Reading from the stream is done through a consumer group so that multiple instances of the connector configured via the `tasks.max` can consume messages in a round-robin fashion.
+
+[[_source_stream_redis_client]]
+include::{includedir}/_redis_client.adoc[leveloffset=+1]
+
+[[_source_stream_schema]]
+== Message Schema
+
+=== Key Schema
+
+Keys are of type String and contain the stream message id.
+
+=== Value Schema
+
+The value schema defines the following fields:
+
+[options="header"]
+|====
+|Name|Schema|Description
+|id    |STRING       |Stream message ID
+|stream|STRING       |Stream key
+|body  |Map of STRING|Stream message body
+|====
+
+[[_source_stream_config]]
+=== Configuration
+
+[source,properties]
+----
+connector.class             = com.redis.kafka.connect.RedisStreamSourceConnector
+redis.stream.name           = <name> <1>
+redis.stream.offset         = <offset> <2>
+redis.stream.block          = <millis> <3>
+redis.stream.consumer.group = <group> <4>
+redis.stream.consumer.name  = <name> <5>
+redis.stream.delivery       = <mode> <6>
+topic                       = <name> <7>
+----
+
+<1> Name of the stream to read from.
+<2> {link_stream_msg_id} to start reading from (default: `0-0`).
+<3> Maximum {link_xread} wait duration in milliseconds (default: `100`).
+<4> Name of the stream consumer group (default: `kafka-consumer-group`).
+<5> Name of the stream consumer (default: `consumer-${task}`).
+May contain `${task}` as a placeholder for the task id.
+For example, `foo${task}` and task `123` => consumer `foo123`.
+<6> Delivery mode: `at-least-once`, `at-most-once` (default: `at-least-once`).
+<7> Destination topic (default: `${stream}`).
+May contain `${stream}` as a placeholder for the originating stream name.
+For example, `redis_${stream}` and stream `orders` => topic `redis_orders`.
+

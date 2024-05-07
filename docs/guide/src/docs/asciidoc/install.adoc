@@ -14,4 +14,5 @@ Download the latest release archive: {link_releases}.
 
 == Manually
 
-Follow the instructions in {link_manual_install}
+Follow the instructions in {link_manual_install}.
+

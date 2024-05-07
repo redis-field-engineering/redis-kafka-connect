@@ -1,6 +1,6 @@
+:name: Sink Connector
 [[_sink]]
-= Sink Connector Guide
-:name: Redis Kafka Sink Connector
+= {name}
 
 The {name} consumes records from a Kafka topic and writes the data to Redis.
 
@@ -20,7 +20,7 @@ connector.class = com.redis.kafka.connect.RedisSinkConnector
 The {name} guarantees that records from the Kafka topic are delivered at least once.
 
 [[_sink_tasks]]
-== Multiple tasks
+== Tasks
 
 The {name} supports running one or more tasks.
 You can specify the number of tasks with the `tasks.max` configuration property.
