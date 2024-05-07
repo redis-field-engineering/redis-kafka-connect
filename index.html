@@ -114,28 +114,40 @@ $(addBlockSwitches);
 <li><a href="#_manually">3.3. Manually</a></li>
 </ul>
 </li>
-<li><a href="#_sink">4. Sink Connector Guide</a>
+<li><a href="#_sink">4. Sink Connector</a>
 <ul class="sectlevel2">
 <li><a href="#_class_name">4.1. Class Name</a></li>
 <li><a href="#_sink_delivery">4.2. At least once delivery</a></li>
-<li><a href="#_sink_tasks">4.3. Multiple tasks</a></li>
+<li><a href="#_sink_tasks">4.3. Tasks</a></li>
 <li><a href="#_sink_redis_client">4.4. Redis Client</a></li>
 <li><a href="#_sink_redis_command">4.5. Redis Data Structures</a></li>
 <li><a href="#_sink_data_formats">4.6. Data Formats</a></li>
 <li><a href="#_sink_config">4.7. Configuration</a></li>
 </ul>
 </li>
-<li><a href="#_source">5. Source Connector Guide</a>
+<li><a href="#_source_stream">5. Stream Source Connector</a>
 <ul class="sectlevel2">
-<li><a href="#_source_stream">5.1. Stream</a></li>
-<li><a href="#_source_keys">5.2. Keys</a></li>
+<li><a href="#_source_stream_class">5.1. Class Name</a></li>
+<li><a href="#_source_stream_delivery">5.2. Delivery Guarantees</a></li>
+<li><a href="#_source_stream_tasks">5.3. Tasks</a></li>
+<li><a href="#_source_stream_redis_client">5.4. Redis Client</a></li>
+<li><a href="#_source_stream_schema">5.5. Message Schema</a></li>
 </ul>
 </li>
-<li><a href="#_resources">6. Resources</a>
+<li><a href="#_source_keys">6. Keys Source Connector</a>
 <ul class="sectlevel2">
-<li><a href="#_kafka">6.1. Kafka</a></li>
-<li><a href="#_kafka_connect">6.2. Kafka Connect</a></li>
-<li><a href="#_redis">6.3. Redis</a></li>
+<li><a href="#_source_keys_class">6.1. Class Name</a></li>
+<li><a href="#_source_keys_delivery">6.2. Delivery Guarantees</a></li>
+<li><a href="#_source_keys_tasks">6.3. Tasks</a></li>
+<li><a href="#_source_keys_redis_client">6.4. Redis Client</a></li>
+<li><a href="#_source_keys_config">6.5. Configuration</a></li>
+</ul>
+</li>
+<li><a href="#_resources">7. Resources</a>
+<ul class="sectlevel2">
+<li><a href="#_kafka">7.1. Kafka</a></li>
+<li><a href="#_kafka_connect">7.2. Kafka Connect</a></li>
+<li><a href="#_redis">7.3. Redis</a></li>
 </ul>
 </li>
 </ul>
@@ -169,7 +181,10 @@ $(addBlockSwitches);
 <p><a href="#_sink">Sink Connector</a></p>
 </li>
 <li>
-<p><a href="#_source">Source Connector</a></p>
+<p><a href="#_source_stream">Stream Source Connector</a></p>
+</li>
+<li>
+<p><a href="#_source_keys">Keys Source Connector</a></p>
 </li>
 <li>
 <p><a href="#_resources">Resources</a></p>
@@ -585,16 +600,16 @@ xread COUNT 10 STREAMS pageviews 0</code></pre>
 <div class="sect2">
 <h3 id="_manually"><a class="anchor" href="#_manually"></a>3.3. Manually</h3>
 <div class="paragraph">
-<p>Follow the instructions in <a href="https://docs.confluent.io/home/connect/community.html#manually-installing-community-connectors/">Manually Installing Community Connectors</a></p>
+<p>Follow the instructions in <a href="https://docs.confluent.io/home/connect/community.html#manually-installing-community-connectors/">Manually Installing Community Connectors</a>.</p>
 </div>
 </div>
 </div>
 </div>
 <div class="sect1">
-<h2 id="_sink"><a class="anchor" href="#_sink"></a>4. Sink Connector Guide</h2>
+<h2 id="_sink"><a class="anchor" href="#_sink"></a>4. Sink Connector</h2>
 <div class="sectionbody">
 <div class="paragraph">
-<p>The Redis Kafka Sink Connector consumes records from a Kafka topic and writes the data to Redis.</p>
+<p>The Sink Connector consumes records from a Kafka topic and writes the data to Redis.</p>
 </div>
 <div class="sect2">
 <h3 id="_class_name"><a class="anchor" href="#_class_name"></a>4.1. Class Name</h3>
@@ -613,13 +628,13 @@ xread COUNT 10 STREAMS pageviews 0</code></pre>
 <div class="sect2">
 <h3 id="_sink_delivery"><a class="anchor" href="#_sink_delivery"></a>4.2. At least once delivery</h3>
 <div class="paragraph">
-<p>The Redis Kafka Sink Connector guarantees that records from the Kafka topic are delivered at least once.</p>
+<p>The Sink Connector guarantees that records from the Kafka topic are delivered at least once.</p>
 </div>
 </div>
 <div class="sect2">
-<h3 id="_sink_tasks"><a class="anchor" href="#_sink_tasks"></a>4.3. Multiple tasks</h3>
+<h3 id="_sink_tasks"><a class="anchor" href="#_sink_tasks"></a>4.3. Tasks</h3>
 <div class="paragraph">
-<p>The Redis Kafka Sink Connector supports running one or more tasks.
+<p>The Sink Connector supports running one or more tasks.
 You can specify the number of tasks with the <code>tasks.max</code> configuration property.</p>
 </div>
 </div>
@@ -672,7 +687,7 @@ redis.password = pass</code></pre>
 <div class="sect2">
 <h3 id="_sink_redis_command"><a class="anchor" href="#_sink_redis_command"></a>4.5. Redis Data Structures</h3>
 <div class="paragraph">
-<p>The Redis Kafka Sink Connector supports the following Redis data-structure types as targets:</p>
+<p>The Sink Connector supports the following Redis data-structure types as targets:</p>
 </div>
 <div id="_sink_collections" class="ulist">
 <ul>
@@ -920,12 +935,12 @@ redis.key     = &lt;key name&gt; <i class="conum" data-value="1"></i><b>(1)</b><
 <div class="sect2">
 <h3 id="_sink_data_formats"><a class="anchor" href="#_sink_data_formats"></a>4.6. Data Formats</h3>
 <div class="paragraph">
-<p>The Redis Kafka Sink Connector supports different data formats for record keys and values depending on the target Redis data structure.</p>
+<p>The Sink Connector supports different data formats for record keys and values depending on the target Redis data structure.</p>
 </div>
 <div class="sect3">
 <h4 id="_sink_key"><a class="anchor" href="#_sink_key"></a>4.6.1. Kafka Record Key</h4>
 <div class="paragraph">
-<p>The Redis Kafka Sink Connector expects Kafka record keys in a specific format depending on the configured target <a href="#_sink_redis_command">Redis data structure</a>:</p>
+<p>The Sink Connector expects Kafka record keys in a specific format depending on the configured target <a href="#_sink_redis_command">Redis data structure</a>:</p>
 </div>
 <table class="tableblock frame-all grid-all stretch">
 <colgroup>
@@ -1159,30 +1174,15 @@ value.converter  = &lt;Value converter&gt; <i class="conum" data-value="5"></i><
 </div>
 </div>
 <div class="sect1">
-<h2 id="_source"><a class="anchor" href="#_source"></a>5. Source Connector Guide</h2>
+<h2 id="_source_stream"><a class="anchor" href="#_source_stream"></a>5. Stream Source Connector</h2>
 <div class="sectionbody">
 <div class="paragraph">
-<p>The Redis Kafka Source Connector includes 2 source connectors:</p>
-</div>
-<div class="ulist">
-<ul>
-<li>
-<p><a href="#_source_stream">Stream</a></p>
-</li>
-<li>
-<p><a href="#_source_keys">Keys</a></p>
-</li>
-</ul>
+<p>The Stream Source Connector reads from a Redis stream and publishes messages to a Kafka topic.</p>
 </div>
 <div class="sect2">
-<h3 id="_source_stream"><a class="anchor" href="#_source_stream"></a>5.1. Stream</h3>
+<h3 id="_source_stream_class"><a class="anchor" href="#_source_stream_class"></a>5.1. Class Name</h3>
 <div class="paragraph">
-<p>The stream source connector reads from a Redis stream and publishes messages to a Kafka topic.</p>
-</div>
-<div class="sect3">
-<h4 id="_source_stream_class"><a class="anchor" href="#_source_stream_class"></a>5.1.1. Class Name</h4>
-<div class="paragraph">
-<p>The stream source connector class name is <code>com.redis.kafka.connect.RedisStreamSourceConnector</code>.</p>
+<p>The Stream Source Connector class name is <code>com.redis.kafka.connect.RedisStreamSourceConnector</code>.</p>
 </div>
 <div class="paragraph">
 <p>The corresponding configuration property would be:</p>
@@ -1193,14 +1193,14 @@ value.converter  = &lt;Value converter&gt; <i class="conum" data-value="5"></i><
 </div>
 </div>
 </div>
-<div class="sect3">
-<h4 id="_source_stream_delivery"><a class="anchor" href="#_source_stream_delivery"></a>5.1.2. Delivery Guarantees</h4>
+<div class="sect2">
+<h3 id="_source_stream_delivery"><a class="anchor" href="#_source_stream_delivery"></a>5.2. Delivery Guarantees</h3>
 <div class="paragraph">
-<p>The Redis Kafka Source Connector can be configured to ack stream messages either automatically (at-most-once delivery) or explicitly (at-least-once delivery).
+<p>The Stream Source Connector can be configured to ack stream messages either automatically (at-most-once delivery) or explicitly (at-least-once delivery).
 The default is at-least-once delivery.</p>
 </div>
-<div class="sect4">
-<h5 id="_at_least_once"><a class="anchor" href="#_at_least_once"></a>At-Least-Once</h5>
+<div class="sect3">
+<h4 id="_at_least_once"><a class="anchor" href="#_at_least_once"></a>5.2.1. At-Least-Once</h4>
 <div class="paragraph">
 <p>In this mode, each stream message is acknowledged after it has been written to the corresponding topic.</p>
 </div>
@@ -1210,8 +1210,8 @@ The default is at-least-once delivery.</p>
 </div>
 </div>
 </div>
-<div class="sect4">
-<h5 id="_at_most_once"><a class="anchor" href="#_at_most_once"></a>At-Most-Once</h5>
+<div class="sect3">
+<h4 id="_at_most_once"><a class="anchor" href="#_at_most_once"></a>5.2.2. At-Most-Once</h4>
 <div class="paragraph">
 <p>In this mode, stream messages are acknowledged as soon as they are read.</p>
 </div>
@@ -1222,19 +1222,19 @@ The default is at-least-once delivery.</p>
 </div>
 </div>
 </div>
-<div class="sect3">
-<h4 id="_source_stream_tasks"><a class="anchor" href="#_source_stream_tasks"></a>5.1.3. Multiple Tasks</h4>
+<div class="sect2">
+<h3 id="_source_stream_tasks"><a class="anchor" href="#_source_stream_tasks"></a>5.3. Tasks</h3>
 <div class="paragraph">
 <p>Reading from the stream is done through a consumer group so that multiple instances of the connector configured via the <code>tasks.max</code> can consume messages in a round-robin fashion.</p>
 </div>
 </div>
-<div class="sect3">
-<h4 id="_source_stream_redis_client"><a class="anchor" href="#_source_stream_redis_client"></a>5.1.4. Redis Client</h4>
+<div class="sect2">
+<h3 id="_source_stream_redis_client"><a class="anchor" href="#_source_stream_redis_client"></a>5.4. Redis Client</h3>
 <div class="paragraph">
 <p>This section provides information on Redis client configuration.</p>
 </div>
-<div class="sect4">
-<h5 id="_redis_uri_2"><a class="anchor" href="#_redis_uri_2"></a>Redis URI</h5>
+<div class="sect3">
+<h4 id="_redis_uri_2"><a class="anchor" href="#_redis_uri_2"></a>5.4.1. Redis URI</h4>
 <div class="paragraph">
 <p>Specify the Redis URI in the <code>redis.uri</code> property, for example:</p>
 </div>
@@ -1250,8 +1250,8 @@ The default is at-least-once delivery.</p>
 <p>TLS connection URIs start with <code>rediss://</code>.</p>
 </div>
 </div>
-<div class="sect4">
-<h5 id="_certificate_verification_2"><a class="anchor" href="#_certificate_verification_2"></a>Certificate Verification</h5>
+<div class="sect3">
+<h4 id="_certificate_verification_2"><a class="anchor" href="#_certificate_verification_2"></a>5.4.2. Certificate Verification</h4>
 <div class="paragraph">
 <p>To disable certificate verification for TLS connections use the following property:</p>
 </div>
@@ -1261,8 +1261,8 @@ The default is at-least-once delivery.</p>
 </div>
 </div>
 </div>
-<div class="sect4">
-<h5 id="_credentials_2"><a class="anchor" href="#_credentials_2"></a>Credentials</h5>
+<div class="sect3">
+<h4 id="_credentials_2"><a class="anchor" href="#_credentials_2"></a>5.4.3. Credentials</h4>
 <div class="paragraph">
 <p>Username and password can be specified in the URI or separately with the following properties:</p>
 </div>
@@ -1274,16 +1274,16 @@ redis.password = pass</code></pre>
 </div>
 </div>
 </div>
+<div class="sect2">
+<h3 id="_source_stream_schema"><a class="anchor" href="#_source_stream_schema"></a>5.5. Message Schema</h3>
 <div class="sect3">
-<h4 id="_source_stream_schema"><a class="anchor" href="#_source_stream_schema"></a>5.1.5. Message Schema</h4>
-<div class="sect4">
-<h5 id="_key_schema"><a class="anchor" href="#_key_schema"></a>Key Schema</h5>
+<h4 id="_key_schema"><a class="anchor" href="#_key_schema"></a>5.5.1. Key Schema</h4>
 <div class="paragraph">
 <p>Keys are of type String and contain the stream message id.</p>
 </div>
 </div>
-<div class="sect4">
-<h5 id="_value_schema"><a class="anchor" href="#_value_schema"></a>Value Schema</h5>
+<div class="sect3">
+<h4 id="_value_schema"><a class="anchor" href="#_value_schema"></a>5.5.2. Value Schema</h4>
 <div class="paragraph">
 <p>The value schema defines the following fields:</p>
 </div>
@@ -1319,9 +1319,8 @@ redis.password = pass</code></pre>
 </tbody>
 </table>
 </div>
-</div>
 <div class="sect3">
-<h4 id="_source_stream_config"><a class="anchor" href="#_source_stream_config"></a>5.1.6. Configuration</h4>
+<h4 id="_source_stream_config"><a class="anchor" href="#_source_stream_config"></a>5.5.3. Configuration</h4>
 <div class="listingblock">
 <div class="content">
 <pre class="prettyprint highlight"><code data-lang="properties">connector.class             = com.redis.kafka.connect.RedisStreamSourceConnector
@@ -1372,46 +1371,23 @@ For example, <code>redis_${stream}</code> and stream <code>orders</code> &#8658;
 </div>
 </div>
 </div>
-<div class="sect2">
-<h3 id="_source_keys"><a class="anchor" href="#_source_keys"></a>5.2. Keys</h3>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_source_keys"><a class="anchor" href="#_source_keys"></a>6. Keys Source Connector</h2>
+<div class="sectionbody">
 <div class="paragraph">
-<p>The keys source connector captures changes happening to keys in a Redis database and publishes keys and values to a Kafka topic.
+<p>The Keys Source Connector captures changes happening to keys in a Redis database and publishes keys and values to a Kafka topic.
 The data structure key will be mapped to the record key, and the value will be mapped to the record value.</p>
 </div>
 <div class="paragraph">
-<p><strong>Make sure the Redis database has keyspace notifications enabled</strong> using <code>notify-keyspace-events = KA</code> in <code>redis.conf</code> or via <code>CONFIG SET</code>.
+<p><strong>Make sure the Redis database has keyspace notifications enabled</strong> using <code>notify-keyspace-events = KEA</code> in <code>redis.conf</code> or via <code>CONFIG SET</code>.
 For more details see <a href="https://redis.io/docs/manual/keyspace-notifications">Redis Keyspace Notifications</a>.</p>
 </div>
+<div class="sect2">
+<h3 id="_source_keys_class"><a class="anchor" href="#_source_keys_class"></a>6.1. Class Name</h3>
 <div class="paragraph">
-<p>[[<a id="_source_keys_delivery"></a>
-=== Delivery Guarantees</p>
-</div>
-<div class="admonitionblock warning">
-<table>
-<tr>
-<td class="icon">
-<i class="fa icon-warning" title="Warning"></i>
-</td>
-<td class="content">
-<div class="paragraph">
-<p>The keys source connector does not guarantee data consistency because it relies on Redis keyspace notifications which have no delivery guarantees.
-It is possible for some notifications to be missed, for example in case of network failures.</p>
-</div>
-<div class="paragraph">
-<p>Also, depending on the type, size, and rate of change of data structures on the source it is possible the source connector cannot keep up with the change stream.
-For example if a big set is repeatedly updated the connector will need to read the whole set on each update and transfer it over to the target database.
-With a big-enough set the connector could fall behind and the internal queue could fill up leading up to updates being dropped.
-Some preliminary sizing using Redis statistics and <code>bigkeys</code>/<code>memkeys</code> is recommended.
-If you need assistance please contact your Redis account team.</p>
-</div>
-</td>
-</tr>
-</table>
-</div>
-<div class="sect3">
-<h4 id="_source_keys_class"><a class="anchor" href="#_source_keys_class"></a>5.2.1. Class Name</h4>
-<div class="paragraph">
-<p>The keys source connector class name is <code>com.redis.kafka.connect.RedisKeysSourceConnector</code>.</p>
+<p>The Keys Source Connector class name is <code>com.redis.kafka.connect.RedisKeysSourceConnector</code>.</p>
 </div>
 <div class="paragraph">
 <p>The corresponding configuration property would be:</p>
@@ -1422,13 +1398,33 @@ If you need assistance please contact your Redis account team.</p>
 </div>
 </div>
 </div>
-<div class="sect3">
-<h4 id="_source_keys_redis_client"><a class="anchor" href="#_source_keys_redis_client"></a>5.2.2. Redis Client</h4>
+<div class="sect2">
+<h3 id="_source_keys_delivery"><a class="anchor" href="#_source_keys_delivery"></a>6.2. Delivery Guarantees</h3>
+<div class="paragraph">
+<p>The Keys Source Connector does not guarantee data consistency because it relies on Redis keyspace notifications which have no delivery guarantees.
+It is possible for some notifications to be missed, for example in case of network failures.</p>
+</div>
+<div class="paragraph">
+<p>Also, depending on the type, size, and rate of change of data structures on the source it is possible the connector cannot keep up with the change stream.
+For example if a big set is repeatedly updated the connector will need to read the whole set on each update and transfer it over to the target database.
+With a big-enough set the connector could fall behind and the internal queue could fill up leading up to updates being dropped.
+Some preliminary sizing using Redis statistics and <code>bigkeys</code>/<code>memkeys</code> is recommended.
+If you need assistance please contact your Redis account team.</p>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_source_keys_tasks"><a class="anchor" href="#_source_keys_tasks"></a>6.3. Tasks</h3>
+<div class="paragraph">
+<p>The Keys Source Connector should only be configured with one task as keyspace notifications are broadcast to all listeners and cannot be consumed in a round-robin fashion.</p>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_source_keys_redis_client"><a class="anchor" href="#_source_keys_redis_client"></a>6.4. Redis Client</h3>
 <div class="paragraph">
 <p>This section provides information on Redis client configuration.</p>
 </div>
-<div class="sect4">
-<h5 id="_redis_uri_3"><a class="anchor" href="#_redis_uri_3"></a>Redis URI</h5>
+<div class="sect3">
+<h4 id="_redis_uri_3"><a class="anchor" href="#_redis_uri_3"></a>6.4.1. Redis URI</h4>
 <div class="paragraph">
 <p>Specify the Redis URI in the <code>redis.uri</code> property, for example:</p>
 </div>
@@ -1444,8 +1440,8 @@ If you need assistance please contact your Redis account team.</p>
 <p>TLS connection URIs start with <code>rediss://</code>.</p>
 </div>
 </div>
-<div class="sect4">
-<h5 id="_certificate_verification_3"><a class="anchor" href="#_certificate_verification_3"></a>Certificate Verification</h5>
+<div class="sect3">
+<h4 id="_certificate_verification_3"><a class="anchor" href="#_certificate_verification_3"></a>6.4.2. Certificate Verification</h4>
 <div class="paragraph">
 <p>To disable certificate verification for TLS connections use the following property:</p>
 </div>
@@ -1455,8 +1451,8 @@ If you need assistance please contact your Redis account team.</p>
 </div>
 </div>
 </div>
-<div class="sect4">
-<h5 id="_credentials_3"><a class="anchor" href="#_credentials_3"></a>Credentials</h5>
+<div class="sect3">
+<h4 id="_credentials_3"><a class="anchor" href="#_credentials_3"></a>6.4.3. Credentials</h4>
 <div class="paragraph">
 <p>Username and password can be specified in the URI or separately with the following properties:</p>
 </div>
@@ -1468,8 +1464,8 @@ redis.password = pass</code></pre>
 </div>
 </div>
 </div>
-<div class="sect3">
-<h4 id="_source_keys_config"><a class="anchor" href="#_source_keys_config"></a>5.2.3. Configuration</h4>
+<div class="sect2">
+<h3 id="_source_keys_config"><a class="anchor" href="#_source_keys_config"></a>6.5. Configuration</h3>
 <div class="listingblock">
 <div class="content">
 <pre class="prettyprint highlight"><code data-lang="properties">connector.class    = com.redis.kafka.connect.RedisKeysSourceConnector
@@ -1501,12 +1497,11 @@ Duration after which the connector will stop if no activity is encountered.</td>
 </div>
 </div>
 </div>
-</div>
 <div class="sect1">
-<h2 id="_resources"><a class="anchor" href="#_resources"></a>6. Resources</h2>
+<h2 id="_resources"><a class="anchor" href="#_resources"></a>7. Resources</h2>
 <div class="sectionbody">
 <div class="sect2">
-<h3 id="_kafka"><a class="anchor" href="#_kafka"></a>6.1. Kafka</h3>
+<h3 id="_kafka"><a class="anchor" href="#_kafka"></a>7.1. Kafka</h3>
 <div class="dlist">
 <dl>
 <dt class="hdlist1">What is Apache Kafka?</dt>
@@ -1529,7 +1524,7 @@ Duration after which the connector will stop if no activity is encountered.</td>
 </div>
 </div>
 <div class="sect2">
-<h3 id="_kafka_connect"><a class="anchor" href="#_kafka_connect"></a>6.2. Kafka Connect</h3>
+<h3 id="_kafka_connect"><a class="anchor" href="#_kafka_connect"></a>7.2. Kafka Connect</h3>
 <div class="dlist">
 <dl>
 <dt class="hdlist1">Introduction to Kafka Connectors</dt>
@@ -1544,7 +1539,7 @@ Duration after which the connector will stop if no activity is encountered.</td>
 </div>
 </div>
 <div class="sect2">
-<h3 id="_redis"><a class="anchor" href="#_redis"></a>6.3. Redis</h3>
+<h3 id="_redis"><a class="anchor" href="#_redis"></a>7.3. Redis</h3>
 <div class="dlist">
 <dl>
 <dt class="hdlist1">Redis</dt>
@@ -1568,7 +1563,7 @@ Duration after which the connector will stop if no activity is encountered.</td>
 <div id="footer">
 <div id="footer-text">
 Version 0.9.0<br>
-Last updated 2024-05-07 21:34:55 UTC
+Last updated 2024-05-07 22:30:26 UTC
 </div>
 </div>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prettify/r298/prettify.min.css">
