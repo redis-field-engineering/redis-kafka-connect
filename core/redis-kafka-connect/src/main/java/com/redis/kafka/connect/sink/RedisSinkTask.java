@@ -56,10 +56,12 @@ import com.redis.spring.batch.writer.OperationItemWriter;
 import com.redis.spring.batch.writer.WriteOperation;
 import com.redis.spring.batch.writer.operation.Del;
 import com.redis.spring.batch.writer.operation.Hset;
-import com.redis.spring.batch.writer.operation.JsonSet;
+//import com.redis.spring.batch.writer.operation.JsonSet;
+import com.redis.kafka.connect.operation.JsonSet;
 import com.redis.spring.batch.writer.operation.Lpush;
 import com.redis.spring.batch.writer.operation.Rpush;
-import com.redis.spring.batch.writer.operation.Sadd;
+//import com.redis.spring.batch.writer.operation.Sadd;
+import com.redis.kafka.connect.operation.Sadd;
 import com.redis.spring.batch.writer.operation.Set;
 import com.redis.spring.batch.writer.operation.TsAdd;
 import com.redis.spring.batch.writer.operation.Xadd;
@@ -166,6 +168,7 @@ public class RedisSinkTask extends SinkTask {
                 JsonSet<byte[], byte[], SinkRecord> jsonSet = new JsonSet<>();
                 jsonSet.setKeyFunction(this::key);
                 jsonSet.setValueFunction(this::jsonValue);
+                jsonSet.setConditionFunction(this::isNullValue);
                 return jsonSet;
             case SET:
                 Set<byte[], byte[], SinkRecord> set = new Set<>();
@@ -191,6 +194,7 @@ public class RedisSinkTask extends SinkTask {
                 Sadd<byte[], byte[], SinkRecord> sadd = new Sadd<>();
                 sadd.setKeyFunction(this::collectionKey);
                 sadd.setValueFunction(this::member);
+                sadd.setConditionFunction(this::isNullValue);
                 return sadd;
             case TSADD:
                 TsAdd<byte[], byte[], SinkRecord> tsAdd = new TsAdd<>();
@@ -209,6 +213,10 @@ public class RedisSinkTask extends SinkTask {
             default:
                 throw new ConfigException(RedisSinkConfigDef.COMMAND_CONFIG, config.getCommand());
         }
+    }
+
+    private boolean isNullValue(SinkRecord sinkRecord) {
+        return sinkRecord.value() == null;
     }
 
     private byte[] value(SinkRecord sinkRecord) {
