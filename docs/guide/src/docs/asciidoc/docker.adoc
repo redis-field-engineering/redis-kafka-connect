@@ -1,28 +1,20 @@
 [[_docker]]
-= Quick Start with Docker
+= Docker Example
 
-This section provides a hands-on look at the functionality of the Redis Kafka Source and Sink Connectors:
+The project {project-scm}[repository] contains a script that runs all the steps shown in the <<_quickstart,Quick Start>>.
 
-* The *redis-sink* connector reads data from a Kafka topic and writes it to a Redis stream
-* The *redis-source* connector reads data from a Redis stream and writes it to a Kafka topic
-
-== Requirements
-
-https://docs.docker.com/get-docker/[Docker]
-
-== Run the example
-
-Clone the link:{project-scm}[github repository] and execute `run.sh` in `docker` directory:
+Clone the {project-scm}[{project-name}] repository and execute `run.sh` in `docker` directory:
 
 [source,console,subs="attributes"]
 ----
 git clone {project-scm}
+cd {project-name}
 ./run.sh
 ----
 
 This will:
 
-* Run `docker-compose up`
+* Run `docker compose up`
 * Wait for Redis, Kafka, and Kafka Connect to be ready
 * Register the Confluent Datagen Connector
 * Register the Redis Kafka Sink Connector
@@ -32,9 +24,9 @@ This will:
 * Send messages to a Redis stream
 * Write the Redis stream messages back into Kafka
 
-Once running, examine the topics in the Kafka control center: http://localhost:9021/
+Once running, examine the topics in the Kafka http://localhost:9021/[Control Center]:
 
-* The `pageviews` topic should contain the 10 simple documents added, each similar to:
+The `pageviews` topic should contain the 10 simple documents added, each similar to:
 
 [source,json]
 ----
@@ -44,12 +36,12 @@ include::{includedir}/../resources/pageviews.json[]
 * The `pageviews` stream should contain the 10 change events.
 
 Examine the stream in Redis:
+
 [source,console]
 ----
-docker-compose exec redis /usr/local/bin/redis-cli
+docker compose exec redis /usr/local/bin/redis-cli
 xread COUNT 10 STREAMS pageviews 0
 ----
 
-Messages added to the `mystream` stream will show up in the `mystream` topic
-
+Messages added to the `mystream` stream will show up in the `mystream` topic.
 

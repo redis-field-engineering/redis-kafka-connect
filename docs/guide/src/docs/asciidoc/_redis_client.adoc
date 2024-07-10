@@ -1,30 +1,36 @@
-[[_connect]]
-= Connect to Redis
+= Redis Client
 
-This section provides information on configuring the Redis Kafka Source or Sink Connector.
+This section provides information on Redis client configuration.
+
+== Redis URI
 
 Specify the Redis URI in the `redis.uri` property, for example:
 
 [source,properties]
 ----
-redis.uri=redis://redis-12000.redis.com:12000
+redis.uri = redis://redis-12000.redis.com:12000
 ----
 
-For Redis URI syntax see {link_lettuce_uri}.
+For complete Redis URI syntax see {link_lettuce_uri}.
 
 TLS connection URIs start with `rediss://`.
+
+== Certificate Verification
+
 To disable certificate verification for TLS connections use the following property:
 
 [source,properties]
 ----
-redis.insecure=true
+redis.insecure = true
 ----
+
+== Credentials
 
 Username and password can be specified in the URI or separately with the following properties:
 
 [source,properties]
 ----
-redis.username=user1
-redis.password=pass
+redis.username = user1
+redis.password = pass
 ----
 

@@ -1,0 +1,189 @@
+[[_quickstart]]
+= Quick Start
+
+This section shows how to configure the {project-title} to import/export data between Redis and Apache Kafka and provides a hands-on look at the functionality of the source and sink connectors.
+
+== Requirements
+
+Download and install the following software:
+
+* {link_docker}
+* {link_git}
+
+== Start the Sandbox
+
+The sandbox starts the following Docker services:
+
+* Redis Stack
+* Apache Kafka
+* Kafka Connect with the {project-title} installed
+
+To start the sandbox run the following command:
+
+[source,console]
+-----
+docker compose up
+-----
+
+After Docker downloads and starts the services you should see the following output:
+
+[source,console]
+-----
+[+] Running 8/0
+ ✔ Container redis            Created
+ ✔ Container zookeeper        Created
+ ✔ Container broker           Created
+ ✔ Container schema-registry  Created
+ ✔ Container rest-proxy       Created
+ ✔ Container connect          Created
+ ✔ Container ksqldb-server    Created
+ ✔ Container control-center   Created
+-----
+
+== Add Connectors
+
+Now that the required services are up and running, we can add connectors to Kafka Connect to transfer data between Redis and Kafka:
+
+* Add a sink connector to transfer data from Kafka to Redis
+* Add a source connector to transfer data from Redis to Kafka
+
+=== Add a Datagen
+
+{link_datagen} is a Kafka Connect source connector for generating mock data.
+
+Create the Datagen connector with the following command:
+
+[source,console]
+-----
+curl -X POST -H "Content-Type: application/json" --data '
+  { "name": "datagen-pageviews",
+    "config": {
+      "connector.class": "io.confluent.kafka.connect.datagen.DatagenConnector",
+      "kafka.topic": "pageviews",
+      "quickstart": "pageviews",
+      "key.converter": "org.apache.kafka.connect.json.JsonConverter",
+      "value.converter": "org.apache.kafka.connect.json.JsonConverter",
+      "value.converter.schemas.enable": "false",
+      "producer.interceptor.classes": "io.confluent.monitoring.clients.interceptor.MonitoringProducerInterceptor",
+      "max.interval": 200,
+      "iterations": 10000000,
+      "tasks.max": "1"
+}}' http://localhost:8083/connectors -w "\n"
+-----
+
+This automatically creates the Kafka topic `pageviews` and produces data with a schema configuration from {link_pageviews_avro}
+
+[NOTE]
+====
+Why do I see the message 'Failed to connect'?
+
+It takes up to three minutes for the Kafka Connect REST API to start.
+If you receive the following error, wait three minutes and run the preceding command again.
+
+`curl: (7) Failed to connect to connect port 8083: Connection refused`
+====
+
+To confirm that you added the Datagen connector, run the following command:
+
+`curl -X GET http://localhost:8083/connectors`
+
+
+=== Add a Sink Connector
+
+The command below adds a {project-title} sink connector configured with these properties:
+
+* The class Kafka Connect uses to instantiate the connector
+* The Kafka topic from which the connector reads data
+* The connection URI of the Redis database to which the connector writes data
+* The Redis command to use for writing data (`JSONSET`)
+* Key and value converters to correctly handle incoming `pageviews` data
+* A {link_smt} to extract a key from `pageviews` messages.
+
+[source,console]
+-----
+curl -X POST -H "Content-Type: application/json" --data '
+  {"name": "redis-sink-json",
+   "config": {
+     "connector.class":"com.redis.kafka.connect.RedisSinkConnector",
+     "tasks.max":"1",
+     "topics":"pageviews",
+     "redis.uri":"redis://redis:6379",
+     "redis.command":"JSONSET",
+     "key.converter": "org.apache.kafka.connect.json.JsonConverter",
+     "value.converter": "org.apache.kafka.connect.storage.StringConverter",
+     "value.converter.schemas.enable": "false",
+     "transforms": "Cast",
+     "transforms.Cast.type": "org.apache.kafka.connect.transforms.Cast$Key",
+     "transforms.Cast.spec": "string"
+}}' http://localhost:8083/connectors -w "\n"
+-----
+
+You can check that Kafka messages are being written to Redis with this command:
+
+`docker compose exec redis /opt/redis-stack/bin/redis-cli "keys" "*"`
+
+You should see the following output:
+
+[source,console]
+-----
+  1) "pageviews:6021"
+  2) "pageviews:211"
+  3) "pageviews:281"
+  ...
+-----
+
+To retrieve the contents of a specific key use this command:
+
+`docker compose exec redis /opt/redis-stack/bin/redis-cli "JSON.GET" "pageviews:1451"`
+
+=> `"{\"viewtime\":1451,\"userid\":\"User_6\",\"pageid\":\"Page_35\"}"`
+
+=== Add a Source Connector
+
+The following command adds a source connector configured with these properties:
+
+* The class Kafka Connect uses to instantiate the connector
+* The connection URI of the Redis database the connector connects to
+* The name of the Redis stream from which the connector reads messages
+* The Kafka topic to which the connector writes data
+
+[source,console]
+-----
+curl -X POST -H "Content-Type: application/json" --data '
+{ "name": "redis-source",
+  "config": {
+    "tasks.max":"1",
+    "connector.class":"com.redis.kafka.connect.RedisStreamSourceConnector",
+    "redis.uri":"redis://redis:6379",
+    "redis.stream.name":"mystream",
+    "topic": "mystream"
+  }
+}' http://localhost:8083/connectors -w "\n"
+-----
+
+Now add a message to the `mystream` Redis stream:
+
+`docker compose exec redis /opt/redis-stack/bin/redis-cli "xadd" "mystream" "*" "field1" "value11" "field2" "value21"`
+
+Examine the topics in the Kafka UI: http://localhost:9021 or http://localhost:8000/.
+The `mystream` topic should have the previously sent stream message.
+
+== Custom Connector
+
+This section describes configuration aspects that are specific to using {project-title} as a {link_custom_connector} in Confluent Cloud.
+
+=== Egress Endpoints
+
+It is required to specify {link_egress_endpoints} in order for the connector to reach the Redis database.
+
+=== Sensitive Properties
+
+The following are {link_sensitive_props} that must be marked as such in Confluent Cloud UI.
+
+* `redis.uri`: URI of the Redis database to connect to, e.g. `redis://redis-12000.redis.com:12000`
+* `redis.username`: Username to use to connect to Redis
+* `redis.password`: Password to use to connect to Redis
+* `redis.key.password`: Password of the private key file
+
+include::{includedir}/docker.adoc[leveloffset=+1]
+
