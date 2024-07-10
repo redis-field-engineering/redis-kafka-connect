@@ -96,7 +96,7 @@ redis.json.path       = <Header Attribute> <3>
 redis.json.path.fixed = <Fixed JSON Path> <4>
 ----
 <1> <<_sink_key_string,String>>, <<_sink_key_bytes,bytes>>, or <<_sink_value_avro,Avro>>
-<2> <<_sink_value_string,String>>, <<_sink_value_bytes,bytes>>, or <<_sink_value_avro,Avro>>. If value is null, the JSON object at the specified path will be deleted. If no path is set, the entire key will be deleted.
+<2> <<_sink_value_string,String>>, <<_sink_value_bytes,bytes>>, or <<_sink_value_avro,Avro>>. If value is null, the entire key will be deleted. If a JSON path is set, only the JSON object at the specified path will be deleted.
 <3> <<_sink_header_json_path,Header JSON Path>>
 <4> <<_sink_fixed_json_path,Fixed JSON Path>>
 
