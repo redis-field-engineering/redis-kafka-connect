@@ -74,7 +74,7 @@ value.converter = <string or bytes> <2>
 If value is null the key is deleted.
 
 [[_sink_json]]
-=== JSON (JSONSET)
+=== JSON
 Use the following properties to write Kafka records as RedisJSON documents:
 
 [source,properties]
