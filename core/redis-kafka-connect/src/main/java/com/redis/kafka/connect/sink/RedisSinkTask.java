@@ -34,6 +34,8 @@ import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.errors.DataException;
 import org.apache.kafka.connect.errors.RetriableException;
+import org.apache.kafka.connect.header.Header;
+import org.apache.kafka.connect.header.Headers;
 import org.apache.kafka.connect.json.JsonConverter;
 import org.apache.kafka.connect.sink.SinkRecord;
 import org.apache.kafka.connect.sink.SinkTask;
@@ -56,10 +58,13 @@ import com.redis.spring.batch.writer.OperationItemWriter;
 import com.redis.spring.batch.writer.WriteOperation;
 import com.redis.spring.batch.writer.operation.Del;
 import com.redis.spring.batch.writer.operation.Hset;
-import com.redis.spring.batch.writer.operation.JsonSet;
+//import com.redis.spring.batch.writer.operation.JsonSet;
+import com.redis.kafka.connect.operation.JsonSet;
+import com.redis.kafka.connect.operation.JsonMerge;
 import com.redis.spring.batch.writer.operation.Lpush;
 import com.redis.spring.batch.writer.operation.Rpush;
-import com.redis.spring.batch.writer.operation.Sadd;
+//import com.redis.spring.batch.writer.operation.Sadd;
+import com.redis.kafka.connect.operation.Sadd;
 import com.redis.spring.batch.writer.operation.Set;
 import com.redis.spring.batch.writer.operation.TsAdd;
 import com.redis.spring.batch.writer.operation.Xadd;
@@ -166,7 +171,15 @@ public class RedisSinkTask extends SinkTask {
                 JsonSet<byte[], byte[], SinkRecord> jsonSet = new JsonSet<>();
                 jsonSet.setKeyFunction(this::key);
                 jsonSet.setValueFunction(this::jsonValue);
+                jsonSet.setConditionFunction(this::isNullValue);
                 return jsonSet;
+            case JSONMERGE:
+                JsonMerge<byte[], byte[], SinkRecord> jsonMerge = new JsonMerge<>();
+                jsonMerge.setKeyFunction(this::key);
+                jsonMerge.setValueFunction(this::jsonValue);
+                jsonMerge.setConditionFunction(this::isNullValue);
+                jsonMerge.setPathFunction(this::determineJsonPath);
+                return jsonMerge;
             case SET:
                 Set<byte[], byte[], SinkRecord> set = new Set<>();
                 set.setKeyFunction(this::key);
@@ -191,6 +204,7 @@ public class RedisSinkTask extends SinkTask {
                 Sadd<byte[], byte[], SinkRecord> sadd = new Sadd<>();
                 sadd.setKeyFunction(this::collectionKey);
                 sadd.setValueFunction(this::member);
+                sadd.setConditionFunction(this::isNullValue);
                 return sadd;
             case TSADD:
                 TsAdd<byte[], byte[], SinkRecord> tsAdd = new TsAdd<>();
@@ -209,6 +223,10 @@ public class RedisSinkTask extends SinkTask {
             default:
                 throw new ConfigException(RedisSinkConfigDef.COMMAND_CONFIG, config.getCommand());
         }
+    }
+
+    private boolean isNullValue(SinkRecord sinkRecord) {
+        return sinkRecord.value() == null;
     }
 
     private byte[] value(SinkRecord sinkRecord) {
@@ -305,6 +323,33 @@ public class RedisSinkTask extends SinkTask {
             return body;
         }
         throw new ConnectException("Unsupported source value type: " + sinkRecord.valueSchema().type().name());
+    }
+
+    private String determineJsonPath(SinkRecord record) {
+        try {
+            Headers headers = record.headers();
+            String jsonPath = getJsonPathFromHeader(headers, config.getJsonPath());
+
+            if (jsonPath == null) {
+                return config.getFixedJsonPath();
+            }
+
+            return jsonPath;
+        } catch (Exception e) {
+            log.error("Error determining JSON path: ", e);
+            return config.getFixedJsonPath();
+        }
+    }
+
+    private String getJsonPathFromHeader(Headers headers, String path) {
+        for (Header header : headers) {
+            System.out.println("path "+path);
+            System.out.println("header "+header);
+            if (header.key().equals(path)) {
+                return header.value().toString();
+            }
+        }
+        return null;
     }
 
     @Override
