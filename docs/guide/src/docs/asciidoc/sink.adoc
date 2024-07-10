@@ -74,7 +74,7 @@ value.converter = <string or bytes> <2>
 If value is null the key is deleted.
 
 [[_sink_json]]
-=== JSON
+=== JSON (JSONSET)
 Use the following properties to write Kafka records as RedisJSON documents:
 
 [source,properties]
@@ -86,6 +86,22 @@ value.converter = <string, bytes, or Avro> <2>
 <1> <<_sink_key_string,String>>, <<_sink_key_bytes,bytes>>, or <<_sink_value_avro,Avro>>
 <2> <<_sink_value_string,String>>, <<_sink_value_bytes,bytes>>, or <<_sink_value_avro,Avro>>.
 If value is null the key is deleted.
+
+[source,properties]
+----
+redis.command        = JSONMERGE
+key.converter        = <string, bytes, or Avro> <1>
+value.converter      = <string, bytes, or Avro> <2>
+redis.json.path      = <Header Attribute> <3>
+redis.json.path.fixed = <Fixed JSON Path> <4>
+----
+<1> <<_sink_key_string,String>>, <<_sink_key_bytes,bytes>>, or <<_sink_value_avro,Avro>>
+<2> <<_sink_value_string,String>>, <<_sink_value_bytes,bytes>>, or <<_sink_value_avro,Avro>>.
+<3> <<_sink_header_json_path,Header JSON Path>>
+<4> <<_sink_fixed_json_path,Fixed JSON Path>>
+If value is null the key is deleted.
++
+The `JSONMERGE` command has the same functionality as `JSONSET` but with the added ability to specify a JSON path.
 
 [[_sink_stream]]
 === Stream
@@ -260,21 +276,42 @@ value.converter.schemas.enable = <true|false> <1>
 ----
 <1> Set to `true` if the JSON record structure has an attached schema
 
+[[_sink_header_json_path]]
+==== Header JSON Path
+The JSON attribute in the header of the Kafka message based on which the JSON path will be dynamically set.
+
+[source,properties]
+----
+redis.json.path = <Header Attribute>
+----
+
+[[_sink_fixed_json_path]]
+==== Fixed JSON Path
+The fixed JSON path to set within the value in the header of the Kafka message. This path will be used if the dynamic path is not present.
+
+[source,properties]
+----
+redis.json.path.fixed = <Fixed JSON Path>
+----
+
 [[_sink_config]]
 == Configuration
 
 [source,properties]
 ----
-connector.class  = com.redis.kafka.connect.RedisSinkConnector
-topics           = <Kafka topic> <1>
-redis.uri        = <Redis URI> <2>
-redis.command    = <HSET|SET|JSONSET|XADD|RPUSH|SADD|ZADD|TSADD> <3>
-key.converter    = <Key converter> <4>
-value.converter  = <Value converter> <5>
+connector.class      = com.redis.kafka.connect.RedisSinkConnector
+topics               = <Kafka topic> <1>
+redis.uri            = <Redis URI> <2>
+redis.command        = <HSET|SET|JSONSET|JSONMERGE|XADD|RPUSH|SADD|ZADD|TSADD> <3>
+redis.json.path      = <Header Attribute> <4>
+redis.json.path.fixed = <Fixed JSON Path> <5>
+key.converter        = <Key converter> <6>
+value.converter      = <Value converter> <7>
 ----
-<1> Kafka topics to read messsages from.
+<1> Kafka topics to read messages from.
 <2> <<_sink_redis_client,Redis URI>>.
 <3> <<_sink_redis_command,Redis command>>.
-<4> <<_sink_key,Key converter>>.
-<5> <<_sink_value,Value converter>>.
-
+<4> <<_sink_header_json_path,Header JSON Path>>.
+<5> <<_sink_fixed_json_path,Fixed JSON Path>>.
+<6> <<_sink_key,Key converter>>.
+<7> <<_sink_value,Value converter>>.

@@ -23,6 +23,8 @@ import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.SchemaAndValue;
 import org.apache.kafka.connect.data.SchemaBuilder;
 import org.apache.kafka.connect.errors.DataException;
+import org.apache.kafka.connect.header.ConnectHeaders;
+import org.apache.kafka.connect.header.Headers;
 import org.apache.kafka.connect.sink.SinkRecord;
 import org.apache.kafka.connect.sink.SinkTaskContext;
 import org.junit.jupiter.api.AfterEach;
@@ -66,6 +68,18 @@ abstract class AbstractSinkIntegrationTests extends AbstractTestBase {
 
         return new SinkRecord(topic, PARTITION, key.schema(), key.value(), value.schema(), value.value(), OFFSET, TIMESTAMP,
                 TimestampType.CREATE_TIME);
+    }
+
+    public static SinkRecord writeWithHeaders(String topic, SchemaAndValue key, SchemaAndValue value, Headers headers) {
+        Preconditions.notNull(topic, "topic cannot be null");
+        Preconditions.notNull(key, "key cannot be null.");
+        Preconditions.notNull(key.value(), "key cannot be null.");
+        Preconditions.notNull(value, "value cannot be null.");
+        Preconditions.notNull(value.value(), "value cannot be null.");
+        Preconditions.notNull(headers, "headers cannot be null.");
+
+        return new SinkRecord(topic, PARTITION, key.schema(), key.value(), value.schema(), value.value(), OFFSET, TIMESTAMP,
+                TimestampType.CREATE_TIME, headers);
     }
 
     public static SinkRecord delete(String topic, SchemaAndValue key) {
@@ -319,6 +333,176 @@ abstract class AbstractSinkIntegrationTests extends AbstractTestBase {
         put(topic, RedisCommand.JSONSET, records);
         for (Person person : persons) {
             String json = connection.sync().jsonGet(topic + ":" + person.getId());
+            assertEquals(person, mapper.readValue(json, Person.class));
+        }
+    }
+
+    @Test
+    void mergeJSON() throws JsonProcessingException {
+        String topic = "mergeJSON";
+        List<Person> persons = new ArrayList<>();
+        Person person1 = new Person();
+        person1.setId(1);
+        person1.setName("Bodysnitch Canderbunt");
+        person1.setHobbies(new HashSet<>(Arrays.asList("Fishing", "Singing")));
+        Address address1 = new Address();
+        address1.setCity("New York");
+        address1.setZip("10013");
+        address1.setState("NY");
+        address1.setStreet("150 Mott St");
+        person1.setAddress(address1);
+        persons.add(person1);
+        Person person2 = new Person();
+        person2.setId(2);
+        person2.setName("Buffalo Custardbath");
+        person2.setHobbies(new HashSet<>(Arrays.asList("Surfing", "Piano")));
+        Address address2 = new Address();
+        address2.setCity("Los Angeles");
+        address2.setZip("90001");
+        address2.setState("CA");
+        address2.setStreet("123 Sunset Blvd");
+        person2.setAddress(address2);
+        persons.add(person2);
+        Person person3 = new Person();
+        person3.setId(3);
+        person3.setName("Bumblesnuff Crimpysnitch");
+        person3.setHobbies(new HashSet<>(Arrays.asList("Skiing", "Drums")));
+        Address address3 = new Address();
+        address3.setCity("Chicago");
+        address3.setZip("60603");
+        address3.setState("IL");
+        address3.setStreet("100 S State St");
+        person3.setAddress(address3);
+        persons.add(person3);
+        List<SinkRecord> records = new ArrayList<>();
+        ObjectMapper mapper = new ObjectMapper();
+
+        for (Person person : persons) {
+            String json = mapper.writeValueAsString(person);
+
+            SchemaAndValue keySchemaAndValue = new SchemaAndValue(Schema.STRING_SCHEMA, person.getId());
+            SchemaAndValue valueSchemaAndValue = new SchemaAndValue(Schema.STRING_SCHEMA, json);
+
+            records.add(write(topic, keySchemaAndValue, valueSchemaAndValue));
+        }
+        put(topic, RedisCommand.JSONMERGE, records);
+        for (Person person : persons) {
+            String json = connection.sync().jsonGet(topic + ":" + person.getId());
+            assertEquals(person, mapper.readValue(json, Person.class));
+        }
+    }
+
+    @Test
+    void mergeJSONWithPath() throws JsonProcessingException {
+        String topic = "mergeJSONWithPath";
+        String jsonPath = "person";
+        List<Person> persons = new ArrayList<>();
+        Person person1 = new Person();
+        person1.setId(1);
+        person1.setName("Bodysnitch Canderbunt");
+        person1.setHobbies(new HashSet<>(Arrays.asList("Fishing", "Singing")));
+        Address address1 = new Address();
+        address1.setCity("New York");
+        address1.setZip("10013");
+        address1.setState("NY");
+        address1.setStreet("150 Mott St");
+        person1.setAddress(address1);
+        persons.add(person1);
+        Person person2 = new Person();
+        person2.setId(2);
+        person2.setName("Buffalo Custardbath");
+        person2.setHobbies(new HashSet<>(Arrays.asList("Surfing", "Piano")));
+        Address address2 = new Address();
+        address2.setCity("Los Angeles");
+        address2.setZip("90001");
+        address2.setState("CA");
+        address2.setStreet("123 Sunset Blvd");
+        person2.setAddress(address2);
+        persons.add(person2);
+        Person person3 = new Person();
+        person3.setId(3);
+        person3.setName("Bumblesnuff Crimpysnitch");
+        person3.setHobbies(new HashSet<>(Arrays.asList("Skiing", "Drums")));
+        Address address3 = new Address();
+        address3.setCity("Chicago");
+        address3.setZip("60603");
+        address3.setState("IL");
+        address3.setStreet("100 S State St");
+        person3.setAddress(address3);
+        persons.add(person3);
+        List<SinkRecord> records = new ArrayList<>();
+        ObjectMapper mapper = new ObjectMapper();
+
+        for (Person person : persons) {
+            String json = mapper.writeValueAsString(person);
+
+            Headers headers = new ConnectHeaders();
+            headers.addString("source", jsonPath);
+
+            SchemaAndValue keySchemaAndValue = new SchemaAndValue(Schema.STRING_SCHEMA, person.getId());
+            SchemaAndValue valueSchemaAndValue = new SchemaAndValue(Schema.STRING_SCHEMA, json);
+
+            records.add(writeWithHeaders(topic, keySchemaAndValue, valueSchemaAndValue, headers));
+        }
+        put(topic, RedisCommand.JSONMERGE, records,RedisSinkConfigDef.JSON_PATH_CONFIG, "source");
+        for (Person person : persons) {
+            String json = connection.sync().jsonGet(topic + ":" + person.getId(), jsonPath);
+            assertEquals(person, mapper.readValue(json, Person.class));
+        }
+    }
+
+    @Test
+    void mergeJSONWithFixedPath() throws JsonProcessingException {
+        String topic = "mergeJSONWithFixedPath";
+        String jsonPath = "person-fixed";
+        List<Person> persons = new ArrayList<>();
+        Person person1 = new Person();
+        person1.setId(1);
+        person1.setName("Bodysnitch Canderbunt");
+        person1.setHobbies(new HashSet<>(Arrays.asList("Fishing", "Singing")));
+        Address address1 = new Address();
+        address1.setCity("New York");
+        address1.setZip("10013");
+        address1.setState("NY");
+        address1.setStreet("150 Mott St");
+        person1.setAddress(address1);
+        persons.add(person1);
+        Person person2 = new Person();
+        person2.setId(2);
+        person2.setName("Buffalo Custardbath");
+        person2.setHobbies(new HashSet<>(Arrays.asList("Surfing", "Piano")));
+        Address address2 = new Address();
+        address2.setCity("Los Angeles");
+        address2.setZip("90001");
+        address2.setState("CA");
+        address2.setStreet("123 Sunset Blvd");
+        person2.setAddress(address2);
+        persons.add(person2);
+        Person person3 = new Person();
+        person3.setId(3);
+        person3.setName("Bumblesnuff Crimpysnitch");
+        person3.setHobbies(new HashSet<>(Arrays.asList("Skiing", "Drums")));
+        Address address3 = new Address();
+        address3.setCity("Chicago");
+        address3.setZip("60603");
+        address3.setState("IL");
+        address3.setStreet("100 S State St");
+        person3.setAddress(address3);
+        persons.add(person3);
+        List<SinkRecord> records = new ArrayList<>();
+        ObjectMapper mapper = new ObjectMapper();
+
+        for (Person person : persons) {
+            String json = mapper.writeValueAsString(person);
+
+            SchemaAndValue keySchemaAndValue = new SchemaAndValue(Schema.STRING_SCHEMA, person.getId());
+            SchemaAndValue valueSchemaAndValue = new SchemaAndValue(Schema.STRING_SCHEMA, json);
+
+            records.add(write(topic, keySchemaAndValue, valueSchemaAndValue));
+        }
+        put(topic, RedisCommand.JSONMERGE, records,RedisSinkConfigDef.FIXED_JSON_PATH_CONFIG, jsonPath);
+        for (Person person : persons) {
+            String json = connection.sync().jsonGet(topic + ":" + person.getId(), jsonPath);
             assertEquals(person, mapper.readValue(json, Person.class));
         }
     }

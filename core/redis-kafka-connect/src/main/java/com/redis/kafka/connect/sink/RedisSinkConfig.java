@@ -25,7 +25,7 @@ import com.redis.kafka.connect.common.RedisConfig;
 public class RedisSinkConfig extends RedisConfig {
 
     public enum RedisCommand {
-        HSET, JSONSET, TSADD, SET, XADD, LPUSH, RPUSH, SADD, ZADD, DEL
+        HSET, JSONSET, JSONMERGE, TSADD, SET, XADD, LPUSH, RPUSH, SADD, ZADD, DEL
     }
 
     public static final RedisSinkConfigDef CONFIG = new RedisSinkConfigDef();
@@ -44,6 +44,10 @@ public class RedisSinkConfig extends RedisConfig {
 
     private final Duration waitTimeout;
 
+    private final String jsonPath;
+
+    private final String fixedJsonPath;
+
     public RedisSinkConfig(Map<?, ?> originals) {
         super(new RedisSinkConfigDef(), originals);
         String charsetName = getString(RedisSinkConfigDef.CHARSET_CONFIG).trim();
@@ -54,6 +58,14 @@ public class RedisSinkConfig extends RedisConfig {
         multiExec = Boolean.TRUE.equals(getBoolean(RedisSinkConfigDef.MULTIEXEC_CONFIG));
         waitReplicas = getInt(RedisSinkConfigDef.WAIT_REPLICAS_CONFIG);
         waitTimeout = Duration.ofMillis(getLong(RedisSinkConfigDef.WAIT_TIMEOUT_CONFIG));
+
+        if (command == RedisCommand.JSONMERGE) {
+            jsonPath = getString(RedisSinkConfigDef.JSON_PATH_CONFIG).trim();
+            fixedJsonPath = getString(RedisSinkConfigDef.FIXED_JSON_PATH_CONFIG).trim();
+        } else {
+            jsonPath = null;
+            fixedJsonPath = null;
+        }
     }
 
     public Charset getCharset() {
@@ -83,6 +95,15 @@ public class RedisSinkConfig extends RedisConfig {
     public Duration getWaitTimeout() {
         return waitTimeout;
     }
+
+    public String getJsonPath() {
+        return jsonPath;
+    }
+
+    public String getFixedJsonPath() {
+        return fixedJsonPath;
+    }
+
 
     @Override
     public int hashCode() {
