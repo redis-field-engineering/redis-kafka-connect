@@ -25,7 +25,7 @@ import com.redis.kafka.connect.common.RedisConfig;
 public class RedisSinkConfig extends RedisConfig {
 
     public enum RedisCommand {
-        HSET, JSONSET, TSADD, SET, XADD, LPUSH, RPUSH, SADD, ZADD, DEL
+        HSET, JSONSET, TSADD, SET, XADD, LPUSH, RPUSH, SADD, ZADD, DEL, PUBLISH
     }
 
     public static final RedisSinkConfigDef CONFIG = new RedisSinkConfigDef();
