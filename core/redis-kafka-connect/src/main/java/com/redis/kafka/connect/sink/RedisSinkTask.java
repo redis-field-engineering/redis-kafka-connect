@@ -206,6 +206,11 @@ public class RedisSinkTask extends SinkTask {
                 Del<byte[], byte[], SinkRecord> del = new Del<>();
                 del.setKeyFunction(this::key);
                 return del;
+            case PUBLISH:
+                Publish<byte[], byte[], SinkRecord> publish = new Publish<>();
+                publish.setKeyFunction(this::key);
+                publish.setValueFunction(this::jsonValue);
+                return publish;
             default:
                 throw new ConfigException(RedisSinkConfigDef.COMMAND_CONFIG, config.getCommand());
         }
