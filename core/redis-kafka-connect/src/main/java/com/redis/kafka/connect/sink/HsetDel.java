@@ -1,30 +1,33 @@
 package com.redis.kafka.connect.sink;
 
+import java.util.Map;
 import java.util.Objects;
 import java.util.function.Function;
 
+import org.springframework.util.CollectionUtils;
+
 import io.lettuce.core.RedisFuture;
 import io.lettuce.core.api.async.BaseRedisAsyncCommands;
+import io.lettuce.core.api.async.RedisHashAsyncCommands;
 import io.lettuce.core.api.async.RedisKeyAsyncCommands;
-
 import com.redis.spring.batch.writer.operation.AbstractKeyWriteOperation;
 
-public class Publish<K, V, T> extends AbstractKeyWriteOperation<K, V, T> {
+public class HsetDel<K, V, T> extends AbstractKeyWriteOperation<K, V, T> {
 
-    private Function<T, V> valueFunction;
+    private Function<T, Map<K, V>> mapFunction;
 
-    public void setValueFunction(Function<T, V> function) {
-        this.valueFunction = function;
+    public void setMapFunction(Function<T, Map<K, V>> map) {
+        this.mapFunction = map;
     }
 
     @SuppressWarnings("unchecked")
     @Override
     protected RedisFuture<Long> execute(BaseRedisAsyncCommands<K, V> commands, T item, K key) {
-        V value = valueFunction.apply(item);
-        if (Objects.isNull(value)) {
+        Map<K, V> map = mapFunction.apply(item);
+        if (Objects.isNull(map) || CollectionUtils.isEmpty(map)) {
             return ((RedisKeyAsyncCommands<K, V>) commands).del(key);
         }
-        return ((BaseRedisAsyncCommands<K, V>) commands).publish(key, value);
+        return ((RedisHashAsyncCommands<K, V>) commands).hset(key, map);
     }
 
 }

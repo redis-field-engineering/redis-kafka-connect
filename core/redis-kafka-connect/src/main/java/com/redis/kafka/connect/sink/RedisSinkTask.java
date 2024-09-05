@@ -23,6 +23,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Objects;
 import java.util.stream.Collector;
 import java.util.stream.Collectors;
 
@@ -162,6 +163,11 @@ public class RedisSinkTask extends SinkTask {
                 hset.setKeyFunction(this::key);
                 hset.setMapFunction(this::map);
                 return hset;
+            case HSETDEL:
+                HsetDel<byte[], byte[], SinkRecord> hsetDel = new HsetDel<>();
+                hsetDel.setKeyFunction(this::key);
+                hsetDel.setMapFunction(this::map);
+                return hsetDel;
             case JSONSET:
                 JsonSet<byte[], byte[], SinkRecord> jsonSet = new JsonSet<>();
                 jsonSet.setKeyFunction(this::key);
@@ -308,6 +314,9 @@ public class RedisSinkTask extends SinkTask {
                 body.put(e.getKey().getBytes(config.getCharset()), String.valueOf(e.getValue()).getBytes(config.getCharset()));
             }
             return body;
+        }
+        if (Objects.isNull(value)) {
+            return null;
         }
         throw new ConnectException("Unsupported source value type: " + sinkRecord.valueSchema().type().name());
     }
