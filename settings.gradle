@@ -22,13 +22,14 @@ buildscript {
         gradlePluginPortal()
     }
     dependencies {
-        classpath "gradle.plugin.com.github.johnrengelman:shadow:$shadowPluginVersion"
+        classpath "io.github.goooler.shadow:shadow-gradle-plugin:$shadowPluginVersion"
         classpath "org.ajoberstar:gradle-git-publish:$gitPluginVersion"
         classpath "org.kordamp.gradle:guide-gradle-plugin:$kordampPluginVersion"
         classpath "org.kordamp.gradle:java-project-gradle-plugin:$kordampPluginVersion"
         classpath "org.kordamp.gradle:jacoco-gradle-plugin:$kordampPluginVersion"
         classpath "org.kordamp.gradle:kordamp-parentbuild:$kordampBuildVersion"
         classpath "org.springframework.boot:spring-boot-gradle-plugin:$bootPluginVersion"
+        classpath "io.spring.gradle:dependency-management-plugin:$dependencyPluginVersion"
     }
 }
 
@@ -56,25 +57,18 @@ projects {
             id 'io.spring.dependency-management'
         }
         path(':redis-kafka-connect') {
-            id 'com.github.johnrengelman.shadow'
+            id 'io.github.goooler.shadow'
         }
     }
 }
 
 enforce {
     mergeStrategy = 'append'
-    rule(enforcer.rules.EnforceBytecodeVersion) { r ->
-        // search only on compile and runtime classpaths
-        enabled = false
-        r.configurations.addAll(['compileClasspath', 'runtimeClasspath'])
-        r.maxJdkVersion = '1.8'
-    }
     rule(enforcer.rules.BanDuplicateClasses) { r ->
         // search only on compile and runtime classpaths
         r.configurations.addAll(['compileClasspath', 'runtimeClasspath'])
     }
     rule(enforcer.rules.ForceDependencies) { r ->
-        r.dependencies.addAll "com.redis:lettucemod:$lettucemodVersion",
-            "org.testcontainers:testcontainers:$testcontainersVersion"
+        r.dependencies.addAll "com.redis:lettucemod:$lettucemodVersion"
     }
 }
