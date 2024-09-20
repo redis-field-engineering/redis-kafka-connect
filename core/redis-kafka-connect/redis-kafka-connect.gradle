@@ -17,7 +17,7 @@
  */
 dependencies {
     implementation group: 'com.redis', name: 'lettucemod', version: lettucemodVersion
-    implementation group: 'com.redis', name: 'spring-batch-redis', version: springBatchRedisVersion
+    implementation group: 'com.redis', name: 'spring-batch-redis-core', version: springBatchRedisVersion
     implementation 'org.apache.commons:commons-pool2'
     implementation 'org.slf4j:slf4j-api'
     compileOnly 'org.apache.kafka:connect-api'
@@ -31,11 +31,7 @@ dependencies {
     testImplementation 'org.junit.jupiter:junit-jupiter-engine'
     testImplementation 'org.junit.platform:junit-platform-launcher'
     testImplementation 'org.slf4j:slf4j-simple'
-    testImplementation group: 'com.redis', name: 'spring-batch-redis', version: springBatchRedisVersion, classifier: 'tests'
-    testImplementation group: 'org.testcontainers', name: 'junit-jupiter', version: testcontainersVersion
-    testImplementation(group: 'com.redis.testcontainers', name: 'testcontainers-redis', version: testcontainersRedisVersion) {
-        exclude group: 'com.redis', module: 'lettucemod'
-    }
+    testImplementation group: 'com.redis', name: 'spring-batch-redis-test', version: springBatchRedisVersion
 }
 
 eclipse {
@@ -46,21 +42,14 @@ eclipse {
 
 jar.finalizedBy shadowJar
 
-import com.github.jengelman.gradle.plugins.shadow.tasks.ConfigureShadowRelocation
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
-task relocateShadowJar(type: ConfigureShadowRelocation) {
-    target = tasks.shadowJar
-    prefix = "com.redis.kafka.connect.shaded"
+tasks.named('shadowJar', ShadowJar) {
+    enableRelocation true
+    relocationPrefix "com.redis.kafka.connect.shaded"
 }
-
-tasks.shadowJar.dependsOn tasks.relocateShadowJar
-
-compileJava {
-    options.release = 8
-}
-
 
 def archiveFilename = "redis-redis-kafka-connect"
 def releaseDate = DateTimeFormatter.ISO_LOCAL_DATE.format(LocalDateTime.now())

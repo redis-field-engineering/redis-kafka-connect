@@ -24,86 +24,81 @@ import com.redis.kafka.connect.common.RedisConfig;
 
 public class RedisSinkConfig extends RedisConfig {
 
-    public enum RedisCommand {
-        HSET, JSONSET, TSADD, SET, XADD, LPUSH, RPUSH, SADD, ZADD, DEL
-    }
+	public enum RedisType {
+		HASH, JSON, TIMESERIES, STRING, STREAM, LIST, SET, ZSET
+	}
 
-    public static final RedisSinkConfigDef CONFIG = new RedisSinkConfigDef();
+	public static final RedisSinkConfigDef CONFIG = new RedisSinkConfigDef();
 
-    private final Charset charset;
+	private final Charset charset;
+	private final RedisType type;
+	private final String keyspace;
+	private final String separator;
+	private final boolean multiExec;
+	private final int waitReplicas;
+	private final Duration waitTimeout;
 
-    private final RedisCommand command;
+	public RedisSinkConfig(Map<?, ?> originals) {
+		super(new RedisSinkConfigDef(), originals);
+		String charsetName = getString(RedisSinkConfigDef.CHARSET_CONFIG).trim();
+		charset = Charset.forName(charsetName);
+		type = RedisType.valueOf(getString(RedisSinkConfigDef.TYPE_CONFIG));
+		keyspace = getString(RedisSinkConfigDef.KEYSPACE_CONFIG).trim();
+		separator = getString(RedisSinkConfigDef.SEPARATOR_CONFIG).trim();
+		multiExec = Boolean.TRUE.equals(getBoolean(RedisSinkConfigDef.MULTIEXEC_CONFIG));
+		waitReplicas = getInt(RedisSinkConfigDef.WAIT_REPLICAS_CONFIG);
+		waitTimeout = Duration.ofMillis(getLong(RedisSinkConfigDef.WAIT_TIMEOUT_CONFIG));
+	}
 
-    private final String keyspace;
+	public Charset getCharset() {
+		return charset;
+	}
 
-    private final String separator;
+	public RedisType getType() {
+		return type;
+	}
 
-    private final boolean multiExec;
+	public String getKeyspace() {
+		return keyspace;
+	}
 
-    private final int waitReplicas;
+	public String getSeparator() {
+		return separator;
+	}
 
-    private final Duration waitTimeout;
+	public boolean isMultiExec() {
+		return multiExec;
+	}
 
-    public RedisSinkConfig(Map<?, ?> originals) {
-        super(new RedisSinkConfigDef(), originals);
-        String charsetName = getString(RedisSinkConfigDef.CHARSET_CONFIG).trim();
-        charset = Charset.forName(charsetName);
-        command = RedisCommand.valueOf(getString(RedisSinkConfigDef.COMMAND_CONFIG));
-        keyspace = getString(RedisSinkConfigDef.KEY_CONFIG).trim();
-        separator = getString(RedisSinkConfigDef.SEPARATOR_CONFIG).trim();
-        multiExec = Boolean.TRUE.equals(getBoolean(RedisSinkConfigDef.MULTIEXEC_CONFIG));
-        waitReplicas = getInt(RedisSinkConfigDef.WAIT_REPLICAS_CONFIG);
-        waitTimeout = Duration.ofMillis(getLong(RedisSinkConfigDef.WAIT_TIMEOUT_CONFIG));
-    }
+	public int getWaitReplicas() {
+		return waitReplicas;
+	}
 
-    public Charset getCharset() {
-        return charset;
-    }
+	public Duration getWaitTimeout() {
+		return waitTimeout;
+	}
 
-    public RedisCommand getCommand() {
-        return command;
-    }
+	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = super.hashCode();
+		result = prime * result
+				+ Objects.hash(charset, keyspace, separator, multiExec, type, waitReplicas, waitTimeout);
+		return result;
+	}
 
-    public String getKeyspace() {
-        return keyspace;
-    }
-
-    public String getSeparator() {
-        return separator;
-    }
-
-    public boolean isMultiExec() {
-        return multiExec;
-    }
-
-    public int getWaitReplicas() {
-        return waitReplicas;
-    }
-
-    public Duration getWaitTimeout() {
-        return waitTimeout;
-    }
-
-    @Override
-    public int hashCode() {
-        final int prime = 31;
-        int result = super.hashCode();
-        result = prime * result + Objects.hash(charset, keyspace, separator, multiExec, command, waitReplicas, waitTimeout);
-        return result;
-    }
-
-    @Override
-    public boolean equals(Object obj) {
-        if (this == obj)
-            return true;
-        if (!super.equals(obj))
-            return false;
-        if (getClass() != obj.getClass())
-            return false;
-        RedisSinkConfig other = (RedisSinkConfig) obj;
-        return Objects.equals(charset, other.charset) && Objects.equals(keyspace, other.keyspace)
-                && Objects.equals(separator, other.separator) && multiExec == other.multiExec && command == other.command
-                && waitReplicas == other.waitReplicas && waitTimeout == other.waitTimeout;
-    }
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (!super.equals(obj))
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		RedisSinkConfig other = (RedisSinkConfig) obj;
+		return Objects.equals(charset, other.charset) && Objects.equals(keyspace, other.keyspace)
+				&& Objects.equals(separator, other.separator) && multiExec == other.multiExec && type == other.type
+				&& waitReplicas == other.waitReplicas && waitTimeout == other.waitTimeout;
+	}
 
 }

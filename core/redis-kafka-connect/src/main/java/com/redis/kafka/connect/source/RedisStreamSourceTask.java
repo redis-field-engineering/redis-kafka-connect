@@ -32,139 +32,139 @@ import org.apache.kafka.connect.source.SourceTask;
 import org.springframework.batch.item.ExecutionContext;
 
 import com.redis.kafka.connect.common.ManifestVersionProvider;
-import com.redis.spring.batch.reader.StreamItemReader;
-import com.redis.spring.batch.reader.StreamItemReader.StreamAckPolicy;
+import com.redis.spring.batch.item.redis.reader.StreamItemReader;
+import com.redis.spring.batch.item.redis.reader.StreamItemReader.AckPolicy;
 
 import io.lettuce.core.AbstractRedisClient;
 import io.lettuce.core.Consumer;
 import io.lettuce.core.RedisCommandTimeoutException;
 import io.lettuce.core.StreamMessage;
+import io.lettuce.core.XReadArgs.StreamOffset;
 import io.lettuce.core.codec.StringCodec;
 
 public class RedisStreamSourceTask extends SourceTask {
 
-    public static final String TASK_ID = "task.id";
+	public static final String TASK_ID = "task.id";
 
-    /**
-     * The offsets that have been processed and that are to be acknowledged by the reader in
-     * {@link RedisStreamSourceTask#commit()}.
-     */
-    private final List<Map<String, ?>> sourceOffsets = new ArrayList<>();
+	public static final String OFFSET_FIELD = "offset";
 
-    public static final String OFFSET_FIELD = "offset";
+	/**
+	 * The offsets that have been processed and that are to be acknowledged by the
+	 * reader in {@link RedisStreamSourceTask#commit()}.
+	 */
+	private final List<Map<String, ?>> sourceOffsets = new ArrayList<>();
+	private final Clock clock;
 
-    private StreamItemReader<String, String> reader;
+	private RedisStreamSourceConfig config;
+	private StreamItemReader<String, String> reader;
+	private AbstractRedisClient client;
+	private StreamMessageConverter converter;
 
-    private AbstractRedisClient client;
+	public RedisStreamSourceTask() {
+		this(Clock.systemDefaultZone());
+	}
 
-    private final Clock clock;
+	public RedisStreamSourceTask(Clock clock) {
+		this.clock = clock;
+	}
 
-    private StreamMessageConverter converter;
+	@Override
+	public String version() {
+		return ManifestVersionProvider.getVersion();
+	}
 
-    public RedisStreamSourceTask() {
-        this(Clock.systemDefaultZone());
-    }
+	@Override
+	public void start(Map<String, String> props) {
+		this.config = new RedisStreamSourceConfig(props);
+		this.converter = new StreamMessageConverter(clock, config);
+		this.client = config.client();
+		int taskId = Integer.parseInt(props.getOrDefault(TASK_ID, String.valueOf(0)));
+		this.reader = reader(client, taskId, config);
+		reader.open(new ExecutionContext());
+	}
 
-    public RedisStreamSourceTask(Clock clock) {
-        this.clock = clock;
-    }
+	@SuppressWarnings("unchecked")
+	private StreamItemReader<String, String> reader(AbstractRedisClient client, int taskId,
+			RedisStreamSourceConfig config) {
+		String task = String.valueOf(taskId);
+		String consumerName = config.getStreamConsumerName().replace(RedisStreamSourceConfigDef.TOKEN_TASK, task);
+		Consumer<String> consumer = Consumer.from(config.getStreamConsumerGroup(), consumerName);
+		String offset = offsetMap().map(m -> (String) m.get(OFFSET_FIELD)).orElse(config.getStreamOffset());
+		String stream = config.getStreamName();
+		StreamOffset<String> streamOffset = StreamOffset.from(stream, offset);
+		StreamItemReader<String, String> reader = new StreamItemReader<>(client, StringCodec.UTF8, streamOffset);
+		reader.setConsumer(consumer);
+		reader.setBlock(Duration.ofMillis(config.getStreamBlock()));
+		reader.setCount(config.getBatchSize());
+		reader.setAckPolicy(ackPolicy(config));
+		return reader;
+	}
 
-    @Override
-    public String version() {
-        return ManifestVersionProvider.getVersion();
-    }
+	private Optional<Map<String, Object>> offsetMap() {
+		if (context == null) {
+			return Optional.empty();
+		}
+		return Optional.ofNullable(context.offsetStorageReader().offset(Collections.emptyMap()));
+	}
 
-    @Override
-    public void start(Map<String, String> props) {
-        RedisStreamSourceConfig config = new RedisStreamSourceConfig(props);
-        this.converter = new StreamMessageConverter(clock, config);
-        this.client = config.client();
-        int taskId = Integer.parseInt(props.getOrDefault(TASK_ID, String.valueOf(0)));
-        this.reader = reader(client, taskId, config);
-        reader.open(new ExecutionContext());
-    }
+	@Override
+	public void commitRecord(SourceRecord sourceRecord, RecordMetadata metadata) throws InterruptedException {
+		Map<String, ?> currentOffset = sourceRecord.sourceOffset();
+		if (currentOffset != null) {
+			sourceOffsets.add(currentOffset);
+		}
+	}
 
-    private StreamItemReader<String, String> reader(AbstractRedisClient client, int taskId, RedisStreamSourceConfig config) {
-        String task = String.valueOf(taskId);
-        String consumerName = config.getStreamConsumerName().replace(RedisStreamSourceConfigDef.TOKEN_TASK, task);
-        Consumer<String> consumer = Consumer.from(config.getStreamConsumerGroup(), consumerName);
-        String offset = offsetMap().map(m -> (String) m.get(OFFSET_FIELD)).orElse(config.getStreamOffset());
-        String stream = config.getStreamName();
-        StreamItemReader<String, String> streamReader = new StreamItemReader<>(client, StringCodec.UTF8, stream, consumer);
-        streamReader.setOffset(offset);
-        streamReader.setBlock(Duration.ofMillis(config.getStreamBlock()));
-        streamReader.setCount(config.getBatchSize());
-        streamReader.setAckPolicy(ackPolicy(config));
-        return streamReader;
-    }
+	@Override
+	public void commit() throws InterruptedException {
+		if (reader != null) {
+			String[] ids = sourceOffsets.stream().map(m -> (String) m.get(OFFSET_FIELD)).toArray(String[]::new);
+			try {
+				reader.ack(config.getStreamName(), ids);
+				sourceOffsets.clear();
+			} catch (Exception e) {
+				throw new ConnectException("Could not ack offsets to Redis", e);
+			}
+		}
+	}
 
-    private Optional<Map<String, Object>> offsetMap() {
-        if (context == null) {
-            return Optional.empty();
-        }
-        return Optional.ofNullable(context.offsetStorageReader().offset(Collections.emptyMap()));
-    }
+	@Override
+	public void stop() {
+		if (reader != null) {
+			reader.close();
+			reader = null;
+		}
+		if (client != null) {
+			client.shutdown();
+			client.getResources().shutdown();
+			client = null;
+		}
+	}
 
-    private void addSourceOffset(Map<String, ?> sourceOffset) {
-        sourceOffsets.add(sourceOffset);
-    }
+	@Override
+	public List<SourceRecord> poll() {
+		List<StreamMessage<String, String>> messages;
+		try {
+			messages = reader.readMessages();
+		} catch (RedisCommandTimeoutException e) {
+			throw new RetriableException("Timeout while reading stream messages", e);
+		} catch (Exception e) {
+			throw new ConnectException("Could not read messages from stream", e);
+		}
+		// TODO: return heartbeat if no records
+		return messages.stream().map(converter).collect(Collectors.toList());
+	}
 
-    @Override
-    public void commitRecord(SourceRecord sourceRecord, RecordMetadata metadata) throws InterruptedException {
-        Map<String, ?> currentOffset = sourceRecord.sourceOffset();
-        if (currentOffset != null) {
-            addSourceOffset(currentOffset);
-        }
-    }
-
-    @Override
-    public void commit() throws InterruptedException {
-        if (reader != null) {
-            try {
-                reader.ack(sourceOffsets.stream().map(m -> (String) m.get(OFFSET_FIELD)).toArray(String[]::new));
-            } catch (Exception e) {
-                throw new ConnectException("Could not connect to Redis", e);
-            }
-        }
-    }
-
-    @Override
-    public void stop() {
-        if (reader != null) {
-            reader.close();
-            reader = null;
-        }
-        if (client != null) {
-            client.shutdown();
-            client.getResources().shutdown();
-            client = null;
-        }
-    }
-
-    @Override
-    public List<SourceRecord> poll() {
-        List<StreamMessage<String, String>> messages;
-        try {
-            messages = reader.readMessages();
-        } catch (RedisCommandTimeoutException e) {
-            throw new RetriableException("Timeout while reading stream messages", e);
-        } catch (Exception e) {
-            throw new ConnectException("Could not read messages from stream", e);
-        }
-        // TODO: return heartbeat if no records
-        return messages.stream().map(converter).collect(Collectors.toList());
-    }
-
-    private StreamAckPolicy ackPolicy(RedisStreamSourceConfig config) {
-        switch (config.getStreamDelivery()) {
-            case RedisStreamSourceConfig.STREAM_DELIVERY_AT_MOST_ONCE:
-                return StreamAckPolicy.AUTO;
-            case RedisStreamSourceConfig.STREAM_DELIVERY_AT_LEAST_ONCE:
-                return StreamAckPolicy.MANUAL;
-            default:
-                throw new IllegalArgumentException("Illegal value for " + RedisStreamSourceConfigDef.STREAM_DELIVERY_CONFIG
-                        + ": " + config.getStreamDelivery());
-        }
-    }
+	private StreamItemReader.AckPolicy ackPolicy(RedisStreamSourceConfig config) {
+		switch (config.getStreamDelivery()) {
+		case RedisStreamSourceConfig.STREAM_DELIVERY_AT_MOST_ONCE:
+			return AckPolicy.AUTO;
+		case RedisStreamSourceConfig.STREAM_DELIVERY_AT_LEAST_ONCE:
+			return AckPolicy.MANUAL;
+		default:
+			throw new IllegalArgumentException("Illegal value for " + RedisStreamSourceConfigDef.STREAM_DELIVERY_CONFIG
+					+ ": " + config.getStreamDelivery());
+		}
+	}
 
 }
