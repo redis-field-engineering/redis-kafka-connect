@@ -97,7 +97,7 @@ curl -X POST -H "Content-Type: application/json" --data '
      "connector.class": "com.redis.kafka.connect.RedisSinkConnector",
      "tasks.max": "1",
      "key.converter": "org.apache.kafka.connect.json.JsonConverter",
-     "redis.command": "JSONSET",
+     "redis.type": "JSON",
      "redis.uri": "redis://redis:6379",
      "topics": "pageviews",
      "transforms": "Cast",
