@@ -32,32 +32,24 @@ include::{includedir}/_redis_client.adoc[leveloffset=+1]
 == Redis Data Structures
 The {name} supports the following Redis data-structure types as targets:
 
-[[_sink_collections]]
-* Collections: <<_sink_stream,stream>>, <<_sink_list,list>>, <<_sink_set,set>>, <<_sink_zset,sorted set>>, <<_sink_timeseries,time series>>
-+
-Collection keys are generated using the `redis.key` configuration property which may contain `${topic}` (default) as a placeholder for the originating topic name.
-+
-For example with `redis.key = ${topic}` and topic `orders` the Redis key is `set:orders`.
+* <<_sink_string,string>>
+* <<_sink_json,JSON>>
+* <<_sink_hash,Hash>>
+* <<_sink_stream,stream>>
+* <<_sink_list,list>>
+* <<_sink_set,set>>
+* <<_sink_zset,sorted set>>
+* <<_sink_timeseries,time series>>
 
-* <<_sink_hash,Hash>>, <<_sink_string,string>>, <<_sink_json,JSON>>
-+
-For other data-structures the key is in the form `<keyspace>:<record_key>` where `keyspace` is generated using the `redis.key` configuration property like above and `record_key` is the sink record key.
-+
-For example with `redis.key = ${topic}`, topic `orders`, and sink record key `123` the Redis key is `orders:123`.
+=== Redis Keys
 
-[[_sink_hash]]
-=== Hash
-Use the following properties to write Kafka records as Redis hashes:
+Redis keys are generated using the `redis.keyspace` configuration property which may contain `${topic}` (default) as a placeholder for the originating topic name.
 
-[source,properties]
-----
-redis.command   = HSET
-key.converter   = <string or bytes> <1>
-value.converter = <Avro or JSON> <2>
-----
-<1> <<_sink_key_string,String>> or <<_sink_key_bytes,bytes>>
-<2> <<_sink_value_avro,Avro>> or <<_sink_value_json,JSON>>.
-If value is null the key is deleted.
+For `string`, `json`, and `hash` data structures, the Kafka message key will be appended to the keyspace.
+For example, with `redis.type = string`, `redis.keyspace = ${topic}`, a message coming from topic `orders` with a key of `123` will translate into a Redis key of `orders:123`.
+
+For `stream`, `list`, `set`, `zset`, and `timeseries` the Redis key is just the keyspace.
+For example with `redis.keyspace = set:${topic}` and topic `orders` the Redis key is `set:orders`.
 
 [[_sink_string]]
 === String
@@ -65,7 +57,7 @@ Use the following properties to write Kafka records as Redis strings:
 
 [source,properties]
 ----
-redis.command   = SET
+redis.type      = STRING
 key.converter   = <string or bytes> <1>
 value.converter = <string or bytes> <2>
 ----
@@ -79,12 +71,26 @@ Use the following properties to write Kafka records as RedisJSON documents:
 
 [source,properties]
 ----
-redis.command   = JSONSET
+redis.type      = JSON
 key.converter   = <string, bytes, or Avro> <1>
 value.converter = <string, bytes, or Avro> <2>
 ----
 <1> <<_sink_key_string,String>>, <<_sink_key_bytes,bytes>>, or <<_sink_value_avro,Avro>>
 <2> <<_sink_value_string,String>>, <<_sink_value_bytes,bytes>>, or <<_sink_value_avro,Avro>>.
+If value is null the key is deleted.
+
+[[_sink_hash]]
+=== Hash
+Use the following properties to write Kafka records as Redis hashes:
+
+[source,properties]
+----
+redis.type      = HASH
+key.converter   = <string or bytes> <1>
+value.converter = <Avro or JSON> <2>
+----
+<1> <<_sink_key_string,String>> or <<_sink_key_bytes,bytes>>
+<2> <<_sink_value_avro,Avro>> or <<_sink_value_json,JSON>>.
 If value is null the key is deleted.
 
 [[_sink_stream]]
@@ -93,11 +99,11 @@ Use the following properties to store Kafka records as Redis stream messages:
 
 [source,properties]
 ----
-redis.command   = XADD
-redis.key       = <stream key> <1>
+redis.type      = STREAM
+redis.keyspace  = <stream key> <1>
 value.converter = <Avro or JSON> <2>
 ----
-<1> <<_sink_collections,Stream key>>
+<1> Stream key
 <2> <<_sink_value_avro,Avro>> or <<_sink_value_json,JSON>>
 
 [[_sink_list]]
@@ -106,13 +112,13 @@ Use the following properties to add Kafka record keys to a Redis list:
 
 [source,properties]
 ----
-redis.command = <LPUSH or RPUSH> <1>
-redis.key     = <key name> <2>
-key.converter = <string or bytes> <3>
+redis.type     = LIST
+redis.keyspace = <list key> <2>
+key.converter  = <string or bytes> <3>
 ----
 
 <1> `LPUSH` or `RPUSH`
-<2> <<_sink_collections,List key>>
+<2> List key
 <3> <<_sink_key_string,String>> or <<_sink_key_bytes,bytes>>: Kafka record keys to push to the list
 
 The Kafka record value can be any format.
@@ -124,11 +130,11 @@ Use the following properties to add Kafka record keys to a Redis set:
 
 [source,properties]
 ----
-redis.command = SADD
-redis.key     = <key name> <1>
-key.converter = <string or bytes> <2>
+redis.type     = SET
+redis.keyspace = <set key> <1>
+key.converter  = <string or bytes> <2>
 ----
-<1> <<_sink_collections,Set key>>
+<1> Set key
 <2> <<_sink_key_string,String>> or <<_sink_key_bytes,bytes>>: Kafka record keys to add to the set
 
 The Kafka record value can be any format.
@@ -140,26 +146,26 @@ Use the following properties to add Kafka record keys to a Redis sorted set:
 
 [source,properties]
 ----
-redis.command = ZADD
-redis.key     = <key name> <1>
-key.converter = <string or bytes> <2>
+redis.type     = ZSET
+redis.keyspace = <zset key> <1>
+key.converter  = <string or bytes> <2>
 ----
-<1> <<_sink_collections,Sorted set key>>
+<1> Sorted set key
 <2> <<_sink_key_string,String>> or <<_sink_key_bytes,bytes>>: Kafka record keys to add to the set
 
 The Kafka record value should be `float64` and is used for the score.
 If the score is null then the member is removed from the sorted set (instead of added to the sorted set).
 
 [[_sink_timeseries]]
-=== Time Series
+=== Timeseries
 Use the following properties to write Kafka records as RedisTimeSeries samples:
 
 [source,properties]
 ----
-redis.command = TSADD
-redis.key     = <key name> <1>
+redis.type     = TIMESERIES
+redis.keyspace = <key name> <1>
 ----
-<1> <<_sink_collections,Timeseries key>>
+<1> Timeseries key
 
 The Kafka record key must be an integer (e.g. `int64`) as it is used for the sample time in milliseconds.
 
@@ -268,7 +274,7 @@ value.converter.schemas.enable = <true|false> <1>
 connector.class  = com.redis.kafka.connect.RedisSinkConnector
 topics           = <Kafka topic> <1>
 redis.uri        = <Redis URI> <2>
-redis.command    = <HSET|SET|JSONSET|XADD|RPUSH|SADD|ZADD|TSADD> <3>
+redis.type       = <HASH|SET|JSON|STREAM|LIST|SET|ZSET|TIMESERIES> <3>
 key.converter    = <Key converter> <4>
 value.converter  = <Value converter> <5>
 ----
