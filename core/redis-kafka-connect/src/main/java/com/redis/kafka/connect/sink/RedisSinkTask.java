@@ -162,12 +162,13 @@ public class RedisSinkTask extends SinkTask {
 
 		@Override
 		public List<RedisFuture<Object>> execute(RedisAsyncCommands<byte[], byte[]> commands,
-				List<? extends SinkRecord> items) {
+				Chunk<? extends SinkRecord> items) {
 			List<RedisFuture<Object>> futures = new ArrayList<>();
-			List<SinkRecord> toRemove = items.stream().filter(delPredicate).collect(Collectors.toList());
-			futures.addAll(del.execute(commands, toRemove));
-			List<SinkRecord> toWrite = items.stream().filter(delPredicate.negate()).collect(Collectors.toList());
-			futures.addAll(write.execute(commands, toWrite));
+			List<SinkRecord> toRemove = items.getItems().stream().filter(delPredicate).collect(Collectors.toList());
+			futures.addAll(del.execute(commands, new Chunk<>(toRemove)));
+			List<SinkRecord> toWrite = items.getItems().stream().filter(delPredicate.negate())
+					.collect(Collectors.toList());
+			futures.addAll(write.execute(commands, new Chunk<>(toWrite)));
 			return futures;
 		}
 

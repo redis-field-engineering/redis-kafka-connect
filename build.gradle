@@ -42,6 +42,7 @@ config {
         }
         
         people {
+            clearDomainSet()
             person {
                 id    = 'jruaux'
                 name  = 'Julien Ruaux'

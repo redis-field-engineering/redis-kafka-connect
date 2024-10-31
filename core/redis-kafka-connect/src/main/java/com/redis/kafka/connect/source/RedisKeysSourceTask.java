@@ -49,7 +49,7 @@ public class RedisKeysSourceTask extends SourceTask {
 	private final Clock clock;
 
 	private AbstractRedisClient client;
-	private RedisItemReader<String, String, Object> reader;
+	private RedisItemReader<String, String> reader;
 	private int batchSize;
 	private String topic;
 
@@ -66,7 +66,7 @@ public class RedisKeysSourceTask extends SourceTask {
 		return ManifestVersionProvider.getVersion();
 	}
 
-	public RedisItemReader<String, String, Object> getReader() {
+	public RedisItemReader<String, String> getReader() {
 		return reader;
 	}
 
@@ -124,7 +124,7 @@ public class RedisKeysSourceTask extends SourceTask {
 		}
 	}
 
-	private SourceRecord convert(KeyValue<String, Object> input) {
+	private SourceRecord convert(KeyValue<String> input) {
 		Map<String, ?> partition = new HashMap<>();
 		Map<String, ?> offset = new HashMap<>();
 		String key = input.getKey();
@@ -136,7 +136,7 @@ public class RedisKeysSourceTask extends SourceTask {
 	@Override
 	public List<SourceRecord> poll() {
 		List<SourceRecord> records = new ArrayList<>();
-		KeyValue<String, Object> item;
+		KeyValue<String> item;
 		try {
 			while (records.size() < batchSize && (item = reader.read()) != null) {
 				records.add(convert(item));

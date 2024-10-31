@@ -1,6 +1,5 @@
 package com.redis.kafka.connect;
 
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -37,7 +36,6 @@ import com.redis.kafka.connect.source.RedisStreamSourceTask;
 import com.redis.kafka.connect.source.ToStructFunction;
 import com.redis.lettucemod.api.sync.RedisModulesCommands;
 import com.redis.spring.batch.item.redis.RedisItemWriter;
-import com.redis.spring.batch.item.redis.common.DataType;
 import com.redis.spring.batch.item.redis.common.KeyValue;
 import com.redis.spring.batch.item.redis.gen.GeneratorItemReader;
 import com.redis.spring.batch.test.AbstractTestBase;
@@ -417,7 +415,7 @@ abstract class AbstractSourceIntegrationTests extends AbstractTestBase {
 		final List<SourceRecord> sourceRecords = new ArrayList<>();
 		Executors.newSingleThreadScheduledExecutor().execute(() -> {
 			GeneratorItemReader generator = generator(count);
-			RedisItemWriter<String, String, KeyValue<String, Object>> writer = RedisItemWriter.struct();
+			RedisItemWriter<String, String, KeyValue<String>> writer = RedisItemWriter.struct();
 			writer.setClient(redisClient);
 			try {
 				run(info, step(info, 1, generator, null, writer));
@@ -455,21 +453,21 @@ abstract class AbstractSourceIntegrationTests extends AbstractTestBase {
 
 	private Compare values(Struct struct) {
 		String key = struct.getString(ToStructFunction.FIELD_KEY);
-		DataType type = DataType.of(struct.getString(ToStructFunction.FIELD_TYPE));
-		Assertions.assertEquals(redisConnection.sync().type(key), type.getString());
+		String type = struct.getString(ToStructFunction.FIELD_TYPE);
+		Assertions.assertEquals(redisConnection.sync().type(key), type);
 		RedisModulesCommands<String, String> commands = redisConnection.sync();
 		switch (type) {
-		case HASH:
+		case KeyValue.TYPE_HASH:
 			return compare(commands.hgetall(key), struct.getMap(ToStructFunction.FIELD_HASH));
-		case JSON:
+		case KeyValue.TYPE_JSON:
 			return compare(commands.jsonGet(key, "."), struct.getString(ToStructFunction.FIELD_JSON));
-		case LIST:
+		case KeyValue.TYPE_LIST:
 			return compare(commands.lrange(key, 0, -1), struct.getArray(ToStructFunction.FIELD_LIST));
-		case SET:
+		case KeyValue.TYPE_SET:
 			return compare(commands.smembers(key), new HashSet<>(struct.getArray(ToStructFunction.FIELD_SET)));
-		case STRING:
+		case KeyValue.TYPE_STRING:
 			return compare(commands.get(key), struct.getString(ToStructFunction.FIELD_STRING));
-		case ZSET:
+		case KeyValue.TYPE_ZSET:
 			return compare(ToStructFunction.zsetMap(commands.zrangeWithScores(key, 0, -1)),
 					struct.getMap(ToStructFunction.FIELD_ZSET));
 		default:

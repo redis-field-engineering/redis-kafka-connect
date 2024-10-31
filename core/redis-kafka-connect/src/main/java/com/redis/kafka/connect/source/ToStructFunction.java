@@ -11,12 +11,11 @@ import org.apache.kafka.connect.data.SchemaBuilder;
 import org.apache.kafka.connect.data.Struct;
 
 import com.redis.lettucemod.timeseries.Sample;
-import com.redis.spring.batch.item.redis.common.DataType;
 import com.redis.spring.batch.item.redis.common.KeyValue;
 
 import io.lettuce.core.ScoredValue;
 
-public class ToStructFunction implements Function<KeyValue<String, Object>, Struct> {
+public class ToStructFunction implements Function<KeyValue<String>, Struct> {
 
 	public static final String FIELD_KEY = "key";
 
@@ -60,43 +59,45 @@ public class ToStructFunction implements Function<KeyValue<String, Object>, Stru
 			.field(FIELD_SET, SET_SCHEMA).field(FIELD_ZSET, ZSET_SCHEMA).name(VALUE_SCHEMA_NAME).build();
 
 	@Override
-	public Struct apply(KeyValue<String, Object> input) {
+	public Struct apply(KeyValue<String> input) {
 		Struct struct = new Struct(VALUE_SCHEMA);
 		struct.put(FIELD_KEY, input.getKey());
 		struct.put(FIELD_TTL, input.getTtl());
 		struct.put(FIELD_TYPE, input.getType());
-		switch (DataType.of(input.getType())) {
-		case HASH:
-			struct.put(FIELD_HASH, input.getValue());
-			break;
-		case JSON:
-			struct.put(FIELD_JSON, input.getValue());
-			break;
-		case LIST:
-			struct.put(FIELD_LIST, input.getValue());
-			break;
-		case SET:
-			struct.put(FIELD_SET, list(input));
-			break;
-		case STRING:
-			struct.put(FIELD_STRING, input.getValue());
-			break;
-		case ZSET:
-			struct.put(FIELD_ZSET, zsetMap(input));
-			break;
-		default:
-			break;
+		if (input.getType() != null) {
+			switch (input.getType()) {
+			case KeyValue.TYPE_HASH:
+				struct.put(FIELD_HASH, input.getValue());
+				break;
+			case KeyValue.TYPE_JSON:
+				struct.put(FIELD_JSON, input.getValue());
+				break;
+			case KeyValue.TYPE_LIST:
+				struct.put(FIELD_LIST, input.getValue());
+				break;
+			case KeyValue.TYPE_SET:
+				struct.put(FIELD_SET, list(input));
+				break;
+			case KeyValue.TYPE_STRING:
+				struct.put(FIELD_STRING, input.getValue());
+				break;
+			case KeyValue.TYPE_ZSET:
+				struct.put(FIELD_ZSET, zsetMap(input));
+				break;
+			default:
+				break;
+			}
 		}
 		return struct;
 	}
 
 	@SuppressWarnings("unchecked")
-	private Object list(KeyValue<String, Object> input) {
+	private Object list(KeyValue<String> input) {
 		return new ArrayList<>((Collection<String>) input.getValue());
 	}
 
 	@SuppressWarnings("unchecked")
-	public static Map<Double, String> zsetMap(KeyValue<String, Object> input) {
+	public static Map<Double, String> zsetMap(KeyValue<String> input) {
 		Collection<ScoredValue<String>> value = (Collection<ScoredValue<String>>) input.getValue();
 		return zsetMap(value);
 	}

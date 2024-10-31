@@ -5,8 +5,7 @@ import com.redis.testcontainers.RedisStackContainer;
 
 class StackSourceIntegrationTests extends AbstractSourceIntegrationTests {
 
-	private static final RedisStackContainer container = new RedisStackContainer(
-			RedisStackContainer.DEFAULT_IMAGE_NAME.withTag(RedisStackContainer.DEFAULT_TAG));
+	private static final RedisStackContainer container = RedisContainerFactory.stack();
 
 	@Override
 	protected RedisServer getRedisServer() {
