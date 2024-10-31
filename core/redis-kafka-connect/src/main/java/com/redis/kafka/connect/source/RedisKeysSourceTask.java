@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.errors.ConnectException;
@@ -77,6 +78,8 @@ public class RedisKeysSourceTask extends SourceTask {
 		this.batchSize = Math.toIntExact(config.getBatchSize());
 		this.client = config.client();
 		reader = RedisItemReader.struct();
+		// Use a random job name to not interfere with other key source tasks
+		reader.setName(UUID.randomUUID().toString());
 		reader.setClient(client);
 		reader.setMode(ReaderMode.LIVE);
 		reader.setPoolSize(config.getPoolSize());
