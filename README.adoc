@@ -23,7 +23,7 @@ The connector is published on https://www.confluent.io/hub/redis/redis-kafka-con
 
 == Support
 
-Contact us on the https://forum.redis.com/[Redis Forum] or create an issue on {project-url}/issues[Github] where we provide support on a good faith effort basis.
+{project-name} is supported by Redis, Inc. for enterprise-tier customers as a 'Developer Tool' under the https://redis.io/legal/software-support-policy/[Redis Software Support Policy.] For non enterprise-tier customers we supply support for {project-name} on a good-faith basis.
 
 == Docker Example
 
