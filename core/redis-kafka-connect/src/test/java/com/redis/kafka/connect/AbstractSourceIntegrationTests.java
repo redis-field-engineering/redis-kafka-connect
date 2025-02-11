@@ -460,7 +460,7 @@ abstract class AbstractSourceIntegrationTests extends AbstractTestBase {
 		case KeyValue.TYPE_HASH:
 			return compare(commands.hgetall(key), struct.getMap(ToStructFunction.FIELD_HASH));
 		case KeyValue.TYPE_JSON:
-			return compare(commands.jsonGet(key, "."), struct.getString(ToStructFunction.FIELD_JSON));
+			return compare(commands.jsonGet(key).get(0).toString(), struct.getString(ToStructFunction.FIELD_JSON));
 		case KeyValue.TYPE_LIST:
 			return compare(commands.lrange(key, 0, -1), struct.getArray(ToStructFunction.FIELD_LIST));
 		case KeyValue.TYPE_SET:

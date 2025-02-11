@@ -21,7 +21,7 @@ dependencies {
     implementation 'org.apache.commons:commons-pool2'
     implementation 'org.slf4j:slf4j-api'
     compileOnly 'org.apache.kafka:connect-api'
-    compileOnly 'org.apache.kafka:connect-json'    
+    compileOnly 'org.apache.kafka:connect-json'
     testImplementation 'org.apache.kafka:connect-api'
     testImplementation 'org.apache.kafka:connect-json'
     testImplementation 'org.awaitility:awaitility'
@@ -42,17 +42,13 @@ eclipse {
 
 jar.finalizedBy shadowJar
 
-import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
-import java.time.LocalDateTime
-import java.time.format.DateTimeFormatter
-
-tasks.named('shadowJar', ShadowJar) {
+tasks.named('shadowJar', com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar) {
     enableRelocation true
     relocationPrefix "com.redis.kafka.connect.shaded"
 }
 
 def archiveFilename = "redis-redis-kafka-connect"
-def releaseDate = DateTimeFormatter.ISO_LOCAL_DATE.format(LocalDateTime.now())
+def releaseDate = java.time.format.DateTimeFormatter.ISO_LOCAL_DATE.format(java.time.LocalDateTime.now())
 
 tasks.register('prepareConfluentArchive', Copy) {
     group = "Confluent"

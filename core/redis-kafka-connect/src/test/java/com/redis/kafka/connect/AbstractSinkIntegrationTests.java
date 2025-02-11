@@ -298,7 +298,7 @@ abstract class AbstractSinkIntegrationTests extends AbstractTestBase {
 		}
 		put(topic, RedisType.JSON, records);
 		for (Person person : persons) {
-			String json = redisConnection.sync().jsonGet(topic + ":" + person.getId());
+			String json = redisConnection.sync().jsonGet(topic + ":" + person.getId()).get(0).toString();
 			assertEquals(person, mapper.readValue(json, Person.class));
 		}
 	}
