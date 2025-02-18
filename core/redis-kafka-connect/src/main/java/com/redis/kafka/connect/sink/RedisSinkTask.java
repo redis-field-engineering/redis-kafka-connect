@@ -310,6 +310,11 @@ public class RedisSinkTask extends SinkTask {
 	@SuppressWarnings("unchecked")
 	private Map<byte[], byte[]> map(SinkRecord sinkRecord) {
 		Object value = sinkRecord.value();
+		// this clause is added to handle tombstones. Tombstones should
+		if (value == null) {
+			log.info("Value is null for {}", sinkRecord.key());
+			return null;
+		}
 		if (value instanceof Struct) {
 			Map<byte[], byte[]> body = new LinkedHashMap<>();
 			Struct struct = (Struct) value;
