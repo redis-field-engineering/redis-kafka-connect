@@ -59,7 +59,7 @@ import com.redis.spring.batch.writer.operation.Hset;
 import com.redis.spring.batch.writer.operation.JsonSet;
 import com.redis.spring.batch.writer.operation.Lpush;
 import com.redis.spring.batch.writer.operation.Rpush;
-import com.redis.spring.batch.writer.operation.Sadd;
+import com.redis.kafka.connect.operation.Sadd;
 import com.redis.spring.batch.writer.operation.Set;
 import com.redis.spring.batch.writer.operation.TsAdd;
 import com.redis.spring.batch.writer.operation.Xadd;
@@ -191,6 +191,7 @@ public class RedisSinkTask extends SinkTask {
                 Sadd<byte[], byte[], SinkRecord> sadd = new Sadd<>();
                 sadd.setKeyFunction(this::collectionKey);
                 sadd.setValueFunction(this::member);
+                sadd.setConditionFunction(this::isNullValue);
                 return sadd;
             case TSADD:
                 TsAdd<byte[], byte[], SinkRecord> tsAdd = new TsAdd<>();
@@ -213,6 +214,10 @@ public class RedisSinkTask extends SinkTask {
 
     private byte[] value(SinkRecord sinkRecord) {
         return bytes("value", sinkRecord.value());
+    }
+
+    private boolean isNullValue(SinkRecord sinkRecord) {
+        return sinkRecord.value() == null;
     }
 
     private byte[] jsonValue(SinkRecord sinkRecord) {
