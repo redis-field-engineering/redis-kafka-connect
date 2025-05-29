@@ -310,6 +310,9 @@ public class RedisSinkTask extends SinkTask {
 	@SuppressWarnings("unchecked")
 	private Map<byte[], byte[]> map(SinkRecord sinkRecord) {
 		Object value = sinkRecord.value();
+		if (value == null) {
+			return Collections.emptyMap();
+		}
 		if (value instanceof Struct) {
 			Map<byte[], byte[]> body = new LinkedHashMap<>();
 			Struct struct = (Struct) value;
