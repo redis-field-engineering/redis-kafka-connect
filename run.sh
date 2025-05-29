@@ -9,7 +9,9 @@ fi
 )
 
 echo "Starting docker"
-docker compose up -d
+docker compose -f docker-compose-build.yml build
+docker compose -f docker-compose-build.yml up -d
+#docker compose up -d
 
 function clean_up {
     echo -e "\n\nSHUTTING DOWN\n\n"
@@ -58,55 +60,6 @@ curl -X GET "http://localhost:8082/topics" -w "\n"
 echo -e "\nKafka Connectors:"
 curl -X GET "http://localhost:8083/connectors/" -w "\n"
 
-echo -e "\nAdding datagen pageviews:"
-curl -X POST -H "Content-Type: application/json" --data '
-  { "name": "datagen-pageviews",
-    "config": {
-      "connector.class": "io.confluent.kafka.connect.datagen.DatagenConnector",
-      "kafka.topic": "pageviews",
-      "quickstart": "pageviews",
-      "key.converter": "org.apache.kafka.connect.json.JsonConverter",
-      "value.converter": "org.apache.kafka.connect.json.JsonConverter",
-      "value.converter.schemas.enable": "false",
-      "producer.interceptor.classes": "io.confluent.monitoring.clients.interceptor.MonitoringProducerInterceptor",
-      "max.interval": 200,
-      "iterations": 10000000,
-      "tasks.max": "1"
-}}' http://localhost:8083/connectors -w "\n"
-
-sleep 5
-
-echo -e "\nAdding Redis Kafka Sink Connector for the 'pageviews' topic into the 'pageviews' stream:"
-curl -X POST -H "Content-Type: application/json" --data '
-  {"name": "redis-sink",
-   "config": {
-     "connector.class": "com.redis.kafka.connect.RedisSinkConnector",
-     "tasks.max": "1",
-     "topics": "pageviews",
-     "redis.uri": "redis://redis:6379",
-     "key.converter": "org.apache.kafka.connect.storage.StringConverter",
-     "value.converter": "org.apache.kafka.connect.json.JsonConverter",
-     "value.converter.schemas.enable": "false"
-}}' http://localhost:8083/connectors -w "\n"
-
-sleep 2
-echo -e "\nAdding Redis Kafka Sink Connector for the 'pageviews' topic into RedisJSON:"
-curl -X POST -H "Content-Type: application/json" --data '
-  {"name": "redis-sink-json",
-   "config": {
-     "connector.class": "com.redis.kafka.connect.RedisSinkConnector",
-     "tasks.max": "1",
-     "key.converter": "org.apache.kafka.connect.json.JsonConverter",
-     "redis.command": "JSONSET",
-     "redis.uri": "redis://redis:6379",
-     "topics": "pageviews",
-     "transforms": "Cast",
-     "transforms.Cast.spec": "string",
-     "transforms.Cast.type": "org.apache.kafka.connect.transforms.Cast$Key",
-     "value.converter": "org.apache.kafka.connect.storage.StringConverter",
-     "value.converter.schemas.enable": "false"
-}}' http://localhost:8083/connectors -w "\n"
-
 sleep 2
 echo -e "\nAdding Redis Kafka Source Connector for the 'mystream' stream:"
 curl -X POST -H "Content-Type: application/json" --data '
@@ -132,18 +85,52 @@ curl -X POST -H "Content-Type: application/json" --data '
 }}' http://localhost:8083/connectors -w "\n"
 
 sleep 2
+echo -e "\nKnown RSD connector:"
+curl -X POST http://localhost:8083/connectors \
+  -w "\n" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "known_rsd_connector",
+    "config": {
+      "connector.class": "com.redis.kafka.connect.RedisSinkConnector",
+      "topics": "known_rsd_to_barcode",
+      "tasks.max":"1",
+
+      "value.converter": "org.apache.kafka.connect.json.JsonConverter",
+      "value.converter.replace.null.with.default": "false",
+      "value.converter.schemas.enable": "false",
+
+      "redis.uri":"redis://redis:6379",
+      "redis.command": "SADD",
+      "redis.key": "${topic}",
+      "redis.key.converter": "org.apache.kafka.connect.storage.StringConverter",
+      "redis.value.converter": "org.apache.kafka.connect.storage.StringConverter",
+
+      "transforms": "moveKeyNameToTopic,moveMemberToKey,moveValueToValue,extractMember",
+
+      "transforms.moveKeyNameToTopic.type": "io.confluent.connect.transforms.ExtractTopic$Value",
+      "transforms.moveKeyNameToTopic.field": "key",
+
+      "transforms.moveMemberToKey.type": "org.apache.kafka.connect.transforms.ValueToKey",
+      "transforms.moveMemberToKey.fields": "member",
+
+      "transforms.extractMember.type": "org.apache.kafka.connect.transforms.ExtractField$Key",
+      "transforms.extractMember.field": "member",
+
+      "transforms.moveValueToValue.type": "org.apache.kafka.connect.transforms.ExtractField$Value",
+      "transforms.moveValueToValue.field": "value",
+      "transforms.moveValueToValue.replace.null.with.default": "false",
+
+      "errors.log.enable": "true",
+      "errors.log.include.messages": "true"
+    }
+  }'
+
+sleep 2
 echo -e "\nKafka Connectors: \n"
 curl -X GET "http://localhost:8083/connectors/" -w "\n"
 echo "Enabling keyspace notifications on Redis database:"
 docker compose exec redis /opt/redis-stack/bin/redis-cli config set notify-keyspace-events KEA
-
-echo "Number of messages in 'pageviews' stream:"
-docker compose exec redis /opt/redis-stack/bin/redis-cli xlen pageviews
-
-sleep 2
-echo -e "\nAdding messages to Redis stream 'mystream':"
-docker compose exec redis /opt/redis-stack/bin/redis-cli "xadd" "mystream" "*" "field1" "value11" "field2" "value21"
-docker compose exec redis /opt/redis-stack/bin/redis-cli "xadd" "mystream" "*" "field1" "value12" "field2" "value22"
 
 echo -e '''
 
