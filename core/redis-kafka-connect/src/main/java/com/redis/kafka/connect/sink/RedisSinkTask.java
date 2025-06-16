@@ -188,6 +188,7 @@ public class RedisSinkTask extends SinkTask {
                 rpush.setValueFunction(this::member);
                 return rpush;
             case SADD:
+                // For simplicity we will assume schemaless payloads
                 Sadd<byte[], byte[], SinkRecord> sadd = new Sadd<>();
                 sadd.setKeyFunction(this::collectionKey);
                 sadd.setValueFunction(this::member);
@@ -217,7 +218,12 @@ public class RedisSinkTask extends SinkTask {
     }
 
     private boolean isNullValue(SinkRecord sinkRecord) {
-        return sinkRecord.value() == null;
+        // For simplicity we will assume schemaless payloads
+        if (sinkRecord.value() == null) {
+            return true;
+        }
+        Map<String, Object> valueMap = (Map<String, Object>) sinkRecord.value();
+        return valueMap.get("redis_value") == null;
     }
 
     private byte[] jsonValue(SinkRecord sinkRecord) {
