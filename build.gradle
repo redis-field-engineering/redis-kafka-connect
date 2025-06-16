@@ -85,7 +85,14 @@ allprojects {
 
 subprojects { subproj ->
     if (!subproj.name.contains('guide')) {
-    
+
+        apply plugin: 'java'
+        java {
+            toolchain {
+                languageVersion = JavaLanguageVersion.of(17)
+            }
+        }
+
         config {
 	        info {
 	            description = project.project_description

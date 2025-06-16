@@ -23,8 +23,11 @@ public class Sadd<K, V, T> extends AbstractKeyWriteOperation<K, V, T> {
 
     protected RedisFuture<Long> execute(BaseRedisAsyncCommands<K, V> commands, T item, K key) {
         // For simplicity we will assume schemaless payloads
+        // System.out.println("[Sadd] key=" + key + ", item=" + item);
         V value = valueFunction.apply(item);
-        if (conditionFunction.apply(item)) {
+        boolean toRemove = conditionFunction.apply(item);
+        // System.out.println("[Sadd] value=" + value + ", toRemove=" + toRemove);
+        if (toRemove) {
             return ((RedisSetAsyncCommands<K, V>) commands).srem(key, value);
         } else {
             return ((RedisSetAsyncCommands<K, V>) commands).sadd(key, value);

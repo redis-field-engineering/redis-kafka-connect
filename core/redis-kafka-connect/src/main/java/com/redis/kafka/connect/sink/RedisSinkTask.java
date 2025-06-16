@@ -219,11 +219,13 @@ public class RedisSinkTask extends SinkTask {
 
     private boolean isNullValue(SinkRecord sinkRecord) {
         // For simplicity we will assume schemaless payloads
-        if (sinkRecord.value() == null) {
+        Object value = sinkRecord.value();
+        if (value == null) {
+            // System.out.println("[isNullValue] sinkRecord.value() is null");
             return true;
         }
-        Map<String, Object> valueMap = (Map<String, Object>) sinkRecord.value();
-        return valueMap.get("redis_value") == null;
+        // System.out.println("[isNullValue] redis_value=" + value);
+        return false;
     }
 
     private byte[] jsonValue(SinkRecord sinkRecord) {
