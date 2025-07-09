@@ -24,6 +24,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collector;
 import java.util.stream.Collectors;
@@ -197,25 +198,72 @@ public class RedisSinkTask extends SinkTask {
 	}
 
 	private Operation<byte[], byte[], SinkRecord, Object> operation() {
+		Operation<byte[], byte[], SinkRecord, Object> op;
 		switch (config.getType()) {
-		case HASH:
-			return new Hset<>(this::key, this::map);
-		case JSON:
-			return new JsonSet<>(this::key, this::jsonValue);
-		case STRING:
-			return new Set<>(this::key, this::value);
-		case STREAM:
-			return new Xadd<>(this::collectionKey, this::streamMessages);
-		case LIST:
-			return new Rpush<>(this::collectionKey, this::members);
-		case SET:
-			return new Sadd<>(this::collectionKey, this::members);
-		case TIMESERIES:
-			return new TsAdd<>(this::collectionKey, this::samples);
-		case ZSET:
-			return new Zadd<>(this::collectionKey, this::scoredValues);
-		default:
-			throw new ConfigException(RedisSinkConfigDef.TYPE_CONFIG, config.getType());
+			case HASH:
+				op = new Hset<>(this::key, this::map);
+				break;
+			case JSON:
+				op = new JsonSet<>(this::key, this::jsonValue);
+				break;
+			case STRING:
+				op = new Set<>(this::key, this::value);
+				break;
+			case STREAM:
+				op = new Xadd<>(this::collectionKey, this::streamMessages);
+				break;
+			case LIST:
+				op = new Rpush<>(this::collectionKey, this::members);
+				break;
+			case SET:
+				op = new Sadd<>(this::collectionKey, this::members);
+				break;
+			case TIMESERIES:
+				op = new TsAdd<>(this::collectionKey, this::samples);
+				break;
+			case ZSET:
+				op = new Zadd<>(this::collectionKey, this::scoredValues);
+				break;
+			default:
+				throw new ConfigException(RedisSinkConfigDef.TYPE_CONFIG, config.getType());
+		}
+		if (config.getKeyTTL() > 0) {
+			op = new WithTTL(op, config.getKeyTTL(), this::key);
+		}
+		return op;
+	}
+
+	private class WithTTL implements Operation<byte[], byte[], SinkRecord, Object> {
+
+		private final Operation<byte[], byte[], SinkRecord, Object> delegate;
+		private final long keyTTL;
+		private final Function<SinkRecord, byte[]> keyExtractor;
+
+		public WithTTL(Operation<byte[], byte[], SinkRecord, Object> delegate, long keyTTL, Function<SinkRecord, byte[]> keyExtractor) {
+			this.delegate = delegate;
+			this.keyTTL = keyTTL;
+			this.keyExtractor = keyExtractor;
+		}
+
+		@Override
+		public List<RedisFuture<Object>> execute(RedisAsyncCommands<byte[], byte[]> commands, Chunk<? extends SinkRecord> items) {
+			List<RedisFuture<Object>> futures = new ArrayList<>(delegate.execute(commands, items));
+			if (keyTTL > 0) {
+				for (SinkRecord record : items) {
+					if (record.value() != null) {
+						byte[] key = keyExtractor.apply(record);
+						futures.add((RedisFuture<Object>) (RedisFuture<?>) commands.expire(key, keyTTL));
+						log.debug("");
+						log.debug("");
+						log.debug("");
+						log.debug("************* Redis key expired: {} **************", key);
+						log.debug("");
+						log.debug("");
+						log.debug("");
+					}
+				}
+			}
+			return futures;
 		}
 	}
 
