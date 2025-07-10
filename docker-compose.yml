@@ -79,8 +79,6 @@ services:
       CONNECT_CONSUMER_INTERCEPTOR_CLASSES: "io.confluent.monitoring.clients.interceptor.MonitoringConsumerInterceptor"
       CONNECT_PLUGIN_PATH: "/usr/share/java,/usr/share/confluent-hub-components"
       CONNECT_LOG4J_LOGGERS: org.apache.zookeeper=ERROR,org.I0Itec.zkclient=ERROR,org.reflections=ERROR
-    volumes:
-      - ./core/redis-kafka-connect/build/confluentArchive/redis-redis-kafka-connect-1.0.0-SNAPSHOT:/usr/share/confluent-hub-components/redis-redis-kafka-connect
     healthcheck:
       interval: 5s
       retries: 10
