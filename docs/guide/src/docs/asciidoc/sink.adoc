@@ -48,6 +48,8 @@ Redis keys are generated using the `redis.keyspace` configuration property which
 For `string`, `json`, and `hash` data structures, the Kafka message key will be appended to the keyspace.
 For example, with `redis.type = string`, `redis.keyspace = ${topic}`, a message coming from topic `orders` with a key of `123` will translate into a Redis key of `orders:123`.
 
+Leave the keyspace empty ( `redis.keyspace =` ) if you don't want any key prefix and just use the message key.
+
 For `stream`, `list`, `set`, `zset`, and `timeseries` the Redis key is just the keyspace.
 For example with `redis.keyspace = set:${topic}` and topic `orders` the Redis key is `set:orders`.
 
