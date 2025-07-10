@@ -728,6 +728,9 @@ redis.password = pass</code></pre>
 For example, with <code>redis.type = string</code>, <code>redis.keyspace = ${topic}</code>, a message coming from topic <code>orders</code> with a key of <code>123</code> will translate into a Redis key of <code>orders:123</code>.</p>
 </div>
 <div class="paragraph">
+<p>Leave the keyspace empty ( <code>redis.keyspace =</code> ) if you don&#8217;t want any key prefix and just use the message key.</p>
+</div>
+<div class="paragraph">
 <p>For <code>stream</code>, <code>list</code>, <code>set</code>, <code>zset</code>, and <code>timeseries</code> the Redis key is just the keyspace.
 For example with <code>redis.keyspace = set:${topic}</code> and topic <code>orders</code> the Redis key is <code>set:orders</code>.</p>
 </div>
@@ -1643,7 +1646,7 @@ Duration after which the connector will stop if no activity is encountered.</td>
 <div id="footer">
 <div id="footer-text">
 Version 1.0.0<br>
-Last updated 2025-07-10 11:16:17 UTC
+Last updated 2025-07-10 12:18:24 UTC
 </div>
 </div>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prettify/r298/prettify.min.css">
