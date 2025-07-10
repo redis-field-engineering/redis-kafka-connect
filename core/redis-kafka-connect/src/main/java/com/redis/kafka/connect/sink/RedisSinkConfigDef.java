@@ -61,6 +61,12 @@ public class RedisSinkConfigDef extends RedisConfigDef {
 	public static final String TYPE_DOC = "Destination data structure: "
 			+ String.join(",", Stream.of(RedisType.values()).map(RedisType::name).toArray(String[]::new));
 
+	public static final String KEY_TTL_CONFIG = "redis.key.ttl";
+
+	public static final String KEY_TTL_CONFIG_DEFAULT = "-1";
+
+	public static final String KEY_TTL_CONFIG_DOC = "Time to live in seconds for the key. If not set, the record will not expire.";
+
 	protected static final Set<RedisType> MULTI_EXEC_COMMANDS = Stream
 			.of(RedisType.STREAM, RedisType.LIST, RedisType.SET, RedisType.ZSET).collect(Collectors.toSet());
 
@@ -81,6 +87,7 @@ public class RedisSinkConfigDef extends RedisConfigDef {
 		define(MULTIEXEC_CONFIG, Type.BOOLEAN, MULTIEXEC_DEFAULT, Importance.MEDIUM, MULTIEXEC_DOC);
 		define(WAIT_REPLICAS_CONFIG, Type.INT, WAIT_REPLICAS_DEFAULT, Importance.MEDIUM, WAIT_REPLICAS_DOC);
 		define(WAIT_TIMEOUT_CONFIG, Type.LONG, WAIT_TIMEOUT_DEFAULT, Importance.MEDIUM, WAIT_TIMEOUT_DOC);
+		define(KEY_TTL_CONFIG, Type.LONG, KEY_TTL_CONFIG_DEFAULT, Importance.MEDIUM, KEY_TTL_CONFIG_DOC);
 	}
 
 	@Override

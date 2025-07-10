@@ -86,7 +86,8 @@ curl -X POST -H "Content-Type: application/json" --data '
      "redis.uri": "redis://redis:6379",
      "key.converter": "org.apache.kafka.connect.storage.StringConverter",
      "value.converter": "org.apache.kafka.connect.json.JsonConverter",
-     "value.converter.schemas.enable": "false"
+     "value.converter.schemas.enable": "false",
+     "redis.key.ttl": "3600"
 }}' http://localhost:8083/connectors -w "\n"
 
 sleep 2

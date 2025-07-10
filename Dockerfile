@@ -1,6 +1,6 @@
-ARG CP_VERSION=7.2.0
+ARG CP_VERSION=7.7.0
 ARG BASE_PREFIX=confluentinc
-ARG CONNECT_IMAGE=cp-server-connect
+ARG CONNECT_IMAGE=cp-kafka-connect
 
 FROM openjdk:18-jdk-slim AS build
 WORKDIR /root/redis-kafka-connect
