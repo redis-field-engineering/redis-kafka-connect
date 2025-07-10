@@ -92,7 +92,7 @@ $(addBlockSwitches);
 <h1>Redis Kafka Connector</h1>
 <div class="details">
 <span id="author" class="author">Julien Ruaux</span><br>
-<span id="revnumber">version 0.9.1</span>
+<span id="revnumber">version 1.0.0</span>
 </div>
 <div id="toc" class="toc2">
 <div id="toctitle">Table of Contents</div>
@@ -122,7 +122,8 @@ $(addBlockSwitches);
 <li><a href="#_sink_redis_client">4.4. Redis Client</a></li>
 <li><a href="#_sink_redis_command">4.5. Redis Data Structures</a></li>
 <li><a href="#_sink_data_formats">4.6. Data Formats</a></li>
-<li><a href="#_sink_config">4.7. Configuration</a></li>
+<li><a href="#_sink_ttl">4.7. TTL (Time To Live)</a></li>
+<li><a href="#_sink_config">4.8. Configuration</a></li>
 </ul>
 </li>
 <li><a href="#_source_stream">5. Stream Source Connector</a>
@@ -366,7 +367,7 @@ If you receive the following error, wait three minutes and run the preceding com
      "tasks.max":"1",
      "topics":"pageviews",
      "redis.uri":"redis://redis:6379",
-     "redis.command":"JSONSET",
+     "redis.type":"JSON",
      "key.converter": "org.apache.kafka.connect.json.JsonConverter",
      "value.converter": "org.apache.kafka.connect.storage.StringConverter",
      "value.converter.schemas.enable": "false",
@@ -689,52 +690,46 @@ redis.password = pass</code></pre>
 <div class="paragraph">
 <p>The Sink Connector supports the following Redis data-structure types as targets:</p>
 </div>
-<div id="_sink_collections" class="ulist">
+<div class="ulist">
 <ul>
 <li>
-<p>Collections: <a href="#_sink_stream">stream</a>, <a href="#_sink_list">list</a>, <a href="#_sink_set">set</a>, <a href="#_sink_zset">sorted set</a>, <a href="#_sink_timeseries">time series</a></p>
-<div class="paragraph">
-<p>Collection keys are generated using the <code>redis.key</code> configuration property which may contain <code>${topic}</code> (default) as a placeholder for the originating topic name.</p>
-</div>
-<div class="paragraph">
-<p>For example with <code>redis.key = ${topic}</code> and topic <code>orders</code> the Redis key is <code>set:orders</code>.</p>
-</div>
+<p><a href="#_sink_string">string</a></p>
 </li>
 <li>
-<p><a href="#_sink_hash">Hash</a>, <a href="#_sink_string">string</a>, <a href="#_sink_json">JSON</a></p>
-<div class="paragraph">
-<p>For other data-structures the key is in the form <code>&lt;keyspace&gt;:&lt;record_key&gt;</code> where <code>keyspace</code> is generated using the <code>redis.key</code> configuration property like above and <code>record_key</code> is the sink record key.</p>
-</div>
-<div class="paragraph">
-<p>For example with <code>redis.key = ${topic}</code>, topic <code>orders</code>, and sink record key <code>123</code> the Redis key is <code>orders:123</code>.</p>
-</div>
+<p><a href="#_sink_json">JSON</a></p>
+</li>
+<li>
+<p><a href="#_sink_hash">Hash</a></p>
+</li>
+<li>
+<p><a href="#_sink_stream">stream</a></p>
+</li>
+<li>
+<p><a href="#_sink_list">list</a></p>
+</li>
+<li>
+<p><a href="#_sink_set">set</a></p>
+</li>
+<li>
+<p><a href="#_sink_zset">sorted set</a></p>
+</li>
+<li>
+<p><a href="#_sink_timeseries">time series</a></p>
 </li>
 </ul>
 </div>
 <div class="sect3">
-<h4 id="_sink_hash"><a class="anchor" href="#_sink_hash"></a>4.5.1. Hash</h4>
+<h4 id="_redis_keys"><a class="anchor" href="#_redis_keys"></a>4.5.1. Redis Keys</h4>
 <div class="paragraph">
-<p>Use the following properties to write Kafka records as Redis hashes:</p>
+<p>Redis keys are generated using the <code>redis.keyspace</code> configuration property which may contain <code>${topic}</code> (default) as a placeholder for the originating topic name.</p>
 </div>
-<div class="listingblock">
-<div class="content">
-<pre class="prettyprint highlight"><code data-lang="properties">redis.command   = HSET
-key.converter   = &lt;string or bytes&gt; <i class="conum" data-value="1"></i><b>(1)</b>
-value.converter = &lt;Avro or JSON&gt; <i class="conum" data-value="2"></i><b>(2)</b></code></pre>
+<div class="paragraph">
+<p>For <code>string</code>, <code>json</code>, and <code>hash</code> data structures, the Kafka message key will be appended to the keyspace.
+For example, with <code>redis.type = string</code>, <code>redis.keyspace = ${topic}</code>, a message coming from topic <code>orders</code> with a key of <code>123</code> will translate into a Redis key of <code>orders:123</code>.</p>
 </div>
-</div>
-<div class="colist arabic">
-<table>
-<tr>
-<td><i class="conum" data-value="1"></i><b>1</b></td>
-<td><a href="#_sink_key_string">String</a> or <a href="#_sink_key_bytes">bytes</a></td>
-</tr>
-<tr>
-<td><i class="conum" data-value="2"></i><b>2</b></td>
-<td><a href="#_sink_value_avro">Avro</a> or <a href="#_sink_value_json">JSON</a>.
-If value is null the key is deleted.</td>
-</tr>
-</table>
+<div class="paragraph">
+<p>For <code>stream</code>, <code>list</code>, <code>set</code>, <code>zset</code>, and <code>timeseries</code> the Redis key is just the keyspace.
+For example with <code>redis.keyspace = set:${topic}</code> and topic <code>orders</code> the Redis key is <code>set:orders</code>.</p>
 </div>
 </div>
 <div class="sect3">
@@ -744,7 +739,7 @@ If value is null the key is deleted.</td>
 </div>
 <div class="listingblock">
 <div class="content">
-<pre class="prettyprint highlight"><code data-lang="properties">redis.command   = SET
+<pre class="prettyprint highlight"><code data-lang="properties">redis.type      = STRING
 key.converter   = &lt;string or bytes&gt; <i class="conum" data-value="1"></i><b>(1)</b>
 value.converter = &lt;string or bytes&gt; <i class="conum" data-value="2"></i><b>(2)</b></code></pre>
 </div>
@@ -770,7 +765,7 @@ If value is null the key is deleted.</td>
 </div>
 <div class="listingblock">
 <div class="content">
-<pre class="prettyprint highlight"><code data-lang="properties">redis.command   = JSONSET
+<pre class="prettyprint highlight"><code data-lang="properties">redis.type      = JSON
 key.converter   = &lt;string, bytes, or Avro&gt; <i class="conum" data-value="1"></i><b>(1)</b>
 value.converter = &lt;string, bytes, or Avro&gt; <i class="conum" data-value="2"></i><b>(2)</b></code></pre>
 </div>
@@ -790,14 +785,14 @@ If value is null the key is deleted.</td>
 </div>
 </div>
 <div class="sect3">
-<h4 id="_sink_stream"><a class="anchor" href="#_sink_stream"></a>4.5.4. Stream</h4>
+<h4 id="_sink_hash"><a class="anchor" href="#_sink_hash"></a>4.5.4. Hash</h4>
 <div class="paragraph">
-<p>Use the following properties to store Kafka records as Redis stream messages:</p>
+<p>Use the following properties to write Kafka records as Redis hashes:</p>
 </div>
 <div class="listingblock">
 <div class="content">
-<pre class="prettyprint highlight"><code data-lang="properties">redis.command   = XADD
-redis.key       = &lt;stream key&gt; <i class="conum" data-value="1"></i><b>(1)</b>
+<pre class="prettyprint highlight"><code data-lang="properties">redis.type      = HASH
+key.converter   = &lt;string or bytes&gt; <i class="conum" data-value="1"></i><b>(1)</b>
 value.converter = &lt;Avro or JSON&gt; <i class="conum" data-value="2"></i><b>(2)</b></code></pre>
 </div>
 </div>
@@ -805,7 +800,33 @@ value.converter = &lt;Avro or JSON&gt; <i class="conum" data-value="2"></i><b>(2
 <table>
 <tr>
 <td><i class="conum" data-value="1"></i><b>1</b></td>
-<td><a href="#_sink_collections">Stream key</a></td>
+<td><a href="#_sink_key_string">String</a> or <a href="#_sink_key_bytes">bytes</a></td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td><a href="#_sink_value_avro">Avro</a> or <a href="#_sink_value_json">JSON</a>.
+If value is null the key is deleted.</td>
+</tr>
+</table>
+</div>
+</div>
+<div class="sect3">
+<h4 id="_sink_stream"><a class="anchor" href="#_sink_stream"></a>4.5.5. Stream</h4>
+<div class="paragraph">
+<p>Use the following properties to store Kafka records as Redis stream messages:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="prettyprint highlight"><code data-lang="properties">redis.type      = STREAM
+redis.keyspace  = &lt;stream key&gt; <i class="conum" data-value="1"></i><b>(1)</b>
+value.converter = &lt;Avro or JSON&gt; <i class="conum" data-value="2"></i><b>(2)</b></code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>Stream key</td>
 </tr>
 <tr>
 <td><i class="conum" data-value="2"></i><b>2</b></td>
@@ -815,15 +836,15 @@ value.converter = &lt;Avro or JSON&gt; <i class="conum" data-value="2"></i><b>(2
 </div>
 </div>
 <div class="sect3">
-<h4 id="_sink_list"><a class="anchor" href="#_sink_list"></a>4.5.5. List</h4>
+<h4 id="_sink_list"><a class="anchor" href="#_sink_list"></a>4.5.6. List</h4>
 <div class="paragraph">
 <p>Use the following properties to add Kafka record keys to a Redis list:</p>
 </div>
 <div class="listingblock">
 <div class="content">
-<pre class="prettyprint highlight"><code data-lang="properties">redis.command = &lt;LPUSH or RPUSH&gt; <i class="conum" data-value="1"></i><b>(1)</b>
-redis.key     = &lt;key name&gt; <i class="conum" data-value="2"></i><b>(2)</b>
-key.converter = &lt;string or bytes&gt; <i class="conum" data-value="3"></i><b>(3)</b></code></pre>
+<pre class="prettyprint highlight"><code data-lang="properties">redis.type     = LIST
+redis.keyspace = &lt;list key&gt; <i class="conum" data-value="2"></i><b>(2)</b>
+key.converter  = &lt;string or bytes&gt; <i class="conum" data-value="3"></i><b>(3)</b></code></pre>
 </div>
 </div>
 <div class="colist arabic">
@@ -834,7 +855,7 @@ key.converter = &lt;string or bytes&gt; <i class="conum" data-value="3"></i><b>(
 </tr>
 <tr>
 <td><i class="conum" data-value="2"></i><b>2</b></td>
-<td><a href="#_sink_collections">List key</a></td>
+<td>List key</td>
 </tr>
 <tr>
 <td><i class="conum" data-value="3"></i><b>3</b></td>
@@ -848,22 +869,22 @@ If a value is null then the member is removed from the list (instead of pushed t
 </div>
 </div>
 <div class="sect3">
-<h4 id="_sink_set"><a class="anchor" href="#_sink_set"></a>4.5.6. Set</h4>
+<h4 id="_sink_set"><a class="anchor" href="#_sink_set"></a>4.5.7. Set</h4>
 <div class="paragraph">
 <p>Use the following properties to add Kafka record keys to a Redis set:</p>
 </div>
 <div class="listingblock">
 <div class="content">
-<pre class="prettyprint highlight"><code data-lang="properties">redis.command = SADD
-redis.key     = &lt;key name&gt; <i class="conum" data-value="1"></i><b>(1)</b>
-key.converter = &lt;string or bytes&gt; <i class="conum" data-value="2"></i><b>(2)</b></code></pre>
+<pre class="prettyprint highlight"><code data-lang="properties">redis.type     = SET
+redis.keyspace = &lt;set key&gt; <i class="conum" data-value="1"></i><b>(1)</b>
+key.converter  = &lt;string or bytes&gt; <i class="conum" data-value="2"></i><b>(2)</b></code></pre>
 </div>
 </div>
 <div class="colist arabic">
 <table>
 <tr>
 <td><i class="conum" data-value="1"></i><b>1</b></td>
-<td><a href="#_sink_collections">Set key</a></td>
+<td>Set key</td>
 </tr>
 <tr>
 <td><i class="conum" data-value="2"></i><b>2</b></td>
@@ -877,22 +898,22 @@ If a value is null then the member is removed from the set (instead of added to 
 </div>
 </div>
 <div class="sect3">
-<h4 id="_sink_zset"><a class="anchor" href="#_sink_zset"></a>4.5.7. Sorted Set</h4>
+<h4 id="_sink_zset"><a class="anchor" href="#_sink_zset"></a>4.5.8. Sorted Set</h4>
 <div class="paragraph">
 <p>Use the following properties to add Kafka record keys to a Redis sorted set:</p>
 </div>
 <div class="listingblock">
 <div class="content">
-<pre class="prettyprint highlight"><code data-lang="properties">redis.command = ZADD
-redis.key     = &lt;key name&gt; <i class="conum" data-value="1"></i><b>(1)</b>
-key.converter = &lt;string or bytes&gt; <i class="conum" data-value="2"></i><b>(2)</b></code></pre>
+<pre class="prettyprint highlight"><code data-lang="properties">redis.type     = ZSET
+redis.keyspace = &lt;zset key&gt; <i class="conum" data-value="1"></i><b>(1)</b>
+key.converter  = &lt;string or bytes&gt; <i class="conum" data-value="2"></i><b>(2)</b></code></pre>
 </div>
 </div>
 <div class="colist arabic">
 <table>
 <tr>
 <td><i class="conum" data-value="1"></i><b>1</b></td>
-<td><a href="#_sink_collections">Sorted set key</a></td>
+<td>Sorted set key</td>
 </tr>
 <tr>
 <td><i class="conum" data-value="2"></i><b>2</b></td>
@@ -906,21 +927,21 @@ If the score is null then the member is removed from the sorted set (instead of 
 </div>
 </div>
 <div class="sect3">
-<h4 id="_sink_timeseries"><a class="anchor" href="#_sink_timeseries"></a>4.5.8. Time Series</h4>
+<h4 id="_sink_timeseries"><a class="anchor" href="#_sink_timeseries"></a>4.5.9. Timeseries</h4>
 <div class="paragraph">
 <p>Use the following properties to write Kafka records as RedisTimeSeries samples:</p>
 </div>
 <div class="listingblock">
 <div class="content">
-<pre class="prettyprint highlight"><code data-lang="properties">redis.command = TSADD
-redis.key     = &lt;key name&gt; <i class="conum" data-value="1"></i><b>(1)</b></code></pre>
+<pre class="prettyprint highlight"><code data-lang="properties">redis.type     = TIMESERIES
+redis.keyspace = &lt;key name&gt; <i class="conum" data-value="1"></i><b>(1)</b></code></pre>
 </div>
 </div>
 <div class="colist arabic">
 <table>
 <tr>
 <td><i class="conum" data-value="1"></i><b>1</b></td>
-<td><a href="#_sink_collections">Timeseries key</a></td>
+<td>Timeseries key</td>
 </tr>
 </table>
 </div>
@@ -1135,15 +1156,70 @@ value.converter.schemas.enable = &lt;true|false&gt; <i class="conum" data-value=
 </div>
 </div>
 <div class="sect2">
-<h3 id="_sink_config"><a class="anchor" href="#_sink_config"></a>4.7. Configuration</h3>
+<h3 id="_sink_ttl"><a class="anchor" href="#_sink_ttl"></a>4.7. TTL (Time To Live)</h3>
+<div class="paragraph">
+<p>The Sink Connector supports setting TTL (Time To Live) for Redis keys to automatically expire data after a specified duration. TTL can be configured globally for all keys or per-message using Kafka headers.</p>
+</div>
+<div class="sect3">
+<h4 id="_global_ttl_configuration"><a class="anchor" href="#_global_ttl_configuration"></a>4.7.1. Global TTL Configuration</h4>
+<div class="paragraph">
+<p>Set a global TTL for all keys using the <code>redis.key.ttl</code> configuration property:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="prettyprint highlight"><code data-lang="properties">redis.key.ttl = 3600  # TTL in seconds (1 hour)</code></pre>
+</div>
+</div>
+</div>
+<div class="sect3">
+<h4 id="_per_message_ttl"><a class="anchor" href="#_per_message_ttl"></a>4.7.2. Per-Message TTL</h4>
+<div class="paragraph">
+<p>Include a <code>redis.key.ttl</code> header in your Kafka messages to set TTL for individual records:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="prettyprint highlight"><code data-lang="java">ProducerRecord&lt;String, String&gt; record = new ProducerRecord&lt;&gt;("topic", "key", "value");
+record.headers().add("redis.key.ttl", "1800".getBytes()); // 30 minutes</code></pre>
+</div>
+</div>
+</div>
+<div class="sect3">
+<h4 id="_ttl_behavior"><a class="anchor" href="#_ttl_behavior"></a>4.7.3. TTL Behavior</h4>
+<div class="ulist">
+<ul>
+<li>
+<p>TTL is applied using the Redis <code>EXPIRE</code> command after data is written</p>
+</li>
+<li>
+<p>Per-message TTL headers take precedence over global configuration</p>
+</li>
+<li>
+<p>TTL applies to all Redis data types</p>
+</li>
+<li>
+<p>For collection types (STREAM, LIST, SET, ZSET, TIMESERIES), TTL is applied to the collection key</p>
+</li>
+<li>
+<p>Invalid TTL values are logged and ignored</p>
+</li>
+<li>
+<p>TTL value of -1 (default) means no expiration</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_sink_config"><a class="anchor" href="#_sink_config"></a>4.8. Configuration</h3>
 <div class="listingblock">
 <div class="content">
 <pre class="prettyprint highlight"><code data-lang="properties">connector.class  = com.redis.kafka.connect.RedisSinkConnector
 topics           = &lt;Kafka topic&gt; <i class="conum" data-value="1"></i><b>(1)</b>
 redis.uri        = &lt;Redis URI&gt; <i class="conum" data-value="2"></i><b>(2)</b>
-redis.command    = &lt;HSET|SET|JSONSET|XADD|RPUSH|SADD|ZADD|TSADD&gt; <i class="conum" data-value="3"></i><b>(3)</b>
-key.converter    = &lt;Key converter&gt; <i class="conum" data-value="4"></i><b>(4)</b>
-value.converter  = &lt;Value converter&gt; <i class="conum" data-value="5"></i><b>(5)</b></code></pre>
+redis.type       = &lt;HASH|SET|JSON|STREAM|LIST|SET|ZSET|TIMESERIES&gt; <i class="conum" data-value="3"></i><b>(3)</b>
+redis.key.ttl    = &lt;TTL in seconds&gt; <i class="conum" data-value="4"></i><b>(4)</b>
+key.converter    = &lt;Key converter&gt; <i class="conum" data-value="5"></i><b>(5)</b>
+value.converter  = &lt;Value converter&gt; <i class="conum" data-value="6"></i><b>(6)</b></code></pre>
 </div>
 </div>
 <div class="colist arabic">
@@ -1162,10 +1238,14 @@ value.converter  = &lt;Value converter&gt; <i class="conum" data-value="5"></i><
 </tr>
 <tr>
 <td><i class="conum" data-value="4"></i><b>4</b></td>
-<td><a href="#_sink_key">Key converter</a>.</td>
+<td><a href="#_sink_ttl">TTL in seconds</a> (optional, default: -1 for no expiration).</td>
 </tr>
 <tr>
 <td><i class="conum" data-value="5"></i><b>5</b></td>
+<td><a href="#_sink_key">Key converter</a>.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="6"></i><b>6</b></td>
 <td><a href="#_sink_value">Value converter</a>.</td>
 </tr>
 </table>
@@ -1562,8 +1642,8 @@ Duration after which the connector will stop if no activity is encountered.</td>
 </div>
 <div id="footer">
 <div id="footer-text">
-Version 0.9.1<br>
-Last updated 2024-05-14 01:27:36 UTC
+Version 1.0.0<br>
+Last updated 2025-07-10 11:16:17 UTC
 </div>
 </div>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prettify/r298/prettify.min.css">
