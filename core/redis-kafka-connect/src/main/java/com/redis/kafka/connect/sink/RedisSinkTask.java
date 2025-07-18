@@ -335,8 +335,8 @@ public class RedisSinkTask extends SinkTask {
             return body;
         }
         if (value == null) {
-			    return Collections.emptyMap();
-		    }
+			return Collections.emptyMap();
+    	}
         throw new ConnectException("Unsupported source value type: " + sinkRecord.valueSchema().type().name());
     }
 
