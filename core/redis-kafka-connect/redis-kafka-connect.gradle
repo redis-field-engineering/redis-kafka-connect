@@ -45,6 +45,8 @@ jar.finalizedBy shadowJar
 tasks.named('shadowJar', com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar) {
     enableRelocation true
     relocationPrefix "com.redis.kafka.connect.shaded"
+    relocate 'org.springframework.batch.core', 'org.springframework.batch.core'
+    mergeServiceFiles()
 }
 
 def archiveFilename = "redis-redis-kafka-connect"

@@ -48,6 +48,8 @@ Redis keys are generated using the `redis.keyspace` configuration property which
 For `string`, `json`, and `hash` data structures, the Kafka message key will be appended to the keyspace.
 For example, with `redis.type = string`, `redis.keyspace = ${topic}`, a message coming from topic `orders` with a key of `123` will translate into a Redis key of `orders:123`.
 
+Leave the keyspace empty ( `redis.keyspace =` ) if you don't want any key prefix and just use the message key.
+
 For `stream`, `list`, `set`, `zset`, and `timeseries` the Redis key is just the keyspace.
 For example with `redis.keyspace = set:${topic}` and topic `orders` the Redis key is `set:orders`.
 
@@ -266,6 +268,39 @@ value.converter.schemas.enable = <true|false> <1>
 ----
 <1> Set to `true` if the JSON record structure has an attached schema
 
+[[_sink_ttl]]
+== TTL (Time To Live)
+
+The {name} supports setting TTL (Time To Live) for Redis keys to automatically expire data after a specified duration. TTL can be configured globally for all keys or per-message using Kafka headers.
+
+=== Global TTL Configuration
+
+Set a global TTL for all keys using the `redis.key.ttl` configuration property:
+
+[source,properties]
+----
+redis.key.ttl = 3600  # TTL in seconds (1 hour)
+----
+
+=== Per-Message TTL
+
+Include a `redis.key.ttl` header in your Kafka messages to set TTL for individual records:
+
+[source,java]
+----
+ProducerRecord<String, String> record = new ProducerRecord<>("topic", "key", "value");
+record.headers().add("redis.key.ttl", "1800".getBytes()); // 30 minutes
+----
+
+=== TTL Behavior
+
+* TTL is applied using the Redis `EXPIRE` command after data is written
+* Per-message TTL headers take precedence over global configuration
+* TTL applies to all Redis data types
+* For collection types (STREAM, LIST, SET, ZSET, TIMESERIES), TTL is applied to the collection key
+* Invalid TTL values are logged and ignored
+* TTL value of -1 (default) means no expiration
+
 [[_sink_config]]
 == Configuration
 
@@ -275,12 +310,14 @@ connector.class  = com.redis.kafka.connect.RedisSinkConnector
 topics           = <Kafka topic> <1>
 redis.uri        = <Redis URI> <2>
 redis.type       = <HASH|SET|JSON|STREAM|LIST|SET|ZSET|TIMESERIES> <3>
-key.converter    = <Key converter> <4>
-value.converter  = <Value converter> <5>
+redis.key.ttl    = <TTL in seconds> <4>
+key.converter    = <Key converter> <5>
+value.converter  = <Value converter> <6>
 ----
 <1> Kafka topics to read messsages from.
 <2> <<_sink_redis_client,Redis URI>>.
 <3> <<_sink_redis_command,Redis command>>.
-<4> <<_sink_key,Key converter>>.
-<5> <<_sink_value,Value converter>>.
+<4> <<_sink_ttl,TTL in seconds>> (optional, default: -1 for no expiration).
+<5> <<_sink_key,Key converter>>.
+<6> <<_sink_value,Value converter>>.
 

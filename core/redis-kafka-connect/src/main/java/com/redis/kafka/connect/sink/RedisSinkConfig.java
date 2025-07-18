@@ -37,6 +37,7 @@ public class RedisSinkConfig extends RedisConfig {
 	private final boolean multiExec;
 	private final int waitReplicas;
 	private final Duration waitTimeout;
+	private final long keyTTL;
 
 	public RedisSinkConfig(Map<?, ?> originals) {
 		super(new RedisSinkConfigDef(), originals);
@@ -48,6 +49,7 @@ public class RedisSinkConfig extends RedisConfig {
 		multiExec = Boolean.TRUE.equals(getBoolean(RedisSinkConfigDef.MULTIEXEC_CONFIG));
 		waitReplicas = getInt(RedisSinkConfigDef.WAIT_REPLICAS_CONFIG);
 		waitTimeout = Duration.ofMillis(getLong(RedisSinkConfigDef.WAIT_TIMEOUT_CONFIG));
+		keyTTL = getLong(RedisSinkConfigDef.KEY_TTL_CONFIG);
 	}
 
 	public Charset getCharset() {
@@ -78,12 +80,16 @@ public class RedisSinkConfig extends RedisConfig {
 		return waitTimeout;
 	}
 
+	public long getKeyTTL() {
+		return keyTTL;
+	}
+
 	@Override
 	public int hashCode() {
 		final int prime = 31;
 		int result = super.hashCode();
 		result = prime * result
-				+ Objects.hash(charset, keyspace, separator, multiExec, type, waitReplicas, waitTimeout);
+				+ Objects.hash(charset, keyspace, separator, multiExec, type, waitReplicas, waitTimeout, keyTTL);
 		return result;
 	}
 
@@ -98,7 +104,7 @@ public class RedisSinkConfig extends RedisConfig {
 		RedisSinkConfig other = (RedisSinkConfig) obj;
 		return Objects.equals(charset, other.charset) && Objects.equals(keyspace, other.keyspace)
 				&& Objects.equals(separator, other.separator) && multiExec == other.multiExec && type == other.type
-				&& waitReplicas == other.waitReplicas && waitTimeout == other.waitTimeout;
+				&& waitReplicas == other.waitReplicas && waitTimeout == other.waitTimeout && keyTTL == other.keyTTL;
 	}
 
 }
