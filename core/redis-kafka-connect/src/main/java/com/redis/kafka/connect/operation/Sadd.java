@@ -4,7 +4,12 @@ import com.redis.spring.batch.writer.operation.AbstractKeyWriteOperation;
 import io.lettuce.core.RedisFuture;
 import io.lettuce.core.api.async.BaseRedisAsyncCommands;
 import io.lettuce.core.api.async.RedisSetAsyncCommands;
+import io.lettuce.core.api.async.RedisKeyAsyncCommands;
+
+import java.util.Map;
 import java.util.function.Function;
+
+import org.apache.kafka.connect.sink.SinkRecord;
 
 public class Sadd<K, V, T> extends AbstractKeyWriteOperation<K, V, T> {
     private Function<T, V> valueFunction;
@@ -21,6 +26,18 @@ public class Sadd<K, V, T> extends AbstractKeyWriteOperation<K, V, T> {
         this.conditionFunction = function;
     }
 
+    private int parseTtlHours(SinkRecord sinkRecord) {
+        Object value = sinkRecord.value();
+        if (value == null) {
+            return -1;
+        }
+        try {
+            return Integer.parseInt(value.toString());
+        } catch (Exception e) {
+            return -1;
+        }
+    }
+
     protected RedisFuture<Long> execute(BaseRedisAsyncCommands<K, V> commands, T item, K key) {
         // For simplicity we will assume schemaless payloads
         // System.out.println("[Sadd] key=" + key + ", item=" + item);
@@ -30,7 +47,12 @@ public class Sadd<K, V, T> extends AbstractKeyWriteOperation<K, V, T> {
         if (toRemove) {
             return ((RedisSetAsyncCommands<K, V>) commands).srem(key, value);
         } else {
-            return ((RedisSetAsyncCommands<K, V>) commands).sadd(key, value);
+            RedisFuture<Long> future = ((RedisSetAsyncCommands<K, V>) commands).sadd(key, value);
+            int ttlHours = parseTtlHours((SinkRecord) item);
+            if (ttlHours > 0) {
+                ((RedisKeyAsyncCommands<K, V>) commands).expire(key, ttlHours * 3600);
+            }
+            return future;
         }
     }
 }

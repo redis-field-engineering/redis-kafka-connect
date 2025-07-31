@@ -16,7 +16,7 @@ After a successful build, the connector's fat JAR (including all dependencies) w
 build/libs/redis-kafka-connect-{project-version}-all.jar
 ```
 
-Replace `{project-version}` with the current version number, e.g., `0.9.3`.
+Replace `{project-version}` with the current version number, e.g., `0.9.4`.
 
 You can use this `-all.jar` file to deploy the connector manually or include it in your Kafka Connect plugins directory.
 
