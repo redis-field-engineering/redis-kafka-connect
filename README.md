@@ -9,7 +9,7 @@ gradlew.bat clean build -x test
 
 Run the above command in a Windows CMD or PowerShell terminal from the root directory of the cloned repository.
 
-After a successful build, the connector's fat JAR (including all dependencies) will be located at:
+After a successful build, the connector's complete JAR (including all dependencies) will be located at:
 
 [source,console]
 ```
@@ -18,11 +18,11 @@ build/libs/redis-kafka-connect-{project-version}-all.jar
 
 Replace `{project-version}` with the current version number, e.g., `0.9.4`.
 
-You can use this `-all.jar` file to deploy the connector manually or include it in your Kafka Connect plugins directory.
+You can use this `*-all.jar` file to deploy the connector manually or include it in your Kafka Connect plugins directory.
 
 ---
 
-## Using the Fat JAR
+## Using the Complete JAR
 
 Copy the `redis-kafka-connect-{project-version}-all.jar` file to your Kafka Connect `plugins` folder or load it directly as required by your deployment environment.
 
