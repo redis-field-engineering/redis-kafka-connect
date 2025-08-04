@@ -97,14 +97,14 @@ curl -X POST -H "Content-Type: application/json" --data '
    "config": {
      "connector.class": "com.redis.kafka.connect.RedisSinkConnector",
      "tasks.max": "1",
-     "key.converter": "org.apache.kafka.connect.json.JsonConverter",
+     "key.converter": "org.apache.kafka.connect.storage.StringConverter",
      "redis.type": "JSON",
      "redis.uri": "redis://redis:6379",
      "topics": "pageviews",
      "transforms": "Cast",
      "transforms.Cast.spec": "string",
      "transforms.Cast.type": "org.apache.kafka.connect.transforms.Cast$Key",
-     "value.converter": "org.apache.kafka.connect.storage.StringConverter",
+     "value.converter": "org.apache.kafka.connect.json.JsonConverter",
      "value.converter.schemas.enable": "false"
 }}' http://localhost:8083/connectors -w "\n"
 
