@@ -41,11 +41,6 @@ public class RedisKeysSourceTask extends SourceTask {
 
 	public static final Schema KEY_SCHEMA = Schema.STRING_SCHEMA;
 
-	/**
-	 * The offsets that have been processed and that are to be acknowledged by the
-	 * reader in {@link RedisKeysSourceTask#commit()}.
-	 */
-	private final List<Map<String, ?>> sourceOffsets = new ArrayList<>();
 	private final ToStructFunction converter = new ToStructFunction();
 	private final Clock clock;
 
@@ -96,17 +91,10 @@ public class RedisKeysSourceTask extends SourceTask {
 		}
 	}
 
-	private void addSourceOffset(Map<String, ?> sourceOffset) {
-		sourceOffsets.add(sourceOffset);
-	}
-
 	@Deprecated
 	@Override
 	public void commitRecord(SourceRecord sourceRecord) throws InterruptedException {
-		Map<String, ?> currentOffset = sourceRecord.sourceOffset();
-		if (currentOffset != null) {
-			addSourceOffset(currentOffset);
-		}
+		// do nothing - offset tracking not needed for Redis key monitoring
 	}
 
 	@Override
