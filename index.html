@@ -92,7 +92,7 @@ $(addBlockSwitches);
 <h1>Redis Kafka Connector</h1>
 <div class="details">
 <span id="author" class="author">Julien Ruaux</span><br>
-<span id="revnumber">version 1.0.1</span>
+<span id="revnumber">version 1.1.0</span>
 </div>
 <div id="toc" class="toc2">
 <div id="toctitle">Table of Contents</div>
@@ -1554,7 +1554,8 @@ redis.password = pass</code></pre>
 <pre class="prettyprint highlight"><code data-lang="properties">connector.class    = com.redis.kafka.connect.RedisKeysSourceConnector
 redis.keys.pattern = &lt;glob&gt; <i class="conum" data-value="1"></i><b>(1)</b>
 redis.keys.timeout = &lt;millis&gt; <i class="conum" data-value="2"></i><b>(2)</b>
-topic              = &lt;name&gt; <i class="conum" data-value="3"></i><b>(3)</b></code></pre>
+topic              = &lt;name&gt; <i class="conum" data-value="3"></i><b>(3)</b>
+mode               = &lt;LIVE|LIVEONLY&gt; <i class="conum" data-value="4"></i><b>(4)</b></code></pre>
 </div>
 </div>
 <div class="colist arabic">
@@ -1563,8 +1564,10 @@ topic              = &lt;name&gt; <i class="conum" data-value="3"></i><b>(3)</b>
 <td><i class="conum" data-value="1"></i><b>1</b></td>
 <td>Key pattern to subscribe to.
 This is the key portion of the pattern that will be used to listen to keyspace events.
-For example <code>foo:*</code> translates to pubsub channel <code>__keyspace@0__:foo:*</code> and will capture changes to keys <code>foo:1</code>, <code>foo:2</code>, etc.
-See <a href="https://redis.io/commands/keys/">Redis KEYS</a> for pattern details.</td>
+<div class="paragraph">
+<p>For example <code>foo:*</code> translates to pubsub channel <code>__keyspace@0__:foo:*</code> and will capture changes to keys <code>foo:1</code>, <code>foo:2</code>, etc.
+See <a href="https://redis.io/commands/keys/">Redis KEYS</a> for pattern details.</p>
+</div></td>
 </tr>
 <tr>
 <td><i class="conum" data-value="2"></i><b>2</b></td>
@@ -1574,6 +1577,22 @@ Duration after which the connector will stop if no activity is encountered.</td>
 <tr>
 <td><i class="conum" data-value="3"></i><b>3</b></td>
 <td>Name of the destination topic.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="4"></i><b>4</b></td>
+<td>Reading mode:
+<div class="dlist">
+<dl>
+<dt class="hdlist1"><code>LIVE</code> (default)</dt>
+<dd>
+<p>initial snapshot + updates</p>
+</dd>
+<dt class="hdlist1"><code>LIVEONLY</code></dt>
+<dd>
+<p>just updates</p>
+</dd>
+</dl>
+</div></td>
 </tr>
 </table>
 </div>
@@ -1645,8 +1664,8 @@ Duration after which the connector will stop if no activity is encountered.</td>
 </div>
 <div id="footer">
 <div id="footer-text">
-Version 1.0.1<br>
-Last updated 2025-07-11 14:16:36 UTC
+Version 1.1.0<br>
+Last updated 2025-09-03 19:49:51 UTC
 </div>
 </div>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prettify/r298/prettify.min.css">
