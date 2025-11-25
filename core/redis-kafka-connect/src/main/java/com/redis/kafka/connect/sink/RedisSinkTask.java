@@ -15,17 +15,21 @@
  */
 package com.redis.kafka.connect.sink;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.stream.Collector;
-import java.util.stream.Collectors;
-
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.redis.kafka.connect.common.ManifestVersionProvider;
+import com.redis.lettucemod.RedisModulesUtils;
+import com.redis.lettucemod.api.StatefulRedisModulesConnection;
+import com.redis.lettucemod.timeseries.Sample;
+import com.redis.spring.batch.item.redis.RedisItemWriter;
+import com.redis.spring.batch.item.redis.common.Operation;
+import com.redis.spring.batch.item.redis.writer.impl.*;
+import com.redis.spring.batch.item.redis.writer.impl.Set;
+import io.lettuce.core.*;
+import io.lettuce.core.api.async.RedisAsyncCommands;
+import io.lettuce.core.codec.ByteArrayCodec;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.config.ConfigException;
@@ -34,42 +38,22 @@ import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.errors.DataException;
 import org.apache.kafka.connect.errors.RetriableException;
+import org.apache.kafka.connect.header.Header;
 import org.apache.kafka.connect.json.JsonConverter;
 import org.apache.kafka.connect.sink.SinkRecord;
 import org.apache.kafka.connect.sink.SinkTask;
 import org.apache.kafka.connect.storage.Converter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.batch.item.Chunk;
 import org.springframework.batch.item.ExecutionContext;
 import org.springframework.util.CollectionUtils;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.redis.kafka.connect.common.ManifestVersionProvider;
-import com.redis.lettucemod.api.StatefulRedisModulesConnection;
-import com.redis.lettucemod.util.RedisModulesUtils;
-import com.redis.spring.batch.common.ToSampleFunction;
-import com.redis.spring.batch.common.ToScoredValueFunction;
-import com.redis.spring.batch.writer.OperationItemWriter;
-import com.redis.spring.batch.writer.WriteOperation;
-import com.redis.spring.batch.writer.operation.Del;
-import com.redis.spring.batch.writer.operation.Hset;
-import com.redis.spring.batch.writer.operation.JsonSet;
-import com.redis.spring.batch.writer.operation.Lpush;
-import com.redis.spring.batch.writer.operation.Rpush;
-import com.redis.spring.batch.writer.operation.Sadd;
-import com.redis.spring.batch.writer.operation.Set;
-import com.redis.spring.batch.writer.operation.TsAdd;
-import com.redis.spring.batch.writer.operation.Xadd;
-import com.redis.spring.batch.writer.operation.Zadd;
-
-import io.lettuce.core.AbstractRedisClient;
-import io.lettuce.core.KeyValue;
-import io.lettuce.core.RedisCommandTimeoutException;
-import io.lettuce.core.RedisConnectionException;
-import io.lettuce.core.codec.ByteArrayCodec;
+import java.util.*;
+import java.util.Map.Entry;
+import java.util.function.Predicate;
+import java.util.stream.Collector;
+import java.util.stream.Collectors;
 
 public class RedisSinkTask extends SinkTask {
 
@@ -85,17 +69,9 @@ public class RedisSinkTask extends SinkTask {
     private RedisSinkConfig config;
 
     private AbstractRedisClient client;
-
     private StatefulRedisModulesConnection<String, String> connection;
-
     private Converter jsonConverter;
-
-    private OperationItemWriter<byte[], byte[], SinkRecord> writer;
-
-    @Override
-    public String version() {
-        return ManifestVersionProvider.getVersion();
-    }
+    private RedisItemWriter<byte[], byte[], SinkRecord> writer;
 
     private static ObjectMapper objectMapper() {
         ObjectMapper mapper = new ObjectMapper();
@@ -105,6 +81,27 @@ public class RedisSinkTask extends SinkTask {
         return mapper;
     }
 
+    private static String offsetKey(String topic, Integer partition) {
+        return String.format(OFFSET_KEY_FORMAT, topic, partition);
+    }
+
+    private static String offsetKey(SinkOffsetState state) {
+        return offsetKey(state.topic(), state.partition());
+    }
+
+    private static String offsetValue(SinkOffsetState state) {
+        try {
+            return objectMapper.writeValueAsString(state);
+        } catch (JsonProcessingException e) {
+            throw new DataException("Could not serialize sink offset state", e);
+        }
+    }
+
+    @Override
+    public String version() {
+        return ManifestVersionProvider.getVersion();
+    }
+
     @Override
     public void start(final Map<String, String> props) {
         config = new RedisSinkConfig(props);
@@ -112,7 +109,8 @@ public class RedisSinkTask extends SinkTask {
         jsonConverter.configure(Collections.singletonMap("schemas.enable", "false"), false);
         client = config.client();
         connection = RedisModulesUtils.connection(client);
-        writer = new OperationItemWriter<>(client, ByteArrayCodec.INSTANCE, operation());
+        writer = RedisItemWriter.operation(ByteArrayCodec.INSTANCE, new ConditionalDel(operation(), del()));
+        writer.setClient(client);
         writer.setMultiExec(config.isMultiExec());
         writer.setWaitReplicas(config.getWaitReplicas());
         writer.setWaitTimeout(config.getWaitTimeout());
@@ -133,6 +131,17 @@ public class RedisSinkTask extends SinkTask {
         this.context.offset(partitionOffsets);
     }
 
+    private Operation<byte[], byte[], SinkRecord, Object> del() {
+        switch (config.getType()) {
+            case HASH:
+            case JSON:
+            case STRING:
+                return new Del<>(this::key);
+            default:
+                return new Noop<>();
+        }
+    }
+
     private Collection<SinkOffsetState> offsetStates(java.util.Set<TopicPartition> assignment) {
         String[] partitionKeys = assignment.stream().map(this::offsetKey).toArray(String[]::new);
         List<KeyValue<String, String>> values = connection.sync().mget(partitionKeys);
@@ -151,64 +160,76 @@ public class RedisSinkTask extends SinkTask {
         }
     }
 
-    private static String offsetKey(String topic, Integer partition) {
-        return String.format(OFFSET_KEY_FORMAT, topic, partition);
+    private Operation<byte[], byte[], SinkRecord, Object> operation() {
+        Operation<byte[], byte[], SinkRecord, Object> oper;
+
+        switch (config.getType()) {
+            case HASH -> oper = new Hset<>(this::key, this::map);
+            case JSON -> oper = new JsonSet<>(this::key, this::jsonValue);
+            case STRING -> oper = new Set<>(this::key, this::value);
+            case STREAM -> oper = new Xadd<>(this::collectionKey, this::streamMessages);
+            case LIST -> oper = new Rpush<>(this::collectionKey, this::members);
+            case SET -> oper = new Sadd<>(this::collectionKey, this::members);
+            case TIMESERIES -> oper = new TsAdd<>(this::collectionKey, this::samples);
+            case ZSET -> oper = new Zadd<>(this::collectionKey, this::scoredValues);
+            default -> throw new ConfigException(RedisSinkConfigDef.TYPE_CONFIG, config.getType());
+        }
+
+        return new TTLSupport(oper);
     }
 
-    private WriteOperation<byte[], byte[], SinkRecord> operation() {
-        switch (config.getCommand()) {
-            case HSET:
-                Hset<byte[], byte[], SinkRecord> hset = new Hset<>();
-                hset.setKeyFunction(this::key);
-                hset.setMapFunction(this::map);
-                return hset;
-            case JSONSET:
-                JsonSet<byte[], byte[], SinkRecord> jsonSet = new JsonSet<>();
-                jsonSet.setKeyFunction(this::key);
-                jsonSet.setValueFunction(this::jsonValue);
-                return jsonSet;
-            case SET:
-                Set<byte[], byte[], SinkRecord> set = new Set<>();
-                set.setKeyFunction(this::key);
-                set.setValueFunction(this::value);
-                return set;
-            case XADD:
-                Xadd<byte[], byte[], SinkRecord> xadd = new Xadd<>();
-                xadd.setKeyFunction(this::collectionKey);
-                xadd.setBodyFunction(this::map);
-                return xadd;
-            case LPUSH:
-                Lpush<byte[], byte[], SinkRecord> lpush = new Lpush<>();
-                lpush.setKeyFunction(this::collectionKey);
-                lpush.setValueFunction(this::member);
-                return lpush;
-            case RPUSH:
-                Rpush<byte[], byte[], SinkRecord> rpush = new Rpush<>();
-                rpush.setKeyFunction(this::collectionKey);
-                rpush.setValueFunction(this::member);
-                return rpush;
-            case SADD:
-                Sadd<byte[], byte[], SinkRecord> sadd = new Sadd<>();
-                sadd.setKeyFunction(this::collectionKey);
-                sadd.setValueFunction(this::member);
-                return sadd;
-            case TSADD:
-                TsAdd<byte[], byte[], SinkRecord> tsAdd = new TsAdd<>();
-                tsAdd.setKeyFunction(this::collectionKey);
-                tsAdd.setSampleFunction(new ToSampleFunction<>(this::longMember, this::doubleValue));
-                return tsAdd;
-            case ZADD:
-                Zadd<byte[], byte[], SinkRecord> zadd = new Zadd<>();
-                zadd.setKeyFunction(this::collectionKey);
-                zadd.setValueFunction(new ToScoredValueFunction<>(this::member, this::doubleValue));
-                return zadd;
-            case DEL:
-                Del<byte[], byte[], SinkRecord> del = new Del<>();
-                del.setKeyFunction(this::key);
-                return del;
-            default:
-                throw new ConfigException(RedisSinkConfigDef.COMMAND_CONFIG, config.getCommand());
+    private class TTLSupport implements Operation<byte[], byte[], SinkRecord, Object> {
+        private final Operation<byte[], byte[], SinkRecord, Object> delegate;
+
+        public TTLSupport(Operation<byte[], byte[], SinkRecord, Object> delegate) {
+            this.delegate = delegate;
         }
+
+        @Override
+        public List<RedisFuture<Object>> execute(RedisAsyncCommands<byte[], byte[]> commands, Chunk<? extends SinkRecord> items) {
+            List<RedisFuture<Object>> futures = new ArrayList<>(delegate.execute(commands, items));
+
+            for (SinkRecord record : items) {
+                byte[] key = determineKey(record);
+                long ttlFromRecord = extractTTLFromHeaders(record);
+
+                if (ttlFromRecord > 0) {
+                    futures.add((RedisFuture<Object>) (RedisFuture<?>) commands.expire(key, ttlFromRecord));
+                } else if (config.getKeyTTL() > 0) {
+                    futures.add((RedisFuture<Object>) (RedisFuture<?>) commands.expire(key, config.getKeyTTL()));
+                }
+            }
+
+            return futures;
+        }
+
+        private byte[] determineKey(SinkRecord record) {
+            return switch (config.getType()) {
+                case STREAM, LIST, SET, ZSET, TIMESERIES -> collectionKey(record);
+                default -> key(record);
+            };
+        }
+
+        private long extractTTLFromHeaders(SinkRecord record) {
+            for (Header header : record.headers()) {
+                if (header.key().equals(RedisSinkConfigDef.KEY_TTL_CONFIG)) {
+                    try {
+                        return Long.parseLong(header.value().toString());
+                    } catch (NumberFormatException e) {
+                        log.warn("Invalid TTL header value for record {}: {}", record, header.value());
+                    }
+                }
+            }
+            return -1L;
+        }
+    }
+
+    private Collection<ScoredValue<byte[]>> scoredValues(SinkRecord sinkRecord) {
+        return Arrays.asList(ScoredValue.just(doubleValue(sinkRecord), member(sinkRecord)));
+    }
+
+    private Collection<Sample> samples(SinkRecord sinkRecord) {
+        return Arrays.asList(Sample.of(longMember(sinkRecord), doubleValue(sinkRecord)));
     }
 
     private byte[] value(SinkRecord sinkRecord) {
@@ -259,6 +280,10 @@ public class RedisSinkTask extends SinkTask {
         return key.getBytes(config.getCharset());
     }
 
+    private Collection<byte[]> members(SinkRecord sinkRecord) {
+        return Arrays.asList(member(sinkRecord));
+    }
+
     private byte[] member(SinkRecord sinkRecord) {
         return bytes("key", sinkRecord.key());
     }
@@ -283,6 +308,10 @@ public class RedisSinkTask extends SinkTask {
         return keyspace(sinkRecord).getBytes(config.getCharset());
     }
 
+    private Collection<StreamMessage<byte[], byte[]>> streamMessages(SinkRecord sinkRecord) {
+        return Arrays.asList(new StreamMessage<>(collectionKey(sinkRecord), null, map(sinkRecord)));
+    }
+
     @SuppressWarnings("unchecked")
     private Map<byte[], byte[]> map(SinkRecord sinkRecord) {
         Object value = sinkRecord.value();
@@ -303,7 +332,8 @@ public class RedisSinkTask extends SinkTask {
             Map<String, Object> map = (Map<String, Object>) value;
             Map<byte[], byte[]> body = new LinkedHashMap<>();
             for (Map.Entry<String, Object> e : map.entrySet()) {
-                body.put(e.getKey().getBytes(config.getCharset()), String.valueOf(e.getValue()).getBytes(config.getCharset()));
+                body.put(e.getKey().getBytes(config.getCharset()),
+                        String.valueOf(e.getValue()).getBytes(config.getCharset()));
             }
             return body;
         }
@@ -391,12 +421,16 @@ public class RedisSinkTask extends SinkTask {
             throw new RetriableException("Could not get connection to Redis", e);
         } catch (RedisCommandTimeoutException e) {
             throw new RetriableException("Timeout while writing sink records", e);
+        } catch (Exception e) {
+            throw new RetriableException("Could not write sink records", e);
         }
+        log.info("Wrote {} records", records.size());
     }
 
     @Override
     public void flush(Map<TopicPartition, OffsetAndMetadata> currentOffsets) {
-        Map<String, String> offsets = currentOffsets.entrySet().stream().map(this::offsetState).collect(offsetCollector);
+        Map<String, String> offsets = currentOffsets.entrySet().stream().map(this::offsetState)
+                .collect(offsetCollector);
         log.trace("Writing offsets: {}", offsets);
         try {
             connection.sync().mset(offsets);
@@ -409,16 +443,30 @@ public class RedisSinkTask extends SinkTask {
         return SinkOffsetState.of(entry.getKey(), entry.getValue().offset());
     }
 
-    private static String offsetKey(SinkOffsetState state) {
-        return offsetKey(state.topic(), state.partition());
-    }
+    private class ConditionalDel implements Operation<byte[], byte[], SinkRecord, Object> {
 
-    private static String offsetValue(SinkOffsetState state) {
-        try {
-            return objectMapper.writeValueAsString(state);
-        } catch (JsonProcessingException e) {
-            throw new DataException("Could not serialize sink offset state", e);
+        private final Predicate<SinkRecord> delPredicate = r -> r.value() == null;
+        private final Operation<byte[], byte[], SinkRecord, Object> write;
+        private final Operation<byte[], byte[], SinkRecord, Object> del;
+
+        public ConditionalDel(Operation<byte[], byte[], SinkRecord, Object> delegate,
+                              Operation<byte[], byte[], SinkRecord, Object> remove) {
+            this.write = delegate;
+            this.del = remove;
         }
+
+        @Override
+        public List<RedisFuture<Object>> execute(RedisAsyncCommands<byte[], byte[]> commands,
+                                                 Chunk<? extends SinkRecord> items) {
+            List<RedisFuture<Object>> futures = new ArrayList<>();
+            List<SinkRecord> toRemove = items.getItems().stream().filter(delPredicate).collect(Collectors.toList());
+            futures.addAll(del.execute(commands, new Chunk<>(toRemove)));
+            List<SinkRecord> toWrite = items.getItems().stream().filter(delPredicate.negate())
+                    .collect(Collectors.toList());
+            futures.addAll(write.execute(commands, new Chunk<>(toWrite)));
+            return futures;
+        }
+
     }
 
 }

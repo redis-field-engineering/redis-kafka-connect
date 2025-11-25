@@ -49,12 +49,18 @@ connector.class    = com.redis.kafka.connect.RedisKeysSourceConnector
 redis.keys.pattern = <glob> <1>
 redis.keys.timeout = <millis> <2>
 topic              = <name> <3>
+mode               = <LIVE|LIVEONLY> <4>
 ----
 <1> Key pattern to subscribe to.
 This is the key portion of the pattern that will be used to listen to keyspace events.
++
 For example `foo:*` translates to pubsub channel `$$__$$keyspace@0$$__$$:foo:*` and will capture changes to keys `foo:1`, `foo:2`, etc.
 See {link_redis_keys} for pattern details.
 <2> Idle timeout in millis.
 Duration after which the connector will stop if no activity is encountered.
 <3> Name of the destination topic.
+<4> Reading mode:
++
+`LIVE` (default):: initial snapshot + updates
+`LIVEONLY`:: just updates
 

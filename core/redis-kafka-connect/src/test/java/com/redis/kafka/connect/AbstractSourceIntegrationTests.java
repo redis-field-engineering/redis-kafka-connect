@@ -11,6 +11,7 @@ import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
+import com.redis.spring.batch.item.redis.RedisItemReader;
 import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.source.SourceRecord;
@@ -26,6 +27,7 @@ import org.junit.jupiter.api.TestInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.batch.core.JobExecutionException;
+import org.springframework.batch.item.ExecutionContext;
 import org.springframework.util.Assert;
 
 import com.redis.kafka.connect.common.RedisConfigDef;
@@ -36,13 +38,11 @@ import com.redis.kafka.connect.source.RedisStreamSourceConfigDef;
 import com.redis.kafka.connect.source.RedisStreamSourceTask;
 import com.redis.kafka.connect.source.ToStructFunction;
 import com.redis.lettucemod.api.sync.RedisModulesCommands;
-import com.redis.spring.batch.common.DataType;
-import com.redis.spring.batch.gen.GeneratorItemReader;
-import com.redis.spring.batch.reader.KeyValueItemReader;
+import com.redis.spring.batch.item.redis.RedisItemWriter;
+import com.redis.spring.batch.item.redis.common.KeyValue;
+import com.redis.spring.batch.item.redis.gen.GeneratorItemReader;
 import com.redis.spring.batch.test.AbstractTestBase;
-import com.redis.spring.batch.writer.StructItemWriter;
 
-import io.lettuce.core.codec.StringCodec;
 import io.lettuce.core.models.stream.PendingMessages;
 
 abstract class AbstractSourceIntegrationTests extends AbstractTestBase {
@@ -52,11 +52,6 @@ abstract class AbstractSourceIntegrationTests extends AbstractTestBase {
     private RedisStreamSourceTask streamSourceTask;
 
     private RedisKeysSourceTask keysSourceTask;
-
-    @Override
-    protected DataType[] generatorDataTypes() {
-        return AbstractTestBase.REDIS_GENERATOR_TYPES;
-    }
 
     @BeforeEach
     public void setupTasks() {
@@ -117,7 +112,6 @@ abstract class AbstractSourceIntegrationTests extends AbstractTestBase {
         Map<String, String> config = map(props);
         config.put(RedisConfigDef.URI_CONFIG, getRedisServer().getRedisURI());
         task.start(config);
-
     }
 
     private void startStreamSourceTask(String... props) {
@@ -150,17 +144,17 @@ abstract class AbstractSourceIntegrationTests extends AbstractTestBase {
         String field2 = "field2";
         String value2 = "value2";
         Map<String, String> body = map(field1, value1, field2, value2);
-        String id1 = connection.sync().xadd(stream, body);
-        String id2 = connection.sync().xadd(stream, body);
-        String id3 = connection.sync().xadd(stream, body);
+        String id1 = redisConnection.sync().xadd(stream, body);
+        String id2 = redisConnection.sync().xadd(stream, body);
+        String id3 = redisConnection.sync().xadd(stream, body);
         List<SourceRecord> sourceRecords = new ArrayList<>();
         Awaitility.await().until(() -> sourceRecords.addAll(streamSourceTask.poll()));
         Assertions.assertEquals(3, sourceRecords.size());
         assertEquals(id1, body, stream, topicPrefix + stream, sourceRecords.get(0));
         assertEquals(id2, body, stream, topicPrefix + stream, sourceRecords.get(1));
         assertEquals(id3, body, stream, topicPrefix + stream, sourceRecords.get(2));
-        PendingMessages pendingMsgs = connection.sync().xpending(stream,
-                RedisStreamSourceConfigDef.STREAM_CONSUMER_GROUP_DEFAULT);
+        PendingMessages pendingMsgs = redisConnection.sync()
+                .xpending(stream, RedisStreamSourceConfigDef.STREAM_CONSUMER_GROUP_DEFAULT);
         Assertions.assertEquals(0, pendingMsgs.getCount(), "pending messages");
     }
 
@@ -175,23 +169,23 @@ abstract class AbstractSourceIntegrationTests extends AbstractTestBase {
         String field2 = "field2";
         String value2 = "value2";
         Map<String, String> body = map(field1, value1, field2, value2);
-        String id1 = connection.sync().xadd(stream, body);
-        String id2 = connection.sync().xadd(stream, body);
-        String id3 = connection.sync().xadd(stream, body);
+        String id1 = redisConnection.sync().xadd(stream, body);
+        String id2 = redisConnection.sync().xadd(stream, body);
+        String id3 = redisConnection.sync().xadd(stream, body);
         List<SourceRecord> sourceRecords = new ArrayList<>();
         Awaitility.await().until(() -> sourceRecords.addAll(streamSourceTask.poll()));
         Assertions.assertEquals(3, sourceRecords.size());
         assertEquals(id1, body, stream, topicPrefix + stream, sourceRecords.get(0));
         assertEquals(id2, body, stream, topicPrefix + stream, sourceRecords.get(1));
         assertEquals(id3, body, stream, topicPrefix + stream, sourceRecords.get(2));
-        PendingMessages pendingMsgsBeforeCommit = connection.sync().xpending(stream,
-                RedisStreamSourceConfigDef.STREAM_CONSUMER_GROUP_DEFAULT);
+        PendingMessages pendingMsgsBeforeCommit = redisConnection.sync()
+                .xpending(stream, RedisStreamSourceConfigDef.STREAM_CONSUMER_GROUP_DEFAULT);
         Assertions.assertEquals(3, pendingMsgsBeforeCommit.getCount(), "pending messages before commit");
         streamSourceTask.commitRecord(sourceRecords.get(0), new RecordMetadata(null, 0, 0, 0, 0, 0));
         streamSourceTask.commitRecord(sourceRecords.get(1), new RecordMetadata(null, 0, 0, 0, 0, 0));
         streamSourceTask.commit();
-        PendingMessages pendingMsgsAfterCommit = connection.sync().xpending(stream,
-                RedisStreamSourceConfigDef.STREAM_CONSUMER_GROUP_DEFAULT);
+        PendingMessages pendingMsgsAfterCommit = redisConnection.sync()
+                .xpending(stream, RedisStreamSourceConfigDef.STREAM_CONSUMER_GROUP_DEFAULT);
         Assertions.assertEquals(1, pendingMsgsAfterCommit.getCount(), "pending messages after commit");
     }
 
@@ -206,17 +200,17 @@ abstract class AbstractSourceIntegrationTests extends AbstractTestBase {
         String field2 = "field2";
         String value2 = "value2";
         Map<String, String> body = map(field1, value1, field2, value2);
-        connection.sync().xadd(stream, body);
-        connection.sync().xadd(stream, body);
-        connection.sync().xadd(stream, body);
+        redisConnection.sync().xadd(stream, body);
+        redisConnection.sync().xadd(stream, body);
+        redisConnection.sync().xadd(stream, body);
         List<SourceRecord> sourceRecords = new ArrayList<>();
         Awaitility.await().until(() -> sourceRecords.addAll(streamSourceTask.poll()));
         Assertions.assertEquals(3, sourceRecords.size());
 
         List<SourceRecord> recoveredRecords = new ArrayList<>();
-        connection.sync().xadd(stream, body);
-        connection.sync().xadd(stream, body);
-        connection.sync().xadd(stream, body);
+        redisConnection.sync().xadd(stream, body);
+        redisConnection.sync().xadd(stream, body);
+        redisConnection.sync().xadd(stream, body);
 
         // create a new task, same config
         setupTasks();
@@ -240,9 +234,9 @@ abstract class AbstractSourceIntegrationTests extends AbstractTestBase {
         String field2 = "field2";
         String value2 = "value2";
         Map<String, String> body = map(field1, value1, field2, value2);
-        connection.sync().xadd(stream, body);
-        connection.sync().xadd(stream, body);
-        String id3 = connection.sync().xadd(stream, body);
+        redisConnection.sync().xadd(stream, body);
+        redisConnection.sync().xadd(stream, body);
+        String id3 = redisConnection.sync().xadd(stream, body);
         List<SourceRecord> sourceRecords = new ArrayList<>();
         Awaitility.await().until(() -> sourceRecords.addAll(streamSourceTask.poll()));
         Assertions.assertEquals(3, sourceRecords.size());
@@ -251,9 +245,9 @@ abstract class AbstractSourceIntegrationTests extends AbstractTestBase {
         streamSourceTask.commit();
 
         List<SourceRecord> recoveredRecords = new ArrayList<>();
-        String id4 = connection.sync().xadd(stream, body);
-        String id5 = connection.sync().xadd(stream, body);
-        String id6 = connection.sync().xadd(stream, body);
+        String id4 = redisConnection.sync().xadd(stream, body);
+        String id5 = redisConnection.sync().xadd(stream, body);
+        String id6 = redisConnection.sync().xadd(stream, body);
 
         // create a new task, same config
         setupTasks();
@@ -279,22 +273,22 @@ abstract class AbstractSourceIntegrationTests extends AbstractTestBase {
         String field2 = "field2";
         String value2 = "value2";
         Map<String, String> body = map(field1, value1, field2, value2);
-        String id1 = connection.sync().xadd(stream, body);
+        String id1 = redisConnection.sync().xadd(stream, body);
         log.info("ID1: " + id1);
-        String id2 = connection.sync().xadd(stream, body);
+        String id2 = redisConnection.sync().xadd(stream, body);
         log.info("ID2: " + id2);
-        String id3 = connection.sync().xadd(stream, body);
+        String id3 = redisConnection.sync().xadd(stream, body);
         log.info("ID3: " + id3);
         List<SourceRecord> records = new ArrayList<>();
         Awaitility.await().until(() -> records.addAll(streamSourceTask.poll()));
         Assertions.assertEquals(3, records.size());
 
         List<SourceRecord> recoveredRecords = new ArrayList<>();
-        String id4 = connection.sync().xadd(stream, body);
+        String id4 = redisConnection.sync().xadd(stream, body);
         log.info("ID4: " + id4);
-        String id5 = connection.sync().xadd(stream, body);
+        String id5 = redisConnection.sync().xadd(stream, body);
         log.info("ID5: " + id5);
-        String id6 = connection.sync().xadd(stream, body);
+        String id6 = redisConnection.sync().xadd(stream, body);
         log.info("ID6: " + id6);
 
         // create a new task, same config
@@ -326,17 +320,17 @@ abstract class AbstractSourceIntegrationTests extends AbstractTestBase {
         String field2 = "field2";
         String value2 = "value2";
         Map<String, String> body = map(field1, value1, field2, value2);
-        connection.sync().xadd(stream, body);
-        connection.sync().xadd(stream, body);
-        connection.sync().xadd(stream, body);
+        redisConnection.sync().xadd(stream, body);
+        redisConnection.sync().xadd(stream, body);
+        redisConnection.sync().xadd(stream, body);
         List<SourceRecord> sourceRecords = new ArrayList<>();
         Awaitility.await().until(() -> sourceRecords.addAll(streamSourceTask.poll()));
         Assertions.assertEquals(3, sourceRecords.size());
 
         List<SourceRecord> recoveredRecords = new ArrayList<>();
-        String id4 = connection.sync().xadd(stream, body);
-        String id5 = connection.sync().xadd(stream, body);
-        String id6 = connection.sync().xadd(stream, body);
+        String id4 = redisConnection.sync().xadd(stream, body);
+        String id5 = redisConnection.sync().xadd(stream, body);
+        String id6 = redisConnection.sync().xadd(stream, body);
 
         // create a new task, same config
         setupTasks();
@@ -364,17 +358,17 @@ abstract class AbstractSourceIntegrationTests extends AbstractTestBase {
         String field2 = "field2";
         String value2 = "value2";
         Map<String, String> body = map(field1, value1, field2, value2);
-        connection.sync().xadd(stream, body);
-        connection.sync().xadd(stream, body);
-        connection.sync().xadd(stream, body);
+        redisConnection.sync().xadd(stream, body);
+        redisConnection.sync().xadd(stream, body);
+        redisConnection.sync().xadd(stream, body);
         List<SourceRecord> sourceRecords = new ArrayList<>();
         Awaitility.await().until(() -> sourceRecords.addAll(streamSourceTask.poll()));
         Assertions.assertEquals(3, sourceRecords.size());
 
         List<SourceRecord> recoveredRecords = new ArrayList<>();
-        String id4 = connection.sync().xadd(stream, body);
-        String id5 = connection.sync().xadd(stream, body);
-        String id6 = connection.sync().xadd(stream, body);
+        String id4 = redisConnection.sync().xadd(stream, body);
+        String id5 = redisConnection.sync().xadd(stream, body);
+        String id6 = redisConnection.sync().xadd(stream, body);
 
         // create a new task, same config except AT_MOST_ONCE
         setupTasks();
@@ -389,7 +383,8 @@ abstract class AbstractSourceIntegrationTests extends AbstractTestBase {
                 .collect(Collectors.toList());
         Assertions.assertEquals(Arrays.asList(id4, id5, id6), recoveredIds, "recoveredIds");
 
-        PendingMessages pending = connection.sync().xpending(stream, RedisStreamSourceConfigDef.STREAM_CONSUMER_GROUP_DEFAULT);
+        PendingMessages pending = redisConnection.sync()
+                .xpending(stream, RedisStreamSourceConfigDef.STREAM_CONSUMER_GROUP_DEFAULT);
         Assertions.assertEquals(0, pending.getCount(), "pending message count");
     }
 
@@ -403,25 +398,64 @@ abstract class AbstractSourceIntegrationTests extends AbstractTestBase {
     }
 
     @Test
-    void pollKeys(TestInfo info) throws Exception {
-        enableKeyspaceNotifications(client);
+    void pollKeysLive(TestInfo info) throws JobExecutionException {
+        GeneratorItemReader generator = generator(100);
+        RedisItemWriter<String, String, KeyValue<String>> writer = RedisItemWriter.struct();
+        writer.setClient(redisClient);
+        run(info, step(info, 1, generator, null, writer));
+        enableKeyspaceNotifications();
         String topic = "mytopic";
-        startKeysSourceTask(RedisKeysSourceConfigDef.TOPIC_CONFIG, topic, RedisKeysSourceConfigDef.IDLE_TIMEOUT_CONFIG, "3000");
-        KeyValueItemReader<String, String> reader = keysSourceTask.getReader();
-        Awaitility.await().until(reader::isOpen);
-        int count = 100;
+        startKeysSourceTask(RedisKeysSourceConfigDef.TOPIC_CONFIG, topic, RedisKeysSourceConfigDef.IDLE_TIMEOUT_CONFIG, "500");
         final List<SourceRecord> sourceRecords = new ArrayList<>();
         Executors.newSingleThreadScheduledExecutor().execute(() -> {
-            GeneratorItemReader generator = generator(count);
-            StructItemWriter<String, String> writer = new StructItemWriter<>(client, StringCodec.UTF8);
+            TestInfo liveInfo = testInfo(info, "live");
+            GeneratorItemReader liveGenerator = generator(100);
+            liveGenerator.setKeyspace("livegen");
+            RedisItemWriter<String, String, KeyValue<String>> liveWriter = RedisItemWriter.struct();
+            liveWriter.setClient(redisClient);
             try {
-                run(info, step(info, 1, generator, null, writer));
-            } catch (JobExecutionException e) {
+                run(liveInfo, step(liveInfo, 1, liveGenerator, null, liveWriter));
+            } catch (Exception e) {
                 throw new RuntimeException("Could not execute data gen");
             }
         });
         awaitUntil(() -> {
-            sourceRecords.addAll(keysSourceTask.poll());
+            List<SourceRecord> records = keysSourceTask.poll();
+            log.info("Polled {} records", records.size());
+            sourceRecords.addAll(records);
+            return sourceRecords.size() >= 200;
+        });
+        for (SourceRecord record : sourceRecords) {
+            Assertions.assertEquals(topic, record.topic());
+            Compare compare = values((Struct) record.value());
+            if (compare != null) {
+                Assertions.assertEquals(compare.expected, compare.actual);
+            }
+        }
+    }
+
+    @Test
+    void pollKeysLiveOnly(TestInfo info) {
+        enableKeyspaceNotifications();
+        String topic = "mytopic";
+        startKeysSourceTask(RedisKeysSourceConfigDef.TOPIC_CONFIG, topic, RedisKeysSourceConfigDef.IDLE_TIMEOUT_CONFIG, "500",
+                RedisKeysSourceConfigDef.MODE_CONFIG, RedisItemReader.ReaderMode.LIVEONLY.name());
+        int count = 100;
+        final List<SourceRecord> sourceRecords = new ArrayList<>();
+        Executors.newSingleThreadScheduledExecutor().execute(() -> {
+            GeneratorItemReader generator = generator(count);
+            RedisItemWriter<String, String, KeyValue<String>> writer = RedisItemWriter.struct();
+            writer.setClient(redisClient);
+            try {
+                run(info, step(info, 1, generator, null, writer));
+            } catch (Exception e) {
+                throw new RuntimeException("Could not execute data gen");
+            }
+        });
+        awaitUntil(() -> {
+            List<SourceRecord> records = keysSourceTask.poll();
+            log.info("Polled {} records", records.size());
+            sourceRecords.addAll(records);
             return sourceRecords.size() >= count;
         });
         for (SourceRecord record : sourceRecords) {
@@ -448,21 +482,21 @@ abstract class AbstractSourceIntegrationTests extends AbstractTestBase {
 
     private Compare values(Struct struct) {
         String key = struct.getString(ToStructFunction.FIELD_KEY);
-        DataType type = DataType.of(struct.getString(ToStructFunction.FIELD_TYPE));
-        Assertions.assertEquals(connection.sync().type(key), type.getString());
-        RedisModulesCommands<String, String> commands = connection.sync();
+        String type = struct.getString(ToStructFunction.FIELD_TYPE);
+        Assertions.assertEquals(redisConnection.sync().type(key), type);
+        RedisModulesCommands<String, String> commands = redisConnection.sync();
         switch (type) {
-            case HASH:
+            case KeyValue.TYPE_HASH:
                 return compare(commands.hgetall(key), struct.getMap(ToStructFunction.FIELD_HASH));
-            case JSON:
-                return compare(commands.jsonGet(key, "."), struct.getString(ToStructFunction.FIELD_JSON));
-            case LIST:
+            case KeyValue.TYPE_JSON:
+                return compare(commands.jsonGet(key).get(0).toString(), struct.getString(ToStructFunction.FIELD_JSON));
+            case KeyValue.TYPE_LIST:
                 return compare(commands.lrange(key, 0, -1), struct.getArray(ToStructFunction.FIELD_LIST));
-            case SET:
+            case KeyValue.TYPE_SET:
                 return compare(commands.smembers(key), new HashSet<>(struct.getArray(ToStructFunction.FIELD_SET)));
-            case STRING:
+            case KeyValue.TYPE_STRING:
                 return compare(commands.get(key), struct.getString(ToStructFunction.FIELD_STRING));
-            case ZSET:
+            case KeyValue.TYPE_ZSET:
                 return compare(ToStructFunction.zsetMap(commands.zrangeWithScores(key, 0, -1)),
                         struct.getMap(ToStructFunction.FIELD_ZSET));
             default:
