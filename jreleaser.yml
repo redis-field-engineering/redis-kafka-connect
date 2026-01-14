@@ -50,7 +50,8 @@ release:
 
 signing:
   active: ALWAYS
-  armored: true
+  pgp:
+    armored: true
 
 announce:
   slack:
