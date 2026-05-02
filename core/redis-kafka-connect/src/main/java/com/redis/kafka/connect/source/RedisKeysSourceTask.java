@@ -95,6 +95,11 @@ public class RedisKeysSourceTask extends SourceTask {
 				return;
 			} catch (ItemStreamException e) {
 				lastException = e;
+				try {
+					reader.close();
+				} catch (Exception ce) {
+					log.debug("Error closing reader after failed open attempt", ce);
+				}
 				if (attempt < MAX_OPEN_RETRIES) {
 					log.warn("Failed to open reader (attempt {}/{}), retrying in {}ms",
 							attempt, MAX_OPEN_RETRIES, RETRY_DELAY_MS, e);
