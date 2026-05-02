@@ -102,7 +102,7 @@ public class RedisKeysSourceTask extends SourceTask {
 						Thread.sleep(RETRY_DELAY_MS);
 					} catch (InterruptedException ie) {
 						Thread.currentThread().interrupt();
-						throw new ConnectException("Interrupted while retrying reader open", e);
+						throw new ConnectException("Interrupted while retrying reader open", ie);
 					}
 				}
 			}
@@ -134,9 +134,13 @@ public class RedisKeysSourceTask extends SourceTask {
 		if (client != null) {
 			try {
 				client.shutdown();
-				client.getResources().shutdown();
 			} catch (Exception e) {
 				log.warn("Error shutting down Redis client", e);
+			}
+			try {
+				client.getResources().shutdown();
+			} catch (Exception e) {
+				log.warn("Error shutting down Redis client resources", e);
 			}
 			client = null;
 		}
