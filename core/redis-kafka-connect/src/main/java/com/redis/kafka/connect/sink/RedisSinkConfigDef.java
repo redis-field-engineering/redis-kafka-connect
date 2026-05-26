@@ -67,6 +67,12 @@ public class RedisSinkConfigDef extends RedisConfigDef {
 
 	public static final String KEY_TTL_CONFIG_DOC = "Time to live in seconds for the key. If not set, the record will not expire.";
 
+	public static final String OFFSET_NAMESPACE_CONFIG = "redis.offset.namespace";
+
+	public static final String OFFSET_NAMESPACE_DEFAULT = "";
+
+	public static final String OFFSET_NAMESPACE_DOC = "Namespace for sink offset keys stored in Redis. If empty, the connector name is used.";
+
 	protected static final Set<RedisType> MULTI_EXEC_COMMANDS = Stream
 			.of(RedisType.STREAM, RedisType.LIST, RedisType.SET, RedisType.ZSET).collect(Collectors.toSet());
 
@@ -88,6 +94,7 @@ public class RedisSinkConfigDef extends RedisConfigDef {
 		define(WAIT_REPLICAS_CONFIG, Type.INT, WAIT_REPLICAS_DEFAULT, Importance.MEDIUM, WAIT_REPLICAS_DOC);
 		define(WAIT_TIMEOUT_CONFIG, Type.LONG, WAIT_TIMEOUT_DEFAULT, Importance.MEDIUM, WAIT_TIMEOUT_DOC);
 		define(KEY_TTL_CONFIG, Type.LONG, KEY_TTL_CONFIG_DEFAULT, Importance.MEDIUM, KEY_TTL_CONFIG_DOC);
+		define(OFFSET_NAMESPACE_CONFIG, Type.STRING, OFFSET_NAMESPACE_DEFAULT, Importance.MEDIUM, OFFSET_NAMESPACE_DOC);
 	}
 
 	@Override

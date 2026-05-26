@@ -1,7 +1,10 @@
 package com.redis.kafka.connect;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.nio.charset.StandardCharsets;
@@ -16,6 +19,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.record.TimestampType;
 import org.apache.kafka.connect.data.Schema;
@@ -56,6 +60,10 @@ abstract class AbstractSinkIntegrationTests extends AbstractTestBase {
 
     public static final long TIMESTAMP = 1530286549123L;
 
+    private static final String OFFSET_KEY_FORMAT = "com.redis.kafka.connect.sink.offset.%s.%s.%s";
+
+    private static final String LEGACY_OFFSET_KEY_FORMAT = "com.redis.kafka.connect.sink.offset.%s.%s";
+
     public static SinkRecord write(String topic, SchemaAndValue key, SchemaAndValue value) {
         Preconditions.notNull(topic, "topic cannot be null");
         Preconditions.notNull(key, "key cannot be null.");
@@ -75,6 +83,22 @@ abstract class AbstractSinkIntegrationTests extends AbstractTestBase {
             body.put(args[index * 2], args[index * 2 + 1]);
         }
         return body;
+    }
+
+    private Map<String, String> sinkProps(String connectorName) {
+        return ImmutableMap.of("name", connectorName, RedisSinkConfigDef.URI_CONFIG, getRedisServer().getRedisURI());
+    }
+
+    private static String offsetKey(String namespace, TopicPartition topicPartition) {
+        return String.format(OFFSET_KEY_FORMAT, namespace, topicPartition.topic(), topicPartition.partition());
+    }
+
+    private static String legacyOffsetKey(TopicPartition topicPartition) {
+        return String.format(LEGACY_OFFSET_KEY_FORMAT, topicPartition.topic(), topicPartition.partition());
+    }
+
+    private static String offsetValue(String topic, int partition, long offset) {
+        return "{\"topic\":\"" + topic + "\",\"partition\":" + partition + ",\"offset\":" + offset + "}";
     }
 
     private RedisSinkTask task;
@@ -103,10 +127,88 @@ abstract class AbstractSinkIntegrationTests extends AbstractTestBase {
     void putEmpty() {
         String topic = "putWrite";
         SinkTaskContext context = mock(SinkTaskContext.class);
-        when(context.assignment()).thenReturn(ImmutableSet.of(new TopicPartition(topic, 1)));
         this.task.initialize(context);
         this.task.start(ImmutableMap.of(RedisSinkConfigDef.URI_CONFIG, getRedisServer().getRedisURI()));
         this.task.put(ImmutableList.of());
+    }
+
+    @Test
+    void flushWritesNamespacedOffset() throws JsonProcessingException {
+        String topic = "flushWritesNamespacedOffset";
+        TopicPartition topicPartition = new TopicPartition(topic, PARTITION);
+        SinkTaskContext context = mock(SinkTaskContext.class);
+        this.task.initialize(context);
+        this.task.start(sinkProps("connector-a"));
+
+        this.task.flush(ImmutableMap.of(topicPartition, new OffsetAndMetadata(123L)));
+
+        String value = redisConnection.sync().get(offsetKey("connector-a", topicPartition));
+        @SuppressWarnings("unchecked")
+        Map<String, Object> offset = new ObjectMapper().readValue(value, Map.class);
+        assertEquals(topic, offset.get("topic"));
+        assertEquals(PARTITION, offset.get("partition"));
+        assertEquals(123, offset.get("offset"));
+    }
+
+    @Test
+    void openRestoresNamespacedOffset() {
+        String topic = "openRestoresNamespacedOffset";
+        TopicPartition topicPartition = new TopicPartition(topic, PARTITION);
+        redisConnection.sync().set(offsetKey("connector-a", topicPartition), offsetValue(topic, PARTITION, 456L));
+        SinkTaskContext context = mock(SinkTaskContext.class);
+        this.task.initialize(context);
+        this.task.start(sinkProps("connector-a"));
+
+        this.task.open(ImmutableList.of(topicPartition));
+
+        verify(context).offset(ImmutableMap.of(topicPartition, 456L));
+    }
+
+    @Test
+    void openDoesNotSeekPartitionsWithoutStoredOffsets() {
+        TopicPartition topicPartition = new TopicPartition("openDoesNotSeekPartitionsWithoutStoredOffsets", PARTITION);
+        SinkTaskContext context = mock(SinkTaskContext.class);
+        this.task.initialize(context);
+        this.task.start(sinkProps("connector-a"));
+
+        this.task.open(ImmutableList.of(topicPartition));
+
+        verify(context, never()).offset(anyMap());
+    }
+
+    @Test
+    void openFallsBackToLegacyOffsetKey() {
+        String topic = "openFallsBackToLegacyOffsetKey";
+        TopicPartition topicPartition = new TopicPartition(topic, PARTITION);
+        redisConnection.sync().set(legacyOffsetKey(topicPartition), offsetValue(topic, PARTITION, 789L));
+        SinkTaskContext context = mock(SinkTaskContext.class);
+        this.task.initialize(context);
+        this.task.start(sinkProps("connector-a"));
+
+        this.task.open(ImmutableList.of(topicPartition));
+
+        verify(context).offset(ImmutableMap.of(topicPartition, 789L));
+    }
+
+    @Test
+    void offsetsAreScopedByNamespace() {
+        String topic = "offsetsAreScopedByNamespace";
+        TopicPartition topicPartition = new TopicPartition(topic, PARTITION);
+        SinkTaskContext context = mock(SinkTaskContext.class);
+        this.task.initialize(context);
+        this.task.start(sinkProps("connector-a"));
+
+        this.task.flush(ImmutableMap.of(topicPartition, new OffsetAndMetadata(11L)));
+        this.task.stop();
+        this.task = new RedisSinkTask();
+        this.task.initialize(context);
+        this.task.start(sinkProps("connector-b"));
+        this.task.flush(ImmutableMap.of(topicPartition, new OffsetAndMetadata(22L)));
+
+        Assertions.assertNotNull(redisConnection.sync().get(offsetKey("connector-a", topicPartition)));
+        Assertions.assertNotNull(redisConnection.sync().get(offsetKey("connector-b", topicPartition)));
+        Assertions.assertNotEquals(redisConnection.sync().get(offsetKey("connector-a", topicPartition)),
+                redisConnection.sync().get(offsetKey("connector-b", topicPartition)));
     }
 
     @Test

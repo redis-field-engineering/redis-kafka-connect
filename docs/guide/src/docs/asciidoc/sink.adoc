@@ -311,13 +311,14 @@ topics           = <Kafka topic> <1>
 redis.uri        = <Redis URI> <2>
 redis.type       = <HASH|SET|JSON|STREAM|LIST|SET|ZSET|TIMESERIES> <3>
 redis.key.ttl    = <TTL in seconds> <4>
-key.converter    = <Key converter> <5>
-value.converter  = <Value converter> <6>
+redis.offset.namespace = <Offset namespace> <5>
+key.converter    = <Key converter> <6>
+value.converter  = <Value converter> <7>
 ----
 <1> Kafka topics to read messsages from.
 <2> <<_sink_redis_client,Redis URI>>.
 <3> <<_sink_redis_command,Redis command>>.
 <4> <<_sink_ttl,TTL in seconds>> (optional, default: -1 for no expiration).
-<5> <<_sink_key,Key converter>>.
-<6> <<_sink_value,Value converter>>.
-
+<5> Namespace for sink offset keys stored in Redis (optional, default: connector name).
+<6> <<_sink_key,Key converter>>.
+<7> <<_sink_value,Value converter>>.
