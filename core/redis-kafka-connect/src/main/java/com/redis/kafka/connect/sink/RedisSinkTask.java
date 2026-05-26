@@ -47,24 +47,21 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.batch.item.Chunk;
 import org.springframework.batch.item.ExecutionContext;
-import org.springframework.util.CollectionUtils;
 
 import java.util.*;
 import java.util.Map.Entry;
 import java.util.function.Predicate;
-import java.util.stream.Collector;
 import java.util.stream.Collectors;
 
 public class RedisSinkTask extends SinkTask {
 
     private static final Logger log = LoggerFactory.getLogger(RedisSinkTask.class);
 
-    private static final String OFFSET_KEY_FORMAT = "com.redis.kafka.connect.sink.offset.%s.%s";
+    private static final String OFFSET_KEY_FORMAT = "com.redis.kafka.connect.sink.offset.%s.%s.%s";
+
+    private static final String LEGACY_OFFSET_KEY_FORMAT = "com.redis.kafka.connect.sink.offset.%s.%s";
 
     private static final ObjectMapper objectMapper = objectMapper();
-
-    private static final Collector<SinkOffsetState, ?, Map<String, String>> offsetCollector = Collectors
-            .toMap(RedisSinkTask::offsetKey, RedisSinkTask::offsetValue);
 
     private RedisSinkConfig config;
 
@@ -79,14 +76,6 @@ public class RedisSinkTask extends SinkTask {
         mapper.configure(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS, true);
         mapper.configure(DeserializationFeature.USE_LONG_FOR_INTS, true);
         return mapper;
-    }
-
-    private static String offsetKey(String topic, Integer partition) {
-        return String.format(OFFSET_KEY_FORMAT, topic, partition);
-    }
-
-    private static String offsetKey(SinkOffsetState state) {
-        return offsetKey(state.topic(), state.partition());
     }
 
     private static String offsetValue(SinkOffsetState state) {
@@ -116,17 +105,25 @@ public class RedisSinkTask extends SinkTask {
         writer.setWaitTimeout(config.getWaitTimeout());
         writer.setPoolSize(config.getPoolSize());
         writer.open(new ExecutionContext());
-        java.util.Set<TopicPartition> assignment = this.context.assignment();
-        if (CollectionUtils.isEmpty(assignment)) {
+    }
+
+    @Override
+    public void open(Collection<TopicPartition> partitions) {
+        super.open(partitions);
+        if (partitions.isEmpty()) {
             return;
         }
+        restoreOffsets(partitions);
+    }
+
+    private void restoreOffsets(Collection<TopicPartition> assignment) {
         Map<TopicPartition, Long> partitionOffsets = new HashMap<>(assignment.size());
         for (SinkOffsetState state : offsetStates(assignment)) {
             partitionOffsets.put(state.topicPartition(), state.offset());
             log.info("Requesting offset {} for {}", state.offset(), state.topicPartition());
         }
-        for (TopicPartition topicPartition : assignment) {
-            partitionOffsets.putIfAbsent(topicPartition, 0L);
+        if (partitionOffsets.isEmpty()) {
+            return;
         }
         this.context.offset(partitionOffsets);
     }
@@ -142,19 +139,45 @@ public class RedisSinkTask extends SinkTask {
         }
     }
 
-    private Collection<SinkOffsetState> offsetStates(java.util.Set<TopicPartition> assignment) {
-        String[] partitionKeys = assignment.stream().map(this::offsetKey).toArray(String[]::new);
-        List<KeyValue<String, String>> values = connection.sync().mget(partitionKeys);
-        return values.stream().filter(KeyValue::hasValue).map(this::offsetState).collect(Collectors.toList());
+    private Collection<SinkOffsetState> offsetStates(Collection<TopicPartition> assignment) {
+        return assignment.stream().map(this::offsetState).filter(Optional::isPresent).map(Optional::get)
+                .collect(Collectors.toList());
+    }
+
+    private Optional<SinkOffsetState> offsetState(TopicPartition partition) {
+        String value = connection.sync().get(offsetKey(partition));
+        if (value == null) {
+            value = connection.sync().get(legacyOffsetKey(partition));
+        }
+        if (value == null) {
+            return Optional.empty();
+        }
+        SinkOffsetState state = offsetState(value);
+        if (!partition.equals(state.topicPartition())) {
+            throw new DataException("Sink offset state does not match partition " + partition);
+        }
+        return Optional.of(state);
     }
 
     private String offsetKey(TopicPartition partition) {
         return offsetKey(partition.topic(), partition.partition());
     }
 
-    private SinkOffsetState offsetState(KeyValue<String, String> value) {
+    private String offsetKey(SinkOffsetState state) {
+        return offsetKey(state.topic(), state.partition());
+    }
+
+    private String offsetKey(String topic, Integer partition) {
+        return String.format(OFFSET_KEY_FORMAT, config.getOffsetNamespace(), topic, partition);
+    }
+
+    private String legacyOffsetKey(TopicPartition partition) {
+        return String.format(LEGACY_OFFSET_KEY_FORMAT, partition.topic(), partition.partition());
+    }
+
+    private SinkOffsetState offsetState(String value) {
         try {
-            return objectMapper.readValue(value.getValue(), SinkOffsetState.class);
+            return objectMapper.readValue(value, SinkOffsetState.class);
         } catch (JsonProcessingException e) {
             throw new DataException("Could not parse sink offset state", e);
         }
@@ -369,7 +392,10 @@ public class RedisSinkTask extends SinkTask {
     @Override
     public void flush(Map<TopicPartition, OffsetAndMetadata> currentOffsets) {
         Map<String, String> offsets = currentOffsets.entrySet().stream().map(this::offsetState)
-                .collect(offsetCollector);
+                .collect(Collectors.toMap(this::offsetKey, RedisSinkTask::offsetValue));
+        if (offsets.isEmpty()) {
+            return;
+        }
         log.trace("Writing offsets: {}", offsets);
         try {
             connection.sync().mset(offsets);

@@ -20,6 +20,8 @@ import java.time.Duration;
 import java.util.Map;
 import java.util.Objects;
 
+import org.springframework.util.StringUtils;
+
 import com.redis.kafka.connect.common.RedisConfig;
 
 public class RedisSinkConfig extends RedisConfig {
@@ -38,6 +40,7 @@ public class RedisSinkConfig extends RedisConfig {
 	private final int waitReplicas;
 	private final Duration waitTimeout;
 	private final long keyTTL;
+	private final String offsetNamespace;
 
 	public RedisSinkConfig(Map<?, ?> originals) {
 		super(new RedisSinkConfigDef(), originals);
@@ -50,6 +53,19 @@ public class RedisSinkConfig extends RedisConfig {
 		waitReplicas = getInt(RedisSinkConfigDef.WAIT_REPLICAS_CONFIG);
 		waitTimeout = Duration.ofMillis(getLong(RedisSinkConfigDef.WAIT_TIMEOUT_CONFIG));
 		keyTTL = getLong(RedisSinkConfigDef.KEY_TTL_CONFIG);
+		offsetNamespace = offsetNamespace(originals);
+	}
+
+	private String offsetNamespace(Map<?, ?> originals) {
+		String namespace = getString(RedisSinkConfigDef.OFFSET_NAMESPACE_CONFIG).trim();
+		if (StringUtils.hasText(namespace)) {
+			return namespace;
+		}
+		Object connectorName = originals.get("name");
+		if (connectorName != null && StringUtils.hasText(connectorName.toString())) {
+			return connectorName.toString().trim();
+		}
+		return "default";
 	}
 
 	public Charset getCharset() {
@@ -84,12 +100,17 @@ public class RedisSinkConfig extends RedisConfig {
 		return keyTTL;
 	}
 
+	public String getOffsetNamespace() {
+		return offsetNamespace;
+	}
+
 	@Override
 	public int hashCode() {
 		final int prime = 31;
 		int result = super.hashCode();
 		result = prime * result
-				+ Objects.hash(charset, keyspace, separator, multiExec, type, waitReplicas, waitTimeout, keyTTL);
+				+ Objects.hash(charset, keyspace, separator, multiExec, type, waitReplicas, waitTimeout, keyTTL,
+						offsetNamespace);
 		return result;
 	}
 
@@ -104,7 +125,8 @@ public class RedisSinkConfig extends RedisConfig {
 		RedisSinkConfig other = (RedisSinkConfig) obj;
 		return Objects.equals(charset, other.charset) && Objects.equals(keyspace, other.keyspace)
 				&& Objects.equals(separator, other.separator) && multiExec == other.multiExec && type == other.type
-				&& waitReplicas == other.waitReplicas && waitTimeout == other.waitTimeout && keyTTL == other.keyTTL;
+				&& waitReplicas == other.waitReplicas && waitTimeout == other.waitTimeout && keyTTL == other.keyTTL
+				&& Objects.equals(offsetNamespace, other.offsetNamespace);
 	}
 
 }
