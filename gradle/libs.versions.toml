@@ -1,0 +1,28 @@
+[versions]
+# Build plugins
+spring-boot = "3.5.14"
+spring-dependency-management = "1.1.7"
+axion-release = "1.21.1"
+ben-manes-versions = "0.54.0"
+shadow = "9.4.1"
+
+# Non-Spring-managed dependencies
+lettuce = "6.5.2.RELEASE"
+netty = "4.2.5.Final"
+lettucemod = "4.2.0"
+spring-batch-redis = "4.6.2"
+testcontainers-redis = "2.2.4"
+
+[libraries]
+lettucemod = { module = "com.redis:lettucemod", version.ref = "lettucemod" }
+spring-batch-redis-core = { module = "com.redis:spring-batch-redis-core", version.ref = "spring-batch-redis" }
+spring-batch-redis-test = { module = "com.redis:spring-batch-redis-test", version.ref = "spring-batch-redis" }
+testcontainers-redis = { module = "com.redis:testcontainers-redis", version.ref = "testcontainers-redis" }
+testcontainers-redis-enterprise = { module = "com.redis:testcontainers-redis-enterprise", version.ref = "testcontainers-redis" }
+
+[plugins]
+spring-boot = { id = "org.springframework.boot", version.ref = "spring-boot" }
+spring-dependency-management = { id = "io.spring.dependency-management", version.ref = "spring-dependency-management" }
+axion-release = { id = "pl.allegro.tech.build.axion-release", version.ref = "axion-release" }
+ben-manes-versions = { id = "com.github.ben-manes.versions", version.ref = "ben-manes-versions" }
+shadow = { id = "com.gradleup.shadow", version.ref = "shadow" }

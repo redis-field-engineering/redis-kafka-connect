@@ -1,23 +1,13 @@
-/*
- * SPDX-License-Identifier: Apache-2.0
- *
- * Copyright 2021-2023 The Redis Kafka Connect authors.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     https://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+plugins {
+    id 'java-library'
+    alias(libs.plugins.shadow)
+}
+
+description = 'Redis Kafka Connect'
+
 dependencies {
-    implementation group: 'com.redis', name: 'lettucemod', version: lettucemodVersion
-    implementation group: 'com.redis', name: 'spring-batch-redis-core', version: springBatchRedisVersion
+    implementation libs.lettucemod
+    implementation libs.spring.batch.redis.core
     implementation 'org.apache.commons:commons-pool2'
     implementation 'org.slf4j:slf4j-api'
     compileOnly 'org.apache.kafka:connect-api'
@@ -31,33 +21,61 @@ dependencies {
     testImplementation 'org.junit.jupiter:junit-jupiter-engine'
     testImplementation 'org.junit.platform:junit-platform-launcher'
     testImplementation 'org.slf4j:slf4j-simple'
-    testImplementation group: 'com.redis', name: 'spring-batch-redis-test', version: springBatchRedisVersion
+    testImplementation libs.spring.batch.redis.test
+    testImplementation 'org.testcontainers:junit-jupiter'
+    testImplementation libs.testcontainers.redis
+    testImplementation libs.testcontainers.redis.enterprise
+    integrationTestImplementation libs.spring.batch.redis.test
+    integrationTestImplementation 'org.mockito:mockito-core'
+    integrationTestImplementation 'org.apache.kafka:connect-api'
+    integrationTestImplementation 'org.apache.kafka:connect-json'
+    integrationTestImplementation 'org.testcontainers:junit-jupiter'
+    integrationTestImplementation libs.testcontainers.redis
+    integrationTestImplementation libs.testcontainers.redis.enterprise
+    integrationTestImplementation 'org.awaitility:awaitility'
+    integrationTestRuntimeOnly 'org.slf4j:slf4j-simple'
 }
 
-eclipse {
-    project {
-        name = 'redis-kafka-connect-core'
+testing {
+    suites {
+        integrationTest {
+            sources {
+                java {
+                    srcDirs = ['src/test/java']
+                }
+                resources {
+                    srcDirs = ['src/test/resources']
+                }
+            }
+        }
     }
+}
+
+tasks.named('test') {
+    exclude '**/*IntegrationTests.class'
+    exclude '**/Abstract*IntegrationTests.class'
+    exclude '**/RedisContainerFactory.class'
+}
+
+tasks.named('integrationTest') {
+    include '**/*IntegrationTests.class'
 }
 
 jar.finalizedBy shadowJar
 
-tasks.named('shadowJar', com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar) {
-    enableRelocation true
-    relocationPrefix "com.redis.kafka.connect.shaded"
-    relocate 'org.springframework.batch.core', 'org.springframework.batch.core'
+tasks.named('shadowJar') {
     mergeServiceFiles()
 }
 
-def archiveFilename = "redis-redis-kafka-connect"
-def releaseDate = java.time.format.DateTimeFormatter.ISO_LOCAL_DATE.format(java.time.LocalDateTime.now())
+String archiveFilename = 'redis-redis-kafka-connect'
+String releaseDate = java.time.format.DateTimeFormatter.ISO_LOCAL_DATE.format(java.time.LocalDateTime.now())
 
 tasks.register('prepareConfluentArchive', Copy) {
     group = "Confluent"
     description = "Prepares the Confluent archive file for Confluent Hub"
     dependsOn tasks.shadowJar
     
-    def baseDir = "$archiveFilename-${project.version}"
+    String baseDir = "$archiveFilename-${project.version}"
     from('config/archive/manifest.json') {
         expand(projectVersion: "${project.version}", releaseDate: "${releaseDate}")
     }
@@ -87,4 +105,6 @@ tasks.register('createConfluentArchive', Zip) {
     destinationDirectory = layout.buildDirectory.dir('confluent')
 }
 
-build.finalizedBy createConfluentArchive
+tasks.named('build') {
+    finalizedBy createConfluentArchive
+}
