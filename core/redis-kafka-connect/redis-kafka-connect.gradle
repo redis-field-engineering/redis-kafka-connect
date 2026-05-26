@@ -64,6 +64,8 @@ tasks.named('integrationTest') {
 jar.finalizedBy shadowJar
 
 tasks.named('shadowJar') {
+    enableAutoRelocation.set(true)
+    relocationPrefix.set('com.redis.kafka.connect.shaded')
     mergeServiceFiles()
 }
 
