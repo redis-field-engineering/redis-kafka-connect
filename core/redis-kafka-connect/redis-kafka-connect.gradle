@@ -66,6 +66,7 @@ jar.finalizedBy shadowJar
 tasks.named('shadowJar') {
     enableAutoRelocation.set(true)
     relocationPrefix.set('com.redis.kafka.connect.shaded')
+    relocate 'org.springframework.batch.core', 'org.springframework.batch.core'
     mergeServiceFiles()
 }
 
