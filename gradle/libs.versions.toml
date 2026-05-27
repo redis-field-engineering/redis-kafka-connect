@@ -10,7 +10,7 @@ shadow = "9.4.1"
 lettuce = "6.5.2.RELEASE"
 netty = "4.2.5.Final"
 lettucemod = "4.2.0"
-spring-batch-redis = "4.6.2"
+spring-batch-redis = "4.8.0"
 testcontainers-redis = "2.2.4"
 
 [libraries]
