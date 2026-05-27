@@ -9,7 +9,7 @@ shadow = "9.4.1"
 # Non-Spring-managed dependencies
 lettuce = "6.5.2.RELEASE"
 netty = "4.2.5.Final"
-lettucemod = "4.2.0"
+lettucemod = "4.5.0"
 spring-batch-redis = "4.6.2"
 testcontainers-redis = "2.2.4"
 
