@@ -8,7 +8,7 @@
 :doc-url:         https://{project-owner}.github.io/{project-name}
 
 
-image:https://github.com/{project-owner}/{project-name}/actions/workflows/early-access.yml/badge.svg["Build Status", link="{project-url}/actions"]
+image:https://github.com/{project-owner}/{project-name}/actions/workflows/build.yml/badge.svg["Build Status", link="{project-url}/actions"]
 image:https://codecov.io/gh/{project-owner}/{project-name}/branch/master/graph/badge.svg?token=MTMRRGEWBD["Coverage", link="https://codecov.io/gh/{project-owner}/{project-name}"]
 
 Redis Kafka Connector (Source and Sink) by Redis.
@@ -35,4 +35,3 @@ git clone {project-url}
 cd {project-name}
 ./run.sh
 ----
-

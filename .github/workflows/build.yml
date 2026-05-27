@@ -1,9 +1,55 @@
 name: Build
 
 on:
+  push:
+    branches:
+      - master
+    paths-ignore:
+      - 'docs/**'
+      - '*.adoc'
+      - '*.md'
   pull_request:
+    paths-ignore:
+      - 'docs/**'
+      - '*.adoc'
+      - '*.md'
+  workflow_dispatch:
+    inputs:
+      lint-gradle-tasks:
+        description: 'Gradle tasks to run for lint and static analysis'
+        required: false
+        default: ''
+        type: string
+      test-gradle-tasks:
+        description: 'Gradle tasks to run for unit and default test coverage'
+        required: false
+        default: '--parallel test'
+        type: string
+      integration-gradle-tasks:
+        description: 'Gradle tasks to run for slower integration coverage'
+        required: false
+        default: '--parallel integrationTest'
+        type: string
+      package-gradle-tasks:
+        description: 'Gradle tasks to run for packaging and assembly verification'
+        required: false
+        default: '--parallel assemble'
+        type: string
+
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+  id-token: write
 
 jobs:
   build:
-    name: 'Build'
-    uses: redis-field-engineering/redis-github-workflows/.github/workflows/build.yml@main
+    name: Build
+    uses: redis/github-workflows/.github/workflows/build.yml@main
+    with:
+      split-jobs: true
+      java-version: '17'
+      lint-gradle-tasks: ${{ inputs.lint-gradle-tasks || '' }}
+      test-gradle-tasks: ${{ inputs.test-gradle-tasks || '--parallel test' }}
+      integration-gradle-tasks: ${{ inputs.integration-gradle-tasks || '--parallel integrationTest' }}
+      package-gradle-tasks: ${{ inputs.package-gradle-tasks || '--parallel assemble' }}

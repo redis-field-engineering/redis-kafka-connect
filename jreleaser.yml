@@ -7,10 +7,11 @@ project:
   authors:
     - Julien Ruaux
   license: Apache-2.0
-  java:
-    groupId: com.redis
-    version: '11'
-    multiProject: true
+  languages:
+    java:
+      groupId: com.redis
+      version: '17'
+      multiProject: true
   inceptionYear: '2021'
   tags:
     - 'kafka'
@@ -50,7 +51,21 @@ release:
 
 signing:
   active: ALWAYS
-  armored: true
+  pgp:
+    armored: true
+
+deploy:
+  maven:
+    mavenCentral:
+      redis:
+        active: RELEASE
+        authorization: BASIC
+        url: https://central.sonatype.com/api/v1/publisher
+        applyMavenCentralRules: true
+        retryDelay: 30
+        maxRetries: 100
+        stagingRepositories:
+          - build/staging-deploy
 
 announce:
   slack:
