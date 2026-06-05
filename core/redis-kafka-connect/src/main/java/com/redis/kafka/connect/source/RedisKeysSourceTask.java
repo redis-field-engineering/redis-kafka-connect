@@ -21,7 +21,6 @@ import com.redis.spring.batch.item.redis.common.KeyValue;
 import io.lettuce.core.AbstractRedisClient;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.errors.ConnectException;
-import org.apache.kafka.connect.errors.RetriableException;
 import org.apache.kafka.connect.source.SourceRecord;
 import org.apache.kafka.connect.source.SourceTask;
 import org.springframework.batch.item.ExecutionContext;
@@ -30,7 +29,15 @@ import org.springframework.batch.item.ItemStreamException;
 import java.time.Clock;
 import java.util.*;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public class RedisKeysSourceTask extends SourceTask {
+
+	private static final Logger log = LoggerFactory.getLogger(RedisKeysSourceTask.class);
+
+	static final int MAX_OPEN_RETRIES = 3;
+	static final long RETRY_DELAY_MS = 1000;
 
 	public static final Schema KEY_SCHEMA = Schema.STRING_SCHEMA;
 
@@ -77,11 +84,35 @@ public class RedisKeysSourceTask extends SourceTask {
 		if (!config.getIdleTimeout().isNegative() && !config.getIdleTimeout().isZero()) {
 			reader.setIdleTimeout(config.getIdleTimeout());
 		}
-		try {
-			reader.open(new ExecutionContext());
-		} catch (ItemStreamException e) {
-			throw new RetriableException("Could not open reader", e);
+		openReaderWithRetry();
+	}
+
+	private void openReaderWithRetry() {
+		ItemStreamException lastException = null;
+		for (int attempt = 1; attempt <= MAX_OPEN_RETRIES; attempt++) {
+			try {
+				reader.open(new ExecutionContext());
+				return;
+			} catch (ItemStreamException e) {
+				lastException = e;
+				try {
+					reader.close();
+				} catch (Exception ce) {
+					log.debug("Error closing reader after failed open attempt", ce);
+				}
+				if (attempt < MAX_OPEN_RETRIES) {
+					log.warn("Failed to open reader (attempt {}/{}), retrying in {}ms",
+							attempt, MAX_OPEN_RETRIES, RETRY_DELAY_MS, e);
+					try {
+						Thread.sleep(RETRY_DELAY_MS);
+					} catch (InterruptedException ie) {
+						Thread.currentThread().interrupt();
+						throw new ConnectException("Interrupted while retrying reader open", ie);
+					}
+				}
+			}
 		}
+		throw new ConnectException("Could not open reader after " + MAX_OPEN_RETRIES + " attempts", lastException);
 	}
 
 	@Deprecated
@@ -98,12 +129,24 @@ public class RedisKeysSourceTask extends SourceTask {
 	@Override
 	public void stop() {
 		if (reader != null) {
-			reader.close();
+			try {
+				reader.close();
+			} catch (Exception e) {
+				log.warn("Error closing reader", e);
+			}
 			reader = null;
 		}
 		if (client != null) {
-			client.shutdown();
-			client.getResources().shutdown();
+			try {
+				client.shutdown();
+			} catch (Exception e) {
+				log.warn("Error shutting down Redis client", e);
+			}
+			try {
+				client.getResources().shutdown();
+			} catch (Exception e) {
+				log.warn("Error shutting down Redis client resources", e);
+			}
 			client = null;
 		}
 	}
