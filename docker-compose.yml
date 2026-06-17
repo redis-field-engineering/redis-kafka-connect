@@ -158,7 +158,7 @@ services:
       test: curl --write-out 'HTTP %{http_code}' --fail --silent --output /dev/null http://localhost:8082
 
   redis:
-    image: redis/redis-stack-server
+    image: redis:latest
     hostname: redis
     container_name: redis
     ports:
