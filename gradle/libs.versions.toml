@@ -1,6 +1,6 @@
 [versions]
 # Build plugins
-spring-boot = "3.5.14"
+spring-boot = "4.1.0"
 spring-dependency-management = "1.1.7"
 axion-release = "1.21.1"
 ben-manes-versions = "0.54.0"
