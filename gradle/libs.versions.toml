@@ -3,7 +3,7 @@
 spring-boot = "3.5.14"
 spring-dependency-management = "1.1.7"
 axion-release = "1.21.1"
-ben-manes-versions = "0.54.0"
+ben-manes-versions = "0.58.0"
 shadow = "9.4.1"
 
 # Non-Spring-managed dependencies
