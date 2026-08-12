@@ -2,7 +2,7 @@
 # Build plugins
 spring-boot = "3.5.14"
 spring-dependency-management = "1.1.7"
-axion-release = "1.21.1"
+axion-release = "1.21.3"
 ben-manes-versions = "0.54.0"
 shadow = "9.4.1"
 
