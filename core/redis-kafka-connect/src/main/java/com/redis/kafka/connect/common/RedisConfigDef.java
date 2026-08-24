@@ -6,6 +6,9 @@ import com.redis.spring.batch.item.redis.RedisItemWriter;
 
 import io.lettuce.core.RedisURI;
 
+import java.util.List;
+import java.util.Collections;
+
 public abstract class RedisConfigDef extends ConfigDef {
 
 	public static final String CLUSTER_CONFIG = "redis.cluster";
@@ -31,6 +34,18 @@ public abstract class RedisConfigDef extends ConfigDef {
 	private static final String URI_DEFAULT = "";
 
 	private static final String URI_DOC = "URI of the Redis database to connect to, e.g. redis://redis-12000.redis.com:12000. For secure connections use rediss URI scheme, e.g. rediss://...";
+
+	public static final String SENTINEL_MASTER_ID_CONFIG = "redis.sentinel.master.id";
+
+	private static final String SENTINEL_MASTER_ID_DEFAULT = "mymaster";
+
+	private static final String SENTINEL_MASTER_ID_DOC = "The logical name of the Redis Sentinel master set";
+
+	public static final String SENTINEL_NODES_CONFIG = "redis.sentinel.nodes";
+
+	private static final List<String> SENTINEL_NODES_DEFAULT = Collections.emptyList();
+
+	private static final String SENTINEL_NODES_DOC = "A comma-separated list of Redis Sentinel host:port addresses";
 
 	public static final String USERNAME_CONFIG = "redis.username";
 
@@ -106,6 +121,8 @@ public abstract class RedisConfigDef extends ConfigDef {
 		define(HOST_CONFIG, Type.STRING, HOST_DEFAULT, Importance.HIGH, HOST_DOC);
 		define(PORT_CONFIG, Type.INT, PORT_DEFAULT, Importance.HIGH, PORT_DOC);
 		define(URI_CONFIG, Type.STRING, URI_DEFAULT, Importance.MEDIUM, URI_DOC);
+		define(SENTINEL_MASTER_ID_CONFIG, Type.STRING, SENTINEL_MASTER_ID_DEFAULT, Importance.MEDIUM, SENTINEL_MASTER_ID_DOC);
+		define(SENTINEL_NODES_CONFIG, Type.LIST, SENTINEL_NODES_DEFAULT, Importance.MEDIUM, SENTINEL_NODES_DOC);
 		define(TLS_CONFIG, Type.BOOLEAN, TLS_DEFAULT, Importance.MEDIUM, TLS_DOC);
 		define(INSECURE_CONFIG, Type.BOOLEAN, INSECURE_DEFAULT, Importance.MEDIUM, INSECURE_DOC);
 		define(PASSWORD_CONFIG, Type.PASSWORD, PASSWORD_DEFAULT, Importance.MEDIUM, PASSWORD_DOC);

@@ -18,6 +18,7 @@ package com.redis.kafka.connect.common;
 import java.io.File;
 import java.time.Duration;
 import java.util.Map;
+import java.util.List;
 
 import org.apache.kafka.common.config.AbstractConfig;
 import org.apache.kafka.common.config.types.Password;
@@ -71,9 +72,29 @@ public abstract class RedisConfig extends AbstractConfig {
     }
 
     private RedisURI.Builder redisURIBuilder() {
+        String masterId = getString(RedisConfigDef.SENTINEL_MASTER_ID_CONFIG);
+        List<String> sentinelNodes = getList(RedisConfigDef.SENTINEL_NODES_CONFIG);
+        if (StringUtils.hasLength(masterId) && sentinelNodes != null && !sentinelNodes.isEmpty()) {
+            RedisURI.Builder builder = RedisURI.builder().withSentinelMasterId(masterId);
+            for (String node : sentinelNodes) {
+                String[] hostAndPort = node.split(":");
+                String host = hostAndPort[0].trim();
+                int port = hostAndPort.length > 1 ? Integer.parseInt(hostAndPort[1].trim()) : 26379;
+                builder.withSentinel(host, port);
+            }
+            return builder;
+        }
         String uri = getString(RedisConfigDef.URI_CONFIG);
         if (StringUtils.hasLength(uri)) {
-            return RedisURI.builder(RedisURI.create(uri));
+            RedisURI redisURI = RedisURI.create(uri);
+            RedisURI.Builder builder = RedisURI.builder(redisURI);
+            if (StringUtils.hasLength(redisURI.getSentinelMasterId())) {
+                builder.withSentinelMasterId(redisURI.getSentinelMasterId());
+                for (RedisURI sentinel : redisURI.getSentinels()) {
+                    builder.withSentinel(sentinel.getHost(), sentinel.getPort());
+                }
+            }
+            return builder;
         }
         String host = getString(RedisConfigDef.HOST_CONFIG);
         int port = getInt(RedisConfigDef.PORT_CONFIG);
