@@ -97,4 +97,30 @@ class StreamSourceConnectorTest {
 
 	}
 
+	@Test
+	void testRedisSentinelUriValueConfig() {
+		final Map<String, String> props = new HashMap<>();
+		props.put(RedisConfigDef.URI_CONFIG, "redis-sentinel://localhost:26379,localhost:26380#mymaster");
+		props.put(RedisStreamSourceConfigDef.STREAM_NAME_CONFIG, "stream");
+
+		RedisStreamSourceConfig config = new RedisStreamSourceConfig(props);
+		RedisURI redisURI = config.uri();
+
+		assertEquals("mymaster", redisURI.getSentinelMasterId());
+		assertEquals(2, redisURI.getSentinels().size());
+	}
+
+	@Test
+	void testRedisSentinelValueConfig() {
+		final Map<String, String> props = new HashMap<>();
+		props.put(RedisConfigDef.SENTINEL_MASTER_ID_CONFIG, "mymaster");
+		props.put(RedisConfigDef.SENTINEL_NODES_CONFIG, "localhost:26379,localhost:26380");
+		props.put(RedisStreamSourceConfigDef.STREAM_NAME_CONFIG, "stream");
+
+		RedisStreamSourceConfig config = new RedisStreamSourceConfig(props);
+		RedisURI redisURI = config.uri();
+
+		assertEquals("mymaster", redisURI.getSentinelMasterId());
+		assertEquals(2, redisURI.getSentinels().size());
+	}
 }
