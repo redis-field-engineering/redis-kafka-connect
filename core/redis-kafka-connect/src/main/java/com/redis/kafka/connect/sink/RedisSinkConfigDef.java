@@ -30,6 +30,12 @@ public class RedisSinkConfigDef extends RedisConfigDef {
 			+ TOKEN_TOPIC + "' as a placeholder for the originating topic name.\nFor example, ``kafka_" + TOKEN_TOPIC
 			+ "`` for the topic 'orders' will map to the Redis key space " + "'kafka_orders'.";
 
+	public static final String JSON_SERIALIZATION_CONFIG = "redis.json.serialization";
+
+	public static final boolean JSON_SERIALIZATION_DEFAULT = false;
+
+	public static final String JSON_SERIALIZATION_DOC = "Whether to serialize nested maps and structs as JSON strings or using Java toString()";
+
 	public static final String SEPARATOR_CONFIG = "redis.separator";
 
 	public static final String SEPARATOR_DEFAULT = ":";
@@ -89,6 +95,7 @@ public class RedisSinkConfigDef extends RedisConfigDef {
 		define(CHARSET_CONFIG, Type.STRING, CHARSET_DEFAULT, Importance.HIGH, CHARSET_DOC);
 		define(TYPE_CONFIG, Type.STRING, TYPE_DEFAULT.name(), Importance.HIGH, TYPE_DOC);
 		define(KEYSPACE_CONFIG, Type.STRING, KEYSPACE_DEFAULT, Importance.MEDIUM, KEYSPACE_DOC);
+		define(JSON_SERIALIZATION_CONFIG, Type.BOOLEAN, JSON_SERIALIZATION_DEFAULT, Importance.MEDIUM, JSON_SERIALIZATION_DOC);
 		define(SEPARATOR_CONFIG, Type.STRING, SEPARATOR_DEFAULT, Importance.MEDIUM, SEPARATOR_DOC);
 		define(MULTIEXEC_CONFIG, Type.BOOLEAN, MULTIEXEC_DEFAULT, Importance.MEDIUM, MULTIEXEC_DOC);
 		define(WAIT_REPLICAS_CONFIG, Type.INT, WAIT_REPLICAS_DEFAULT, Importance.MEDIUM, WAIT_REPLICAS_DOC);

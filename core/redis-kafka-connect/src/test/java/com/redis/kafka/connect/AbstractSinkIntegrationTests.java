@@ -39,6 +39,7 @@ import org.testcontainers.shaded.com.google.common.collect.ImmutableMap;
 import org.testcontainers.shaded.com.google.common.collect.ImmutableSet;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.redis.kafka.connect.sink.RedisSinkConfig.RedisType;
 import com.redis.kafka.connect.sink.RedisSinkConfigDef;
@@ -483,6 +484,87 @@ abstract class AbstractSinkIntegrationTests extends AbstractTestBase {
             Map<String, String> body = expected.get(index);
             StreamMessage<String, String> message = messages.get(index);
             assertEquals(body, message.getBody(), String.format("Body for message #%s does not match.", index));
+        }
+    }
+
+    @Test
+    void putStreamWithJsonSerializationEnabled() throws Exception {
+        String topic = "putStreamWithJsonEnabled";
+        int count = 10;
+        ObjectMapper objectMapper = new ObjectMapper();
+
+        List<Map<String, Object>> expectedPayloads = new ArrayList<>(count);
+        List<SinkRecord> records = new ArrayList<>(count);
+
+        for (int i = 0; i < count; i++) {
+            Map<String, String> address = map("city", "City" + i, "zip", "1000" + i);
+            Map<String, Object> body = new LinkedHashMap<>();
+            body.put("name", "User" + i);
+            body.put("address", address);
+
+            expectedPayloads.add(body);
+            records.add(write(topic,
+                    new SchemaAndValue(Schema.STRING_SCHEMA, "key" + i),
+                    new SchemaAndValue(null, body)));
+        }
+
+        put(topic, RedisType.STREAM, records, RedisSinkConfigDef.JSON_SERIALIZATION_CONFIG, "true");
+
+        List<StreamMessage<String, String>> messages = redisConnection.sync().xrange(topic, Range.unbounded());
+        assertEquals(records.size(), messages.size());
+
+        for (int index = 0; index < messages.size(); index++) {
+            Map<String, Object> expected = expectedPayloads.get(index);
+            StreamMessage<String, String> message = messages.get(index);
+            Map<String, String> actualBody = message.getBody();
+
+            assertEquals(expected.get("name"), actualBody.get("name"));
+
+            String actualAddressJson = actualBody.get("address");
+            Assertions.assertNotNull(actualAddressJson, "Nested JSON address field should not be null");
+
+            Map<String, String> actualAddressMap = objectMapper.readValue(
+                    actualAddressJson,
+                    new TypeReference<Map<String, String>>() {}
+            );
+            assertEquals(expected.get("address"), actualAddressMap);
+        }
+    }
+
+    @Test
+    void putStreamWithJsonSerializationDisabled() {
+        String topic = "putStreamWithJsonDisabled";
+        int count = 10;
+
+        List<Map<String, Object>> expectedPayloads = new ArrayList<>(count);
+        List<SinkRecord> records = new ArrayList<>(count);
+
+        for (int i = 0; i < count; i++) {
+            Map<String, String> address = map("city", "City" + i, "zip", "1000" + i);
+            Map<String, Object> body = new LinkedHashMap<>();
+            body.put("name", "User" + i);
+            body.put("address", address);
+
+            expectedPayloads.add(body);
+            records.add(write(topic,
+                    new SchemaAndValue(Schema.STRING_SCHEMA, "key" + i),
+                    new SchemaAndValue(null, body)));
+        }
+
+        put(topic, RedisType.STREAM, records, RedisSinkConfigDef.JSON_SERIALIZATION_CONFIG, "false");
+
+        List<StreamMessage<String, String>> messages = redisConnection.sync().xrange(topic, Range.unbounded());
+        assertEquals(records.size(), messages.size());
+
+        for (int index = 0; index < messages.size(); index++) {
+            Map<String, Object> expected = expectedPayloads.get(index);
+            StreamMessage<String, String> message = messages.get(index);
+            Map<String, String> actualBody = message.getBody();
+
+            assertEquals(expected.get("name"), actualBody.get("name"));
+
+            String expectedToString = expected.get("address").toString();
+            assertEquals(expectedToString, actualBody.get("address"));
         }
     }
 

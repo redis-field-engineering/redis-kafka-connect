@@ -344,7 +344,7 @@ public class RedisSinkTask extends SinkTask {
             for (Field field : struct.schema().fields()) {
                 Object fieldValue = struct.get(field);
                 body.put(field.name().getBytes(config.getCharset()),
-                        fieldValue == null ? null : fieldValue.toString().getBytes(config.getCharset()));
+                        getBytesValue(fieldValue));
             }
             return body;
         }
@@ -353,11 +353,44 @@ public class RedisSinkTask extends SinkTask {
             Map<byte[], byte[]> body = new LinkedHashMap<>();
             for (Map.Entry<String, Object> e : map.entrySet()) {
                 body.put(e.getKey().getBytes(config.getCharset()),
-                        String.valueOf(e.getValue()).getBytes(config.getCharset()));
+                        getBytesValue(e.getValue()));
             }
             return body;
         }
-        throw new ConnectException("Unsupported source value type: " + sinkRecord.valueSchema().type().name());
+        throw new ConnectException("Unsupported source value type: " +
+                (sinkRecord.valueSchema() != null ? sinkRecord.valueSchema().type().name() : value.getClass().getName()));
+    }
+
+    private byte[] getBytesValue(Object value) {
+        if (value == null) {
+            return null;
+        }
+
+        // Check if config enables JSON serialization for complex/nested types
+        if (config.getJsonSerialization() && (value instanceof Map || value instanceof Collection || value instanceof Struct)) {
+            try {
+                Object serializableValue = (value instanceof Struct) ? structToMap((Struct) value) : value;
+                return objectMapper.writeValueAsBytes(serializableValue);
+            } catch (Exception e) {
+                throw new ConnectException("Failed to serialize field value to JSON", e);
+            }
+        }
+
+        // Default / Fallback behavior: toString()
+        return String.valueOf(value).getBytes(config.getCharset());
+    }
+
+    private Map<String, Object> structToMap(Struct struct) {
+        Map<String, Object> map = new LinkedHashMap<>();
+        for (Field field : struct.schema().fields()) {
+            Object val = struct.get(field);
+            if (val instanceof Struct) {
+                map.put(field.name(), structToMap((Struct) val));
+            } else {
+                map.put(field.name(), val);
+            }
+        }
+        return map;
     }
 
     @Override

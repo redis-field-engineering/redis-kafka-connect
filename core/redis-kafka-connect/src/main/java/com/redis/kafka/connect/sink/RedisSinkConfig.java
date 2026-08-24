@@ -35,6 +35,7 @@ public class RedisSinkConfig extends RedisConfig {
 	private final Charset charset;
 	private final RedisType type;
 	private final String keyspace;
+	private final boolean jsonSerialization;
 	private final String separator;
 	private final boolean multiExec;
 	private final int waitReplicas;
@@ -48,6 +49,7 @@ public class RedisSinkConfig extends RedisConfig {
 		charset = Charset.forName(charsetName);
 		type = RedisType.valueOf(getString(RedisSinkConfigDef.TYPE_CONFIG));
 		keyspace = getString(RedisSinkConfigDef.KEYSPACE_CONFIG).trim();
+		jsonSerialization = Boolean.TRUE.equals(getBoolean(RedisSinkConfigDef.JSON_SERIALIZATION_CONFIG));
 		separator = getString(RedisSinkConfigDef.SEPARATOR_CONFIG).trim();
 		multiExec = Boolean.TRUE.equals(getBoolean(RedisSinkConfigDef.MULTIEXEC_CONFIG));
 		waitReplicas = getInt(RedisSinkConfigDef.WAIT_REPLICAS_CONFIG);
@@ -80,6 +82,10 @@ public class RedisSinkConfig extends RedisConfig {
 		return keyspace;
 	}
 
+	public boolean getJsonSerialization() {
+		return jsonSerialization;
+	}
+
 	public String getSeparator() {
 		return separator;
 	}
@@ -109,7 +115,7 @@ public class RedisSinkConfig extends RedisConfig {
 		final int prime = 31;
 		int result = super.hashCode();
 		result = prime * result
-				+ Objects.hash(charset, keyspace, separator, multiExec, type, waitReplicas, waitTimeout, keyTTL,
+				+ Objects.hash(charset, keyspace, jsonSerialization, separator, multiExec, type, waitReplicas, waitTimeout, keyTTL,
 						offsetNamespace);
 		return result;
 	}
@@ -124,7 +130,7 @@ public class RedisSinkConfig extends RedisConfig {
 			return false;
 		RedisSinkConfig other = (RedisSinkConfig) obj;
 		return Objects.equals(charset, other.charset) && Objects.equals(keyspace, other.keyspace)
-				&& Objects.equals(separator, other.separator) && multiExec == other.multiExec && type == other.type
+				&& jsonSerialization == other.jsonSerialization && Objects.equals(separator, other.separator) && multiExec == other.multiExec && type == other.type
 				&& waitReplicas == other.waitReplicas && waitTimeout == other.waitTimeout && keyTTL == other.keyTTL
 				&& Objects.equals(offsetNamespace, other.offsetNamespace);
 	}
