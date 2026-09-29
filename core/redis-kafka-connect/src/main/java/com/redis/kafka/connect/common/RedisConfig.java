@@ -73,10 +73,21 @@ public abstract class RedisConfig extends AbstractConfig {
     private RedisURI.Builder redisURIBuilder() {
         String uri = getString(RedisConfigDef.URI_CONFIG);
         if (StringUtils.hasLength(uri)) {
-            return RedisURI.builder(RedisURI.create(uri));
+            RedisURI redisURI = RedisURI.create(uri);
+            RedisURI.Builder builder = RedisURI.builder(redisURI);
+            if (StringUtils.hasLength(redisURI.getSentinelMasterId())) {
+                builder.withSentinelMasterId(redisURI.getSentinelMasterId());
+                for (RedisURI sentinel : redisURI.getSentinels()) {
+                    builder.withSentinel(sentinel.getHost(), sentinel.getPort());
+                }
+                System.out.println("[RedisConfig] Sentinel mode: masterId=" + redisURI.getSentinelMasterId()
+                        + ", sentinels=" + redisURI.getSentinels());
+            }
+            return builder;
         }
         String host = getString(RedisConfigDef.HOST_CONFIG);
         int port = getInt(RedisConfigDef.PORT_CONFIG);
+        System.out.println("[RedisConfig] Direct connection: host=" + host + ", port=" + port);
         return RedisURI.Builder.redis(host, port);
     }
 
@@ -85,10 +96,12 @@ public abstract class RedisConfig extends AbstractConfig {
         if (Boolean.TRUE.equals(cluster)) {
             RedisModulesClusterClient client = RedisModulesClusterClient.create(uri);
             client.setOptions(clientOptions(ClusterClientOptions.builder()).build());
+            System.out.println("[RedisConfig] Cluster client created");
             return client;
         }
         RedisModulesClient client = RedisModulesClient.create(uri);
         client.setOptions(clientOptions(ClientOptions.builder()).build());
+        System.out.println("[RedisConfig] Standalone/Sentinel client created");
         return client;
     }
 

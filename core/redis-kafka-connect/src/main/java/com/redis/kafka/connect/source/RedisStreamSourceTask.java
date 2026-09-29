@@ -80,6 +80,9 @@ public class RedisStreamSourceTask extends SourceTask {
 		this.client = config.client();
 		int taskId = Integer.parseInt(props.getOrDefault(TASK_ID, String.valueOf(0)));
 		this.reader = reader(client, taskId, config);
+		System.out.println("[RedisStreamSourceTask] STARTING: stream=" + config.getStreamName()
+				+ ", consumerGroup=" + config.getStreamConsumerGroup()
+				+ ", delivery=" + config.getStreamDelivery() + ", taskId=" + taskId);
 		reader.open(new ExecutionContext());
 	}
 
@@ -112,24 +115,33 @@ public class RedisStreamSourceTask extends SourceTask {
 		Map<String, ?> currentOffset = sourceRecord.sourceOffset();
 		if (currentOffset != null) {
 			sourceOffsets.add(currentOffset);
+			System.out.println("[RedisStreamSourceTask] RECORD_COMMITTED: offset=" + currentOffset.get(OFFSET_FIELD));
+		} else {
+			System.err.println("[RedisStreamSourceTask] WARN: Record with null sourceOffset, skipping ack");
 		}
 	}
 
 	@Override
 	public void commit() throws InterruptedException {
-		if (reader != null) {
+		if (reader != null && !sourceOffsets.isEmpty()) {
 			String[] ids = sourceOffsets.stream().map(m -> (String) m.get(OFFSET_FIELD)).toArray(String[]::new);
+			System.out.println("[RedisStreamSourceTask] ACKING: " + ids.length + " message(s) to stream '" + config.getStreamName() + "': " + String.join(", ", ids));
 			try {
-				reader.ack(config.getStreamName(), ids);
-				sourceOffsets.clear();
+			reader.ack(config.getStreamName(), ids);
+			sourceOffsets.clear();
+			System.out.println("[RedisStreamSourceTask] ACK_OK: Successfully acked " + ids.length + " message(s)");
 			} catch (Exception e) {
+				System.err.println("[RedisStreamSourceTask] ACK_FAILED: " + ids.length + " message(s) to '" + config.getStreamName() + "': " + e.getMessage());
 				throw new ConnectException("Could not ack offsets to Redis", e);
 			}
+		} else if (reader == null) {
+			System.out.println("[RedisStreamSourceTask] COMMIT_SKIPPED: reader is null");
 		}
 	}
 
 	@Override
 	public void stop() {
+		System.out.println("[RedisStreamSourceTask] STOPPING");
 		if (reader != null) {
 			reader.close();
 			reader = null;
@@ -139,6 +151,7 @@ public class RedisStreamSourceTask extends SourceTask {
 			client.getResources().shutdown();
 			client = null;
 		}
+		System.out.println("[RedisStreamSourceTask] STOPPED");
 	}
 
 	@Override
@@ -147,11 +160,15 @@ public class RedisStreamSourceTask extends SourceTask {
 		try {
 			messages = reader.readMessages();
 		} catch (RedisCommandTimeoutException e) {
+			System.out.println("[RedisStreamSourceTask] POLL_TIMEOUT: " + config.getStreamBlock() + "ms, no new messages");
 			throw new RetriableException("Timeout while reading stream messages", e);
 		} catch (Exception e) {
+			System.err.println("[RedisStreamSourceTask] POLL_ERROR: stream='" + config.getStreamName() + "': " + e.getMessage());
 			throw new ConnectException("Could not read messages from stream", e);
 		}
-		// TODO: return heartbeat if no records
+		if (!messages.isEmpty()) {
+			System.out.println("[RedisStreamSourceTask] POLL_OK: Read " + messages.size() + " message(s) from '" + config.getStreamName() + "'");
+		}
 		return messages.stream().map(converter).collect(Collectors.toList());
 	}
 
