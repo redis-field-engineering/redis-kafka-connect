@@ -1,5 +1,20 @@
 package com.redis.kafka.connect;
 
+import com.redis.kafka.connect.common.RedisConfigDef;
+import com.redis.kafka.connect.source.KeySnapshot;
+import com.redis.kafka.connect.source.RedisKeysSourceConfig;
+import com.redis.kafka.connect.source.RedisKeysSourceConfigDef;
+import com.redis.kafka.connect.source.RedisKeysSourceTask;
+import com.redis.kafka.connect.source.RedisStreamSourceConfig;
+import com.redis.kafka.connect.source.RedisStreamSourceConfigDef;
+import com.redis.kafka.connect.source.RedisStreamSourceTask;
+import com.redis.kafka.connect.source.ToStructFunction;
+import io.lettuce.core.KillArgs;
+import io.lettuce.core.Consumer;
+import io.lettuce.core.XReadArgs.StreamOffset;
+import io.lettuce.core.api.sync.RedisCommands;
+import io.lettuce.core.models.stream.PendingMessages;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -8,17 +23,22 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
-
-import com.redis.spring.batch.item.redis.RedisItemReader;
 import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.connect.data.Struct;
+import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.source.SourceRecord;
 import org.apache.kafka.connect.source.SourceTask;
 import org.apache.kafka.connect.source.SourceTaskContext;
 import org.apache.kafka.connect.storage.OffsetStorageReader;
 import org.awaitility.Awaitility;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
@@ -26,26 +46,11 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.batch.core.JobExecutionException;
-import org.springframework.batch.item.ExecutionContext;
-import org.springframework.util.Assert;
+import static org.mockito.ArgumentMatchers.anyMap;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
-import com.redis.kafka.connect.common.RedisConfigDef;
-import com.redis.kafka.connect.source.RedisKeysSourceConfigDef;
-import com.redis.kafka.connect.source.RedisKeysSourceTask;
-import com.redis.kafka.connect.source.RedisStreamSourceConfig;
-import com.redis.kafka.connect.source.RedisStreamSourceConfigDef;
-import com.redis.kafka.connect.source.RedisStreamSourceTask;
-import com.redis.kafka.connect.source.ToStructFunction;
-import com.redis.lettucemod.api.sync.RedisModulesCommands;
-import com.redis.spring.batch.item.redis.RedisItemWriter;
-import com.redis.spring.batch.item.redis.common.KeyValue;
-import com.redis.spring.batch.item.redis.gen.GeneratorItemReader;
-import com.redis.spring.batch.test.AbstractTestBase;
-
-import io.lettuce.core.models.stream.PendingMessages;
-
-abstract class AbstractSourceIntegrationTests extends AbstractTestBase {
+abstract class AbstractSourceIntegrationTests extends AbstractRedisIntegrationTests {
 
     private static final Logger log = LoggerFactory.getLogger(AbstractSourceIntegrationTests.class);
 
@@ -53,59 +58,37 @@ abstract class AbstractSourceIntegrationTests extends AbstractTestBase {
 
     private RedisKeysSourceTask keysSourceTask;
 
+    private final List<SourceTask> tasks = new ArrayList<>();
+
+    private final ExecutorService generatorExecutor = Executors.newSingleThreadExecutor();
+
     @BeforeEach
     public void setupTasks() {
         streamSourceTask = new RedisStreamSourceTask();
         keysSourceTask = new RedisKeysSourceTask();
+        tasks.add(streamSourceTask);
+        tasks.add(keysSourceTask);
     }
 
     @AfterEach
     public void teardownTasks() {
-        keysSourceTask.stop();
-        streamSourceTask.stop();
+        tasks.forEach(SourceTask::stop);
+        tasks.clear();
+    }
+
+    @AfterAll
+    void shutdownGeneratorExecutor() {
+        generatorExecutor.shutdownNow();
     }
 
     // Used to initialize a task with a previous connect offset (as though records
     // had been committed).
-    void initializeTask(String id) throws Exception {
-        streamSourceTask.initialize(new SourceTaskContext() {
-
-            @Override
-            public OffsetStorageReader offsetStorageReader() {
-                return new OffsetStorageReader() {
-
-                    @Override
-                    public <T> Map<Map<String, T>, Map<String, Object>> offsets(Collection<Map<String, T>> partitions) {
-                        throw new UnsupportedOperationException("OffsetStorageReader.offsets()");
-                    }
-
-                    @Override
-                    public <T> Map<String, Object> offset(Map<String, T> partition) {
-                        return Collections.singletonMap(RedisStreamSourceTask.OFFSET_FIELD, id);
-                    }
-
-                };
-            }
-
-            @Override
-            public Map<String, String> configs() {
-                throw new UnsupportedOperationException("SourceTaskContext.configs()");
-            }
-
-        });
-        keysSourceTask.initialize(new SourceTaskContext() {
-
-            @Override
-            public OffsetStorageReader offsetStorageReader() {
-                return null;
-            }
-
-            @Override
-            public Map<String, String> configs() {
-                throw new UnsupportedOperationException("SourceTaskContext.configs()");
-            }
-
-        });
+    void initializeTask(String id) {
+        SourceTaskContext taskContext = mock(SourceTaskContext.class);
+        OffsetStorageReader offsets = mock(OffsetStorageReader.class);
+        when(offsets.offset(anyMap())).thenReturn(Map.of(RedisStreamSourceTask.OFFSET_FIELD, id));
+        when(taskContext.offsetStorageReader()).thenReturn(offsets);
+        streamSourceTask.initialize(taskContext);
     }
 
     private void startTask(SourceTask task, String... props) {
@@ -123,8 +106,8 @@ abstract class AbstractSourceIntegrationTests extends AbstractTestBase {
     }
 
     protected Map<String, String> map(String... args) {
-        Assert.notNull(args, "Args cannot be null");
-        Assert.isTrue(args.length % 2 == 0, "Args length is not a multiple of 2");
+        Objects.requireNonNull(args, "Args cannot be null");
+        if (args.length % 2 != 0) { throw new IllegalArgumentException("Args length is not a multiple of 2"); }
         Map<String, String> body = new LinkedHashMap<>();
         for (int index = 0; index < args.length / 2; index++) {
             body.put(args[index * 2], args[index * 2 + 1]);
@@ -293,8 +276,8 @@ abstract class AbstractSourceIntegrationTests extends AbstractTestBase {
 
         // create a new task, same config
         setupTasks();
-        // this means connect committed records, but StreamSourceTask didn't get a
-        // chance to ack first
+        // Kafka committed these records, but Redis did not receive their acknowledgments.
+        // Pending entries replay: a checkpoint cannot prove that a lower claimed ID was delivered.
         initializeTask(id3);
         startStreamSourceTask(RedisStreamSourceConfigDef.TOPIC_CONFIG, topicPrefix + RedisStreamSourceConfigDef.TOKEN_STREAM,
                 RedisStreamSourceConfigDef.STREAM_NAME_CONFIG, stream);
@@ -305,7 +288,7 @@ abstract class AbstractSourceIntegrationTests extends AbstractTestBase {
 
         List<String> recoveredIds = recoveredRecords.stream().map(SourceRecord::key).map(String::valueOf)
                 .collect(Collectors.toList());
-        Assertions.assertEquals(Arrays.<String> asList(id4, id5, id6), recoveredIds, "recoveredIds");
+        Assertions.assertEquals(Arrays.<String> asList(id1, id2, id3, id4, id5, id6), recoveredIds, "pending messages replay even when Kafka checkpoint is ahead");
     }
 
     @Test
@@ -398,32 +381,18 @@ abstract class AbstractSourceIntegrationTests extends AbstractTestBase {
     }
 
     @Test
-    void pollKeysLive(TestInfo info) throws JobExecutionException {
-        GeneratorItemReader generator = generator(100);
-        RedisItemWriter<String, String, KeyValue<String>> writer = RedisItemWriter.struct();
-        writer.setClient(redisClient);
-        run(info, step(info, 1, generator, null, writer));
+    void pollKeysLive(TestInfo info) throws Exception {
+        generateKeys("snapshot", 100);
         enableKeyspaceNotifications();
         String topic = "mytopic";
         startKeysSourceTask(RedisKeysSourceConfigDef.TOPIC_CONFIG, topic, RedisKeysSourceConfigDef.IDLE_TIMEOUT_CONFIG, "500");
         final List<SourceRecord> sourceRecords = new ArrayList<>();
-        Executors.newSingleThreadScheduledExecutor().execute(() -> {
-            TestInfo liveInfo = testInfo(info, "live");
-            GeneratorItemReader liveGenerator = generator(100);
-            liveGenerator.setKeyspace("livegen");
-            RedisItemWriter<String, String, KeyValue<String>> liveWriter = RedisItemWriter.struct();
-            liveWriter.setClient(redisClient);
-            try {
-                run(liveInfo, step(liveInfo, 1, liveGenerator, null, liveWriter));
-            } catch (Exception e) {
-                throw new RuntimeException("Could not execute data gen");
-            }
-        });
+        generatorExecutor.submit(() -> generateKeys("live", 100)).get(20, TimeUnit.SECONDS);
         awaitUntil(() -> {
             List<SourceRecord> records = keysSourceTask.poll();
             log.info("Polled {} records", records.size());
             sourceRecords.addAll(records);
-            return sourceRecords.size() >= 200;
+            return sourceRecords.stream().map(SourceRecord::key).distinct().count() >= 200;
         });
         for (SourceRecord record : sourceRecords) {
             Assertions.assertEquals(topic, record.topic());
@@ -435,28 +404,19 @@ abstract class AbstractSourceIntegrationTests extends AbstractTestBase {
     }
 
     @Test
-    void pollKeysLiveOnly(TestInfo info) {
+    void pollKeysLiveOnly(TestInfo info) throws Exception {
         enableKeyspaceNotifications();
         String topic = "mytopic";
         startKeysSourceTask(RedisKeysSourceConfigDef.TOPIC_CONFIG, topic, RedisKeysSourceConfigDef.IDLE_TIMEOUT_CONFIG, "500",
-                RedisKeysSourceConfigDef.MODE_CONFIG, RedisItemReader.ReaderMode.LIVEONLY.name());
+                RedisKeysSourceConfigDef.MODE_CONFIG, RedisKeysSourceConfig.ReaderMode.LIVEONLY.name());
         int count = 100;
         final List<SourceRecord> sourceRecords = new ArrayList<>();
-        Executors.newSingleThreadScheduledExecutor().execute(() -> {
-            GeneratorItemReader generator = generator(count);
-            RedisItemWriter<String, String, KeyValue<String>> writer = RedisItemWriter.struct();
-            writer.setClient(redisClient);
-            try {
-                run(info, step(info, 1, generator, null, writer));
-            } catch (Exception e) {
-                throw new RuntimeException("Could not execute data gen");
-            }
-        });
+        generatorExecutor.submit(() -> generateKeys("liveonly", count)).get(20, TimeUnit.SECONDS);
         awaitUntil(() -> {
             List<SourceRecord> records = keysSourceTask.poll();
             log.info("Polled {} records", records.size());
             sourceRecords.addAll(records);
-            return sourceRecords.size() >= count;
+            return sourceRecords.stream().map(SourceRecord::key).distinct().count() >= count;
         });
         for (SourceRecord record : sourceRecords) {
             Assertions.assertEquals(topic, record.topic());
@@ -484,19 +444,19 @@ abstract class AbstractSourceIntegrationTests extends AbstractTestBase {
         String key = struct.getString(ToStructFunction.FIELD_KEY);
         String type = struct.getString(ToStructFunction.FIELD_TYPE);
         Assertions.assertEquals(redisConnection.sync().type(key), type);
-        RedisModulesCommands<String, String> commands = redisConnection.sync();
+        RedisCommands<String, String> commands = redisConnection.sync();
         switch (type) {
-            case KeyValue.TYPE_HASH:
+            case KeySnapshot.TYPE_HASH:
                 return compare(commands.hgetall(key), struct.getMap(ToStructFunction.FIELD_HASH));
-            case KeyValue.TYPE_JSON:
-                return compare(commands.jsonGet(key).get(0).toString(), struct.getString(ToStructFunction.FIELD_JSON));
-            case KeyValue.TYPE_LIST:
+            case KeySnapshot.TYPE_JSON:
+                return compare(commands.jsonGetRaw(key).get(0), struct.getString(ToStructFunction.FIELD_JSON));
+            case KeySnapshot.TYPE_LIST:
                 return compare(commands.lrange(key, 0, -1), struct.getArray(ToStructFunction.FIELD_LIST));
-            case KeyValue.TYPE_SET:
+            case KeySnapshot.TYPE_SET:
                 return compare(commands.smembers(key), new HashSet<>(struct.getArray(ToStructFunction.FIELD_SET)));
-            case KeyValue.TYPE_STRING:
+            case KeySnapshot.TYPE_STRING:
                 return compare(commands.get(key), struct.getString(ToStructFunction.FIELD_STRING));
-            case KeyValue.TYPE_ZSET:
+            case KeySnapshot.TYPE_ZSET:
                 return compare(ToStructFunction.zsetMap(commands.zrangeWithScores(key, 0, -1)),
                         struct.getMap(ToStructFunction.FIELD_ZSET));
             default:
@@ -508,4 +468,207 @@ abstract class AbstractSourceIntegrationTests extends AbstractTestBase {
         return new Compare(expected, actual);
     }
 
+
+    @Test
+    void recoversPendingMessagesInBoundedBatches() throws InterruptedException {
+        startStreamSourceTask(RedisStreamSourceConfigDef.STREAM_NAME_CONFIG, "bounded", "batch.size", "2");
+        for (int index = 0; index < 7; index++) {
+            redisConnection.sync().xadd("bounded", Map.of("value", Integer.toString(index)));
+        }
+        List<SourceRecord> first = new ArrayList<>();
+        awaitUntil(() -> {
+            first.addAll(streamSourceTask.poll());
+            return first.size() == 7;
+        });
+        streamSourceTask.stop();
+        setupTasks();
+        startStreamSourceTask(RedisStreamSourceConfigDef.STREAM_NAME_CONFIG, "bounded", "batch.size", "2");
+        List<SourceRecord> recovered = new ArrayList<>();
+        awaitUntil(() -> {
+            List<SourceRecord> batch = streamSourceTask.poll();
+            Assertions.assertTrue(batch.size() <= 2);
+            recovered.addAll(batch);
+            return recovered.size() == 7;
+        });
+        Assertions.assertEquals(first.stream().map(SourceRecord::key).toList(), recovered.stream().map(SourceRecord::key).toList());
+    }
+
+    @Test
+    void reclaimsPendingFromRemovedConsumer() throws InterruptedException {
+        startStreamSourceTask(RedisStreamSourceConfigDef.STREAM_NAME_CONFIG, "claim", "redis.stream.consumer.name", "removed");
+        String id = redisConnection.sync().xadd("claim", Map.of("value", "value"));
+        Assertions.assertEquals(id, streamSourceTask.poll().get(0).key());
+        streamSourceTask.stop();
+        setupTasks();
+        startStreamSourceTask(RedisStreamSourceConfigDef.STREAM_NAME_CONFIG, "claim", "redis.stream.consumer.name", "replacement",
+                RedisStreamSourceConfigDef.STREAM_CLAIM_IDLE_CONFIG, "1");
+        List<SourceRecord> recovered = new ArrayList<>();
+        awaitUntil(() -> recovered.addAll(streamSourceTask.poll()));
+        Assertions.assertEquals(id, recovered.get(0).key());
+        streamSourceTask.commitRecord(recovered.get(0), null);
+        streamSourceTask.commit();
+        Assertions.assertEquals(0, redisConnection.sync().xpending("claim", "kafka-consumer-group").getCount());
+    }
+
+    @Test
+    void deletedKeyHasNoneTypeAndMissingExpiry() throws Exception {
+        enableKeyspaceNotifications();
+        startKeysSourceTask(RedisKeysSourceConfigDef.MODE_CONFIG, "LIVEONLY");
+        redisConnection.sync().set("deleted", "value");
+        redisConnection.sync().del("deleted");
+        List<SourceRecord> records = new ArrayList<>();
+        awaitUntil(() -> records.addAll(keysSourceTask.poll()));
+        Struct value = (Struct) records.get(records.size() - 1).value();
+        Assertions.assertEquals("none", value.getString("type"));
+        Assertions.assertEquals(-2, value.getInt64("ttl"));
+        Assertions.assertNull(value.getString("string"));
+    }
+
+    @Test
+    void keyExpiryIsAnAbsoluteMillisecondTimestamp() throws Exception {
+        redisConnection.sync().psetex("expiring", 60000, "value");
+        startKeysSourceTask(RedisKeysSourceConfigDef.KEY_PATTERN_CONFIG, "expiring");
+        List<SourceRecord> records = new ArrayList<>();
+        awaitUntil(() -> records.addAll(keysSourceTask.poll()));
+        long expiry = ((Struct) records.get(0).value()).getInt64("ttl");
+        Assertions.assertTrue(expiry > System.currentTimeMillis() + 50000);
+        Assertions.assertTrue(expiry <= System.currentTimeMillis() + 60000);
+    }
+
+    @Test
+    void notificationOverflowFailsExplicitly() {
+        enableKeyspaceNotifications();
+        startKeysSourceTask(RedisKeysSourceConfigDef.MODE_CONFIG, "LIVEONLY",
+                RedisKeysSourceConfigDef.QUEUE_CAPACITY_CONFIG, "1");
+        for (int index = 0; index < 100; index++) {
+            redisConnection.sync().set("overflow:" + index, "value");
+        }
+        Awaitility.await().atMost(Duration.ofSeconds(5)).untilAsserted(() -> {
+            ConnectException error = Assertions.assertThrows(
+                    ConnectException.class, () -> keysSourceTask.poll());
+            Assertions.assertTrue(error.getMessage().contains("overflow"));
+        });
+    }
+
+    @Test
+    void notificationDisconnectFailsExplicitly() {
+        enableKeyspaceNotifications();
+        startKeysSourceTask(RedisKeysSourceConfigDef.MODE_CONFIG, "LIVEONLY");
+        redisConnection.sync().clientKill(KillArgs.Builder.typePubsub());
+        Awaitility.await().atMost(Duration.ofSeconds(5)).untilAsserted(() -> {
+            ConnectException error = Assertions.assertThrows(
+                    ConnectException.class, () -> keysSourceTask.poll());
+            Assertions.assertTrue(error.getMessage().contains("interrupted"));
+        });
+    }
+
+    @Test
+    void legacySharedCheckpointDoesNotDiscardAnotherConsumersPendingRecords() throws Exception {
+        startStreamSourceTask("redis.stream.name", "legacy-recovery");
+        String first = redisConnection.sync().xadd("legacy-recovery", Map.of("value", "first"));
+        String last = redisConnection.sync().xadd("legacy-recovery", Map.of("value", "last"));
+        Assertions.assertEquals(2, streamSourceTask.poll().size());
+        streamSourceTask.stop();
+        setupTasks();
+        SourceTaskContext taskContext = mock(SourceTaskContext.class);
+        OffsetStorageReader offsets = mock(OffsetStorageReader.class);
+        when(offsets.offset(anyMap())).thenAnswer(invocation -> {
+            Map<?, ?> partition = invocation.getArgument(0);
+            return partition.isEmpty() ? Map.of("offset", last) : null;
+        });
+        when(taskContext.offsetStorageReader()).thenReturn(offsets);
+        streamSourceTask.initialize(taskContext);
+        startStreamSourceTask("redis.stream.name", "legacy-recovery");
+        Assertions.assertEquals(List.of(first, last), streamSourceTask.poll().stream().map(SourceRecord::key).toList());
+    }
+
+    @Test
+    void keysStopWakesLongIdlePoll() throws Exception {
+        startKeysSourceTask("mode", "LIVEONLY", "redis.keys.timeout", "60000");
+        AtomicReference<Thread> polling = new AtomicReference<>();
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        try {
+            Future<List<SourceRecord>> result = executor.submit(() -> {
+                polling.set(Thread.currentThread());
+                return keysSourceTask.poll();
+            });
+            Awaitility.await().atMost(Duration.ofSeconds(5)).until(() -> polling.get() != null
+                    && polling.get().getState() == Thread.State.TIMED_WAITING);
+            keysSourceTask.stop();
+            Assertions.assertTrue(result.get(3, TimeUnit.SECONDS).isEmpty());
+        } finally {
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
+    void streamStopCancelsBlockedRead() throws Exception {
+        startStreamSourceTask("redis.stream.name", "stop", "redis.stream.block", "30000");
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        try {
+            Future<List<SourceRecord>> result = executor.submit(() -> streamSourceTask.poll());
+            awaitUntil(() -> redisConnection.sync().clientList().contains("cmd=xreadgroup"));
+            streamSourceTask.stop();
+            Assertions.assertTrue(result.get(3, TimeUnit.SECONDS).isEmpty());
+        } finally {
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
+    void keysReloadReadScriptAfterCacheFlush() throws Exception {
+        redisConnection.sync().set("cached-script", "value");
+        startKeysSourceTask("redis.keys.pattern", "cached-script");
+        redisConnection.sync().scriptFlush();
+        List<SourceRecord> records = new ArrayList<>();
+        awaitUntil(() -> records.addAll(keysSourceTask.poll()));
+        Assertions.assertEquals("value", ((Struct) records.get(0).value()).getString("string"));
+    }
+
+    @Test
+    void claimedMessageBelowScopedCheckpointIsNotDiscarded() throws Exception {
+        String stream = "claimed-lower";
+        String group = "kafka-consumer-group";
+        startStreamSourceTask("redis.stream.name", stream, "redis.stream.consumer.name", "removed");
+        String lower = redisConnection.sync().xadd(stream, Map.of("value", "lower"));
+        Assertions.assertEquals(lower, streamSourceTask.poll().get(0).key());
+        streamSourceTask.stop();
+        String higher = redisConnection.sync().xadd(stream, Map.of("value", "higher"));
+        Consumer<String> replacement = Consumer.from(group, "replacement");
+        redisConnection.sync().xreadgroup(replacement, StreamOffset.lastConsumed(stream));
+        redisConnection.sync().xack(stream, group, higher);
+        redisConnection.sync().xclaim(stream, replacement, 0, lower);
+        setupTasks();
+        initializeTask(higher);
+        startStreamSourceTask("redis.stream.name", stream, "redis.stream.consumer.name", "replacement");
+        Assertions.assertEquals(lower, streamSourceTask.poll().get(0).key());
+    }
+
+    @Test
+    void liveUpdatesAndDeletesAreCapturedWhileSnapshotIsInProgress() throws Exception {
+        enableKeyspaceNotifications();
+        for (int index = 0; index < 20; index++) {
+            redisConnection.sync().set("paging:" + index, "original");
+        }
+        startKeysSourceTask("batch.size", "2", "redis.keys.pattern", "paging:*");
+        List<SourceRecord> first = new ArrayList<>();
+        awaitUntil(() -> first.addAll(keysSourceTask.poll()));
+        String alreadyRead = first.get(0).key().toString();
+        String deleted = "paging:0".equals(alreadyRead) ? "paging:1" : "paging:0";
+        redisConnection.sync().set(alreadyRead, "updated");
+        redisConnection.sync().set("paging:new", "new");
+        redisConnection.sync().del(deleted);
+        List<SourceRecord> records = new ArrayList<>();
+        awaitUntil(() -> {
+            List<SourceRecord> batch = keysSourceTask.poll();
+            Assertions.assertTrue(batch.size() <= 2);
+            records.addAll(batch);
+            boolean update = records.stream().anyMatch(record -> alreadyRead.equals(record.key())
+                    && "updated".equals(((Struct) record.value()).getString("string")));
+            boolean added = records.stream().anyMatch(record -> "paging:new".equals(record.key()));
+            boolean removed = records.stream().anyMatch(record -> deleted.equals(record.key())
+                    && "none".equals(((Struct) record.value()).getString("type")));
+            return update && added && removed;
+        });
+    }
 }

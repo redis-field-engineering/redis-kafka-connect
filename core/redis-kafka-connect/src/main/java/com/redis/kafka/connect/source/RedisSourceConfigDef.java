@@ -18,7 +18,7 @@ public abstract class RedisSourceConfigDef extends RedisConfigDef {
 	}
 
 	private void defineSourceConfig() {
-		define(BATCH_SIZE_CONFIG, Type.INT, BATCH_SIZE_DEFAULT, Importance.LOW, BATCH_SIZE_DOC);
+		define(BATCH_SIZE_CONFIG, Type.INT, BATCH_SIZE_DEFAULT, Range.atLeast(1), Importance.LOW, BATCH_SIZE_DOC);
 	}
 
 }

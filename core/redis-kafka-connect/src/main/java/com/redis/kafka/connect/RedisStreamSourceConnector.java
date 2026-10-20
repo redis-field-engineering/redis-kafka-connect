@@ -12,14 +12,33 @@
  */
 package com.redis.kafka.connect;
 
-import org.apache.kafka.connect.connector.Task;
-
 import com.redis.kafka.connect.source.AbstractRedisSourceConnector;
 import com.redis.kafka.connect.source.RedisStreamSourceConfig;
 import com.redis.kafka.connect.source.RedisStreamSourceConfigDef;
 import com.redis.kafka.connect.source.RedisStreamSourceTask;
+import java.util.List;
+import java.util.Map;
+import org.apache.kafka.common.config.ConfigException;
+import org.apache.kafka.connect.connector.Task;
 
 public class RedisStreamSourceConnector extends AbstractRedisSourceConnector {
+
+    private String consumerName;
+
+    @Override
+    public void start(Map<String, String> props) {
+        super.start(props);
+        consumerName = props.getOrDefault(RedisStreamSourceConfigDef.STREAM_CONSUMER_NAME_CONFIG,
+                RedisStreamSourceConfigDef.STREAM_CONSUMER_NAME_DEFAULT);
+    }
+
+    @Override
+    public List<Map<String, String>> taskConfigs(int maxTasks) {
+        if (maxTasks > 1 && !consumerName.contains(RedisStreamSourceConfigDef.TOKEN_TASK)) {
+            throw new ConfigException("Multiple stream source tasks require ${task} in redis.stream.consumer.name");
+        }
+        return super.taskConfigs(maxTasks);
+    }
 
     @Override
     public Class<? extends Task> taskClass() {

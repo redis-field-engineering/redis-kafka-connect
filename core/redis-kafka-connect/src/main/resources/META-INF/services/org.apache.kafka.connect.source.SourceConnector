@@ -1,0 +1,2 @@
+com.redis.kafka.connect.RedisStreamSourceConnector
+com.redis.kafka.connect.RedisKeysSourceConnector

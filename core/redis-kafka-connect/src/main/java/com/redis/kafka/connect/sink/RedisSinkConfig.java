@@ -15,14 +15,11 @@
  */
 package com.redis.kafka.connect.sink;
 
+import com.redis.kafka.connect.common.RedisConfig;
 import java.nio.charset.Charset;
 import java.time.Duration;
 import java.util.Map;
 import java.util.Objects;
-
-import org.springframework.util.StringUtils;
-
-import com.redis.kafka.connect.common.RedisConfig;
 
 public class RedisSinkConfig extends RedisConfig {
 
@@ -58,11 +55,11 @@ public class RedisSinkConfig extends RedisConfig {
 
 	private String offsetNamespace(Map<?, ?> originals) {
 		String namespace = getString(RedisSinkConfigDef.OFFSET_NAMESPACE_CONFIG).trim();
-		if (StringUtils.hasText(namespace)) {
+		if (!namespace.isBlank()) {
 			return namespace;
 		}
 		Object connectorName = originals.get("name");
-		if (connectorName != null && StringUtils.hasText(connectorName.toString())) {
+		if (connectorName != null && !connectorName.toString().isBlank()) {
 			return connectorName.toString().trim();
 		}
 		return "default";

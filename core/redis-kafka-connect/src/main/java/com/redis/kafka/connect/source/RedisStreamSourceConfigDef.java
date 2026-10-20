@@ -18,7 +18,11 @@ public class RedisStreamSourceConfigDef extends RedisSourceConfigDef {
 	public static final String STREAM_OFFSET_DEFAULT = "0-0";
 	public static final String STREAM_OFFSET_DOC = "Stream offset to start reading from";
 
-	public static final String STREAM_BLOCK_CONFIG = "redis.stream.block";
+	public static final String STREAM_CLAIM_IDLE_CONFIG = "redis.stream.claim.idle";
+    public static final long STREAM_CLAIM_IDLE_DEFAULT = 60000;
+    public static final String STREAM_CLAIM_IDLE_DOC = "Minimum idle milliseconds before reclaiming pending messages from a consumer. Use 0 to disable. Must exceed normal end-to-end processing time.";
+
+    public static final String STREAM_BLOCK_CONFIG = "redis.stream.block";
 	public static final long STREAM_BLOCK_DEFAULT = 100;
 	public static final String STREAM_BLOCK_DOC = "The max amount of time in milliseconds to wait while polling for stream messages (XREAD [BLOCK milliseconds])";
 
@@ -46,15 +50,16 @@ public class RedisStreamSourceConfigDef extends RedisSourceConfigDef {
 	}
 
 	private void define() {
+		define(STREAM_CLAIM_IDLE_CONFIG, Type.LONG, STREAM_CLAIM_IDLE_DEFAULT, Range.atLeast(0), Importance.MEDIUM, STREAM_CLAIM_IDLE_DOC);
 		define(TOPIC_CONFIG, Type.STRING, TOPIC_DEFAULT, Importance.MEDIUM, TOPIC_DOC);
 		define(STREAM_NAME_CONFIG, Type.STRING, Importance.HIGH, STREAM_NAME_DOC);
 		define(STREAM_OFFSET_CONFIG, Type.STRING, STREAM_OFFSET_DEFAULT, Importance.MEDIUM, STREAM_OFFSET_DOC);
-		define(STREAM_DELIVERY_CONFIG, Type.STRING, STREAM_DELIVERY_DEFAULT, Importance.MEDIUM, STREAM_DELIVERY_DOC);
+		define(STREAM_DELIVERY_CONFIG, Type.STRING, STREAM_DELIVERY_DEFAULT, ValidString.in(RedisStreamSourceConfig.STREAM_DELIVERY_AT_LEAST_ONCE, RedisStreamSourceConfig.STREAM_DELIVERY_AT_MOST_ONCE), Importance.MEDIUM, STREAM_DELIVERY_DOC);
 		define(STREAM_CONSUMER_GROUP_CONFIG, Type.STRING, STREAM_CONSUMER_GROUP_DEFAULT, Importance.MEDIUM,
 				STREAM_CONSUMER_GROUP_DOC);
 		define(STREAM_CONSUMER_NAME_CONFIG, Type.STRING, STREAM_CONSUMER_NAME_DEFAULT, Importance.MEDIUM,
 				STREAM_CONSUMER_NAME_DOC);
-		define(STREAM_BLOCK_CONFIG, Type.LONG, STREAM_BLOCK_DEFAULT, Importance.LOW, STREAM_BLOCK_DOC);
+		define(STREAM_BLOCK_CONFIG, Type.LONG, STREAM_BLOCK_DEFAULT, Range.atLeast(0), Importance.LOW, STREAM_BLOCK_DOC);
 	}
 
 }

@@ -1,10 +1,8 @@
 import org.gradle.api.plugins.jvm.JvmTestSuite
-import org.springframework.boot.gradle.plugin.SpringBootPlugin
+import org.gradle.process.CommandLineArgumentProvider
 
 plugins {
     id 'java-library'
-    alias(libs.plugins.spring.boot) apply false
-    alias(libs.plugins.spring.dependency.management) apply false
     alias(libs.plugins.axion.release)
     alias(libs.plugins.ben.manes.versions)
     alias(libs.plugins.shadow) apply false
@@ -21,30 +19,30 @@ scmVersion {
 
 version = scmVersion.version
 
-ext['lettuce.version'] = libs.versions.lettuce.get()
-ext['netty.version'] = libs.versions.netty.get()
+def testJavaVersion = providers.gradleProperty('testJavaVersion').map { Integer.parseInt(it) }.orElse(27)
 
 subprojects {
     apply plugin: 'java-library'
-    apply plugin: 'io.spring.dependency-management'
 
     group = rootProject.group
     version = rootProject.version
+
+    def mockitoAgent = configurations.create('mockitoAgent') {
+        transitive = false
+    }
 
     repositories {
         mavenCentral()
     }
 
-    dependencyManagement {
-        imports {
-            mavenBom SpringBootPlugin.BOM_COORDINATES
+    java {
+        toolchain {
+            languageVersion = JavaLanguageVersion.of(27)
         }
     }
 
-    java {
-        toolchain {
-            languageVersion = JavaLanguageVersion.of(17)
-        }
+    tasks.withType(JavaCompile).configureEach {
+        options.release = 17
     }
 
     tasks.register('sourcesJar', Jar) {
@@ -65,16 +63,16 @@ subprojects {
     testing {
         suites {
             test {
-                useJUnitJupiter()
+                useJUnitJupiter(rootProject.libs.versions.junit.get())
             }
 
             integrationTest(JvmTestSuite) {
-                useJUnitJupiter()
+                useJUnitJupiter(rootProject.libs.versions.junit.get())
 
                 dependencies {
                     implementation project()
                     implementation 'org.junit.jupiter:junit-jupiter'
-                    implementation 'org.assertj:assertj-core'
+                    implementation rootProject.libs.assertj
                     runtimeOnly 'org.junit.platform:junit-platform-launcher'
                 }
 
@@ -90,6 +88,13 @@ subprojects {
     }
 
     tasks.withType(Test).configureEach {
+        javaLauncher = javaToolchains.launcherFor {
+            languageVersion = JavaLanguageVersion.of(testJavaVersion.get())
+        }
+        timeout = Duration.ofMinutes(15)
+        jvmArgumentProviders.add({
+            ["-javaagent:${mockitoAgent.asPath}"]
+        } as CommandLineArgumentProvider)
         useJUnitPlatform()
         testLogging {
             events 'passed', 'skipped', 'failed'
@@ -98,6 +103,9 @@ subprojects {
         systemProperty 'io.lettuce.core.epoll', 'false'
         systemProperty 'io.lettuce.core.kqueue', 'false'
         systemProperty 'io.lettuce.core.iouring', 'false'
+        systemProperty 'redis.enterprise.image', providers.gradleProperty('redisEnterpriseImage')
+                .orElse('redislabs/redis:8.2.0-125.19').get()
+        systemProperty 'redis.image', providers.gradleProperty('redisImage').orElse('redis:8.2.10').get()
     }
 
     tasks.named('check') {
@@ -105,8 +113,19 @@ subprojects {
     }
 
     dependencies {
+        add('mockitoAgent', "org.mockito:mockito-core:${rootProject.libs.versions.mockito.get()}")
+        implementation platform(rootProject.libs.netty.bom)
+        testImplementation platform(rootProject.libs.junit.bom)
+        testImplementation platform(rootProject.libs.testcontainers.bom)
+        testImplementation rootProject.libs.assertj
+        testImplementation rootProject.libs.mockito
+        testImplementation rootProject.libs.byte.buddy
         testImplementation 'org.junit.jupiter:junit-jupiter'
-        testImplementation 'org.assertj:assertj-core'
+        integrationTestImplementation platform(rootProject.libs.junit.bom)
+        integrationTestImplementation platform(rootProject.libs.testcontainers.bom)
+        integrationTestImplementation rootProject.libs.assertj
+        integrationTestImplementation rootProject.libs.mockito
+        integrationTestImplementation rootProject.libs.byte.buddy
         testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
     }
 }

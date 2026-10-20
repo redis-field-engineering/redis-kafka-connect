@@ -1,0 +1,64 @@
+[[_migration]]
+= Migrating from Spring Batch Redis
+
+The connector now implements task batching and readers directly with Lettuce.
+There is no runtime or test dependency on Spring Batch, Spring Batch Redis, or LettuceMod.
+All three connectors include ServiceLoader descriptors and work with `plugin.discovery=service_load`.
+Connector class names, configuration names/defaults (with behavior changes noted below), topic
+mapping, published record schemas, and sink offset JSON remain compatible. Java helpers that exposed Spring Batch types
+are not binary compatible; custom Java embedders must recompile against the new artifact.
+
+== Checkpoint Compatibility
+
+Sink offset keys retain `com.redis.kafka.connect.sink.offset.<namespace>.<topic>.<partition>`
+and the legacy key fallback. Offsets are Kafka's next-to-read offsets.
+Malformed or mismatched state fails explicitly.
+
+Stream checkpoint source partitions now include stream, group, and consumer. The old
+empty partition is read when a scoped checkpoint is absent, so existing starting
+positions remain usable. Checkpoints initialize missing groups; they do not discard existing pending entries.
+A pending message may have been claimed from another consumer and have an ID below the
+saved checkpoint. The Redis pending list is authoritative; in at-least-once mode those entries replay.
+This may duplicate already published but unacknowledged messages during upgrade or recovery.
+Do not reset Kafka offsets or delete Redis consumer groups as part of this migration.
+
+Existing record value schemas are unchanged. The keys-source TTL retains its absolute
+millisecond timestamp meaning; expiry calculation now includes subsecond precision.
+
+== Behavior Changes
+
+* List, set, and sorted-set tombstones remove the member as documented.
+  Tombstones, writes, and TTLs retain per-key input order within a batch.
+* Binary sink keys with a namespace preserve the original key bytes after the prefix.
+* Invalid batches fail before commands are dispatched; Redis execution failures are
+  reported rather than hidden in pipeline or transaction results.
+* The keys source creates one task regardless of a larger `tasks.max`. Source reads use
+  dedicated, pipelined connections; `redis.pool` controls sink pooling.
+* Keys notification overflow/disconnect/topology changes fail visibly. Restart in `LIVE`
+  mode for a new snapshot. Notifications remain best effort, not durable CDC.
+* `redis.keys.timeout` bounds the idle wait during a poll; it does not stop a Connect task.
+* Stream consumers must have distinct names when using multiple tasks.
+
+New options are `redis.keys.queue.capacity` (default `10000`) and
+`redis.stream.claim.idle` (default `60000` milliseconds, `0` disables claiming).
+
+== Validation and Rollout
+
+The automated task suites cover Redis 8.2, Redis Enterprise 8.2, and a three-primary
+Redis Cluster on Java 21, 25, and 27. The build targets Java 17 bytecode. `workerTest`
+qualifies the shaded distribution in Confluent Platform 8.3.2 on Java 21 against
+Redis Enterprise 8.2. These are tested combinations, not a separate support-policy promise.
+
+Validate a canary connector with representative data and failure/restart scenarios
+before replacing the wider deployment. Keep its connector name, sink namespace, stream
+group, and consumer names unchanged. Stop the old instance before installing the new
+archive so each worker loads one connector version. Observe pending messages, task
+status, queue-gap errors, and destination records before proceeding.
+
+For rollback, stop the new task and restore the previous archive. Sink offset state
+remains readable; old stream code does not read the new scoped Kafka checkpoints but
+uses its Redis consumer's pending messages. Drain pending messages before rolling back:
+the old reader does not implement abandoned-consumer claiming, and lower claimed IDs
+may be stranded behind its legacy checkpoint. Additional duplicates are possible. A rollback cannot undo commands already applied, restore lost notifications,
+or recover stream entries that have been trimmed. Re-test the original dependency/JDK
+combination when rolling back; the new Java qualification does not extend to the old JAR.

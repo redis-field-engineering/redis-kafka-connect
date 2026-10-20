@@ -16,6 +16,8 @@
 package com.redis.kafka.connect.source;
 
 import java.util.Map;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.Objects;
 
 public class RedisStreamSourceConfig extends RedisSourceConfig {
@@ -40,6 +42,8 @@ public class RedisStreamSourceConfig extends RedisSourceConfig {
 
     private final String topicName;
 
+    private final Map<String, String> sourcePartition;
+
     public RedisStreamSourceConfig(Map<?, ?> originals) {
         super(new RedisStreamSourceConfigDef(), originals);
         this.topicName = getString(RedisStreamSourceConfigDef.TOPIC_CONFIG);
@@ -49,6 +53,17 @@ public class RedisStreamSourceConfig extends RedisSourceConfig {
         this.streamConsumerGroup = getString(RedisStreamSourceConfigDef.STREAM_CONSUMER_GROUP_CONFIG);
         this.streamConsumerName = getString(RedisStreamSourceConfigDef.STREAM_CONSUMER_NAME_CONFIG);
         this.streamBlock = getLong(RedisStreamSourceConfigDef.STREAM_BLOCK_CONFIG);
+        String task = String.valueOf(originals().getOrDefault(RedisStreamSourceTask.TASK_ID, "0"));
+        // OffsetStorageReader serializes these keys. Map.of iteration order varies between JVMs.
+        Map<String, String> partition = new LinkedHashMap<>();
+        partition.put("stream", streamName);
+        partition.put("group", streamConsumerGroup);
+        partition.put("consumer", streamConsumerName.replace(RedisStreamSourceConfigDef.TOKEN_TASK, task));
+        this.sourcePartition = Collections.unmodifiableMap(partition);
+    }
+
+    public Map<String, String> sourcePartition() {
+        return sourcePartition;
     }
 
     public Long getStreamBlock() {
@@ -84,7 +99,7 @@ public class RedisStreamSourceConfig extends RedisSourceConfig {
         final int prime = 31;
         int result = super.hashCode();
         result = prime * result + Objects.hash(batchSize, streamBlock, streamConsumerGroup, streamConsumerName, streamName,
-                streamOffset, streamDelivery, topicName);
+                streamOffset, streamDelivery, topicName, sourcePartition);
         return result;
     }
 
@@ -101,7 +116,7 @@ public class RedisStreamSourceConfig extends RedisSourceConfig {
                 && Objects.equals(streamConsumerGroup, other.streamConsumerGroup)
                 && Objects.equals(streamConsumerName, other.streamConsumerName) && Objects.equals(streamName, other.streamName)
                 && Objects.equals(streamOffset, other.streamOffset) && Objects.equals(streamDelivery, other.streamDelivery)
-                && Objects.equals(topicName, other.topicName);
+                && Objects.equals(topicName, other.topicName) && Objects.equals(sourcePartition, other.sourcePartition);
     }
 
 }

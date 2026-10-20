@@ -1,10 +1,7 @@
 package com.redis.kafka.connect.common;
 
-import org.apache.kafka.common.config.ConfigDef;
-
-import com.redis.spring.batch.item.redis.RedisItemWriter;
-
 import io.lettuce.core.RedisURI;
+import org.apache.kafka.common.config.ConfigDef;
 
 public abstract class RedisConfigDef extends ConfigDef {
 
@@ -52,7 +49,7 @@ public abstract class RedisConfigDef extends ConfigDef {
 
 	public static final String POOL_MAX_CONFIG = "redis.pool";
 
-	private static final int POOL_MAX_DEFAULT = RedisItemWriter.DEFAULT_POOL_SIZE;
+	private static final int POOL_MAX_DEFAULT = 8;
 
 	private static final String POOL_MAX_DOC = "Max pool connections";
 
@@ -110,8 +107,8 @@ public abstract class RedisConfigDef extends ConfigDef {
 		define(INSECURE_CONFIG, Type.BOOLEAN, INSECURE_DEFAULT, Importance.MEDIUM, INSECURE_DOC);
 		define(PASSWORD_CONFIG, Type.PASSWORD, PASSWORD_DEFAULT, Importance.MEDIUM, PASSWORD_DOC);
 		define(USERNAME_CONFIG, Type.STRING, USERNAME_DEFAULT, Importance.MEDIUM, USERNAME_DOC);
-		define(TIMEOUT_CONFIG, Type.LONG, TIMEOUT_DEFAULT, Importance.MEDIUM, TIMEOUT_DOC);
-		define(POOL_MAX_CONFIG, Type.INT, POOL_MAX_DEFAULT, Importance.MEDIUM, POOL_MAX_DOC);
+		define(TIMEOUT_CONFIG, Type.LONG, TIMEOUT_DEFAULT, Range.atLeast(1), Importance.MEDIUM, TIMEOUT_DOC);
+		define(POOL_MAX_CONFIG, Type.INT, POOL_MAX_DEFAULT, Range.atLeast(1), Importance.MEDIUM, POOL_MAX_DOC);
 		define(KEY_CONFIG, Type.STRING, KEY_DEFAULT, Importance.MEDIUM, KEY_DOC);
 		define(KEY_CERT_CONFIG, Type.STRING, KEY_CERT_DEFAULT, Importance.MEDIUM, KEY_CERT_DOC);
 		define(KEY_PASSWORD_CONFIG, Type.PASSWORD, KEY_PASSWORD_DEFAULT, Importance.MEDIUM, KEY_PASSWORD_DOC);

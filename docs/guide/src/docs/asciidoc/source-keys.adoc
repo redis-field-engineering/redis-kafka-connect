@@ -28,14 +28,14 @@ It is possible for some notifications to be missed, for example in case of netwo
 
 Also, depending on the type, size, and rate of change of data structures on the source it is possible the connector cannot keep up with the change stream.
 For example if a big set is repeatedly updated the connector will need to read the whole set on each update and transfer it over to the target database.
-With a big-enough set the connector could fall behind and the internal queue could fill up leading up to updates being dropped.
+With a big-enough set the connector could fall behind and the internal queue could fill up. Queue overflow fails the task explicitly so the gap is visible.
 Some preliminary sizing using Redis statistics and `bigkeys`/`memkeys` is recommended.
 If you need assistance please contact your Redis account team.
 
 [[_source_keys_tasks]]
 == Tasks
 
-The {name} should only be configured with one task as keyspace notifications are broadcast to all listeners and cannot be consumed in a round-robin fashion.
+The {name} creates one task, even when `tasks.max` is larger, because keyspace notifications are broadcast to every listener.
 
 [[_source_keys_redis_client]]
 include::{includedir}/_redis_client.adoc[leveloffset=+1]
@@ -56,11 +56,29 @@ This is the key portion of the pattern that will be used to listen to keyspace e
 +
 For example `foo:*` translates to pubsub channel `$$__$$keyspace@0$$__$$:foo:*` and will capture changes to keys `foo:1`, `foo:2`, etc.
 See {link_redis_keys} for pattern details.
-<2> Idle timeout in millis.
-Duration after which the connector will stop if no activity is encountered.
+<2> Maximum idle wait per poll in milliseconds. Zero uses a bounded default polling interval.
+Kafka Connect continues polling; this option does not complete or stop the task.
 <3> Name of the destination topic.
 <4> Reading mode:
 +
 `LIVE` (default):: initial snapshot + updates
 `LIVEONLY`:: just updates
 
+
+== Snapshot, Queues, and Recovery
+
+In `LIVE` mode, the task confirms its subscriptions before scanning the database.
+Snapshot records and notifications can overlap, so duplicate key snapshots are possible.
+A record contains the key's current type, value, and expiry when read; it is not a durable
+history of every mutation. Deleted or expired keys have type `none`, TTL `-2`, and no value field.
+The `ttl` field contains an absolute expiry timestamp in milliseconds, or the Redis
+negative TTL sentinel (`-1` means persistent, `-2` means absent).
+
+Set `redis.keys.queue.capacity` (default `10000`) to bound queued notifications.
+Overflow, a lost Pub/Sub connection, or a changed cluster primary set fails the task.
+After investigating the cause, restart the failed task. `LIVE` takes a fresh snapshot;
+`LIVEONLY` only resumes future notifications and cannot recover the gap.
+
+The published sorted-set value schema maps score to member and cannot represent
+multiple members with the same score. Such a key fails explicitly rather than dropping
+members. Supporting tied scores requires a separately versioned record schema.

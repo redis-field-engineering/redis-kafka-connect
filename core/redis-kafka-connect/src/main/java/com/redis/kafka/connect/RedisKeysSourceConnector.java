@@ -12,14 +12,20 @@
  */
 package com.redis.kafka.connect;
 
-import org.apache.kafka.connect.connector.Task;
-
 import com.redis.kafka.connect.source.AbstractRedisSourceConnector;
 import com.redis.kafka.connect.source.RedisKeysSourceConfig;
 import com.redis.kafka.connect.source.RedisKeysSourceConfigDef;
 import com.redis.kafka.connect.source.RedisKeysSourceTask;
+import java.util.List;
+import java.util.Map;
+import org.apache.kafka.connect.connector.Task;
 
 public class RedisKeysSourceConnector extends AbstractRedisSourceConnector {
+
+    @Override
+    public List<Map<String, String>> taskConfigs(int maxTasks) {
+        return super.taskConfigs(Math.min(maxTasks, 1));
+    }
 
     @Override
     public Class<? extends Task> taskClass() {
