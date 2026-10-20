@@ -10,6 +10,7 @@ import com.redis.kafka.connect.source.RedisStreamSourceConfigDef;
 import com.redis.kafka.connect.source.RedisStreamSourceTask;
 import com.redis.kafka.connect.source.ToStructFunction;
 import io.lettuce.core.KillArgs;
+import io.lettuce.core.XClaimArgs;
 import io.lettuce.core.Consumer;
 import io.lettuce.core.XReadArgs.StreamOffset;
 import io.lettuce.core.api.sync.RedisCommands;
@@ -508,6 +509,35 @@ abstract class AbstractSourceIntegrationTests extends AbstractRedisIntegrationTe
         streamSourceTask.commitRecord(recovered.get(0), null);
         streamSourceTask.commit();
         Assertions.assertEquals(0, redisConnection.sync().xpending("claim", "kafka-consumer-group").getCount());
+    }
+
+    @Test
+    void idleClaimDoesNotReplayInFlightRecords() throws Exception {
+        String stream = "in-flight";
+        startStreamSourceTask("redis.stream.name", stream, "redis.stream.block", "0",
+                "redis.stream.consumer.name", "in-flight-owner",
+                RedisStreamSourceConfigDef.STREAM_CLAIM_IDLE_CONFIG, "1");
+        String id = redisConnection.sync().xadd(stream, Map.of("value", "first"));
+        SourceRecord first = streamSourceTask.poll().get(0);
+        // Make this task's own PEL entry eligible without a timing-dependent sleep.
+        Consumer<String> consumer = Consumer.from("kafka-consumer-group", "in-flight-owner");
+        redisConnection.sync().xclaim(stream, consumer,
+                XClaimArgs.Builder.minIdleTime(0).idle(60000), id);
+        Assertions.assertTrue(streamSourceTask.poll().isEmpty(), "not yet produced to Kafka");
+        streamSourceTask.commitRecord(first, null);
+        redisConnection.sync().xclaim(stream, consumer,
+                XClaimArgs.Builder.minIdleTime(0).idle(60000), id);
+        Assertions.assertTrue(streamSourceTask.poll().isEmpty(), "produced but not committed");
+        String next = redisConnection.sync().xadd(stream, Map.of("value", "next"));
+        Assertions.assertEquals(List.of(next), streamSourceTask.poll().stream().map(SourceRecord::key).toList());
+        streamSourceTask.commit();
+        Assertions.assertEquals(1, redisConnection.sync().xpending(stream, consumer.getGroup()).getCount());
+        // Restart still replays records that never reached a successful XACK.
+        setupTasks();
+        startStreamSourceTask("redis.stream.name", stream, "redis.stream.block", "0",
+                "redis.stream.consumer.name", "in-flight-owner",
+                RedisStreamSourceConfigDef.STREAM_CLAIM_IDLE_CONFIG, "1");
+        Assertions.assertEquals(List.of(next), streamSourceTask.poll().stream().map(SourceRecord::key).toList());
     }
 
     @Test

@@ -26,6 +26,7 @@ import io.lettuce.core.AbstractRedisClient;
 import io.lettuce.core.RedisCommandExecutionException;
 import io.lettuce.core.RedisCommandTimeoutException;
 import io.lettuce.core.RedisConnectionException;
+import io.lettuce.core.RedisException;
 import io.lettuce.core.api.sync.RedisStringCommands;
 import io.lettuce.core.cluster.RedisClusterClient;
 import io.lettuce.core.codec.StringCodec;
@@ -367,8 +368,11 @@ public class RedisSinkTask extends SinkTask {
                 if (!(e.getKey() instanceof String field)) {
                     throw new DataException("Redis hash/stream field names must be strings");
                 }
+                if (e.getValue() == null) {
+                    throw new DataException("Redis hash/stream fields cannot be null");
+                }
                 body.put(field.getBytes(config.getCharset()),
-                        String.valueOf(e.getValue()).getBytes(config.getCharset()));
+                        e.getValue().toString().getBytes(config.getCharset()));
             }
             return body;
         }
@@ -417,18 +421,7 @@ public class RedisSinkTask extends SinkTask {
         } catch (DataException e) {
             throw e;
         } catch (RedisCommandExecutionException e) {
-            String message = e.getMessage();
-            if (message != null && (message.startsWith("MOVED") || message.startsWith("ASK"))) {
-                if (client instanceof RedisClusterClient cluster) {
-                    cluster.refreshPartitionsAsync();
-                }
-                throw new RetriableException("Redis cluster slot ownership changed", e);
-            }
-            if (message != null && (message.startsWith("READONLY") || message.startsWith("LOADING")
-                    || message.startsWith("TRYAGAIN") || message.startsWith("CLUSTERDOWN"))) {
-                throw new RetriableException("Redis is temporarily unable to accept writes", e);
-            }
-            throw new ConnectException("Redis rejected sink commands", e);
+            throw commandFailure(e);
         } catch (RedisConnectionException e) {
             throw new RetriableException("Could not get connection to Redis", e);
         } catch (RedisCommandTimeoutException e) {
@@ -437,6 +430,21 @@ public class RedisSinkTask extends SinkTask {
             throw new RetriableException("Could not write sink records", e);
         }
         log.info("Wrote {} records", records.size());
+    }
+
+    private ConnectException commandFailure(RedisCommandExecutionException e) {
+        String message = e.getMessage();
+        if (message != null && (message.startsWith("MOVED") || message.startsWith("ASK"))) {
+            if (client instanceof RedisClusterClient cluster) {
+                cluster.refreshPartitionsAsync();
+            }
+            return new RetriableException("Redis cluster slot ownership changed", e);
+        }
+        if (message != null && (message.startsWith("READONLY") || message.startsWith("LOADING")
+                || message.startsWith("TRYAGAIN") || message.startsWith("CLUSTERDOWN"))) {
+            return new RetriableException("Redis is temporarily unable to accept writes", e);
+        }
+        return new ConnectException("Redis rejected sink commands", e);
     }
 
     @Override
@@ -448,10 +456,13 @@ public class RedisSinkTask extends SinkTask {
         }
         log.trace("Writing offsets: {}", offsets);
         try {
-            // Individual SETs also support cluster offset keys spanning multiple slots.
+            // Partition checkpoints are independent and SET is idempotent: retrying the
+            // whole flush safely completes a partial write across Redis cluster slots.
             offsets.forEach((key, value) -> strings().set(key, value));
-        } catch (RedisCommandTimeoutException e) {
-            throw new RetriableException("Could not write offsets", e);
+        } catch (RedisCommandExecutionException e) {
+            throw commandFailure(e);
+        } catch (RedisException e) {
+            throw new RetriableException("Could not write offsets; retry the complete flush", e);
         }
     }
 

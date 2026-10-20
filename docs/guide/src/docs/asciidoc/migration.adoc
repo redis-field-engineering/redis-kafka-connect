@@ -12,7 +12,10 @@ are not binary compatible; custom Java embedders must recompile against the new 
 
 Sink offset keys retain `com.redis.kafka.connect.sink.offset.<namespace>.<topic>.<partition>`
 and the legacy key fallback. Offsets are Kafka's next-to-read offsets.
-Malformed or mismatched state fails explicitly.
+Malformed or mismatched state fails explicitly. Partition checkpoints are written independently
+across cluster slots; transient failures are reported as retriable so Connect can
+retry the complete, idempotent flush.
+A partially completed flush can therefore replay records for partitions with older checkpoints.
 
 Stream checkpoint source partitions now include stream, group, and consumer. The old
 empty partition is read when a scoped checkpoint is absent, so existing starting
@@ -41,6 +44,10 @@ millisecond timestamp meaning; expiry calculation now includes subsecond precisi
 
 New options are `redis.keys.queue.capacity` (default `10000`) and
 `redis.stream.claim.idle` (default `60000` milliseconds, `0` disables claiming).
+Records already handed to Kafka Connect by the current task are excluded from claim replay
+until acknowledgment succeeds. Other consumers may still claim idle entries; choose an
+idle threshold above the expected processing and offset-commit delay to avoid unnecessary
+duplicates between active consumers.
 
 == Validation and Rollout
 

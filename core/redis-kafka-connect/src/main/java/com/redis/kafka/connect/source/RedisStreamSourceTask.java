@@ -17,8 +17,10 @@ import io.lettuce.core.models.stream.ClaimedMessages;
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.errors.RetriableException;
@@ -31,6 +33,7 @@ public class RedisStreamSourceTask extends SourceTask {
 
     private final Clock clock;
     private final List<String> delivered = new ArrayList<>();
+    private final Set<String> inFlight = new HashSet<>();
     private AbstractRedisClient client;
     private volatile RedisConnection<String, String> connection;
     private RedisStreamSourceConfig config;
@@ -86,6 +89,9 @@ public class RedisStreamSourceTask extends SourceTask {
         synchronized (delivered) {
             delivered.clear();
         }
+        synchronized (inFlight) {
+            inFlight.clear();
+        }
         client = config.client();
         try {
             connection = RedisConnection.open(client, StringCodec.UTF8);
@@ -132,7 +138,10 @@ public class RedisStreamSourceTask extends SourceTask {
             return;
         }
         try {
-            commands().xack(config.getStreamName(), consumer.getGroup(), batch.toArray(String[]::new));
+            synchronized (inFlight) {
+                commands().xack(config.getStreamName(), consumer.getGroup(), batch.toArray(String[]::new));
+                inFlight.removeAll(batch);
+            }
             synchronized (delivered) {
                 // Do not clear delivery callbacks that arrived while XACK was in flight.
                 delivered.subList(0, batch.size()).clear();
@@ -152,7 +161,13 @@ public class RedisStreamSourceTask extends SourceTask {
             if (atMostOnce() && !messages.isEmpty()) {
                 ack(messages);
             }
-            return messages.stream().map(converter).toList();
+            List<SourceRecord> records = messages.stream().map(converter).toList();
+            if (!atMostOnce()) {
+                synchronized (inFlight) {
+                    messages.forEach(message -> inFlight.add(message.getId()));
+                }
+            }
+            return records;
         } catch (RedisCommandTimeoutException e) {
             if (stopped) {
                 return List.of();
@@ -196,11 +211,17 @@ public class RedisStreamSourceTask extends SourceTask {
         }
         long idle = config.getLong(RedisStreamSourceConfigDef.STREAM_CLAIM_IDLE_CONFIG);
         if (idle > 0) {
-            ClaimedMessages<String, String> claimed = commands.xautoclaim(config.getStreamName(),
-                    XAutoClaimArgs.Builder.xautoclaim(consumer, idle, claimCursor).count(config.getBatchSize()));
-            claimCursor = claimed.getId();
-            if (!claimed.getMessages().isEmpty()) {
-                return claimed.getMessages();
+            // XAUTOCLAIM includes our own PEL. Keep records already handed to Connect out
+            // of replay until XACK succeeds, even when offset commits take longer than idle.
+            synchronized (inFlight) {
+                ClaimedMessages<String, String> claimed = commands.xautoclaim(config.getStreamName(),
+                        XAutoClaimArgs.Builder.xautoclaim(consumer, idle, claimCursor).count(config.getBatchSize()));
+                claimCursor = claimed.getId();
+                List<StreamMessage<String, String>> replay = claimed.getMessages().stream()
+                        .filter(message -> !inFlight.contains(message.getId())).toList();
+                if (!replay.isEmpty()) {
+                    return replay;
+                }
             }
         }
         XReadArgs args = XReadArgs.Builder.count(config.getBatchSize());

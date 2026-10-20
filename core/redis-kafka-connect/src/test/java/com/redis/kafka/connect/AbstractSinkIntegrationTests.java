@@ -726,6 +726,20 @@ abstract class AbstractSinkIntegrationTests extends AbstractRedisIntegrationTest
         }
     }
 
+    @ParameterizedTest
+    @EnumSource(value = RedisType.class, names = {"HASH", "STREAM"})
+    void nullMapFieldsRejectWholeBatchBeforeWrites(RedisType type) {
+        task.start(Map.of("redis.uri", getRedisServer().getRedisURI(), "redis.type", type.name(), "redis.keyspace", ""));
+        Map<String, Object> invalidBody = new LinkedHashMap<>();
+        invalidBody.put("valid", "value");
+        invalidBody.put("invalid", null);
+        SinkRecord valid = new SinkRecord("topic", 0, Schema.STRING_SCHEMA, "valid", null, Map.of("field", "value"), 0);
+        SinkRecord invalid = new SinkRecord("topic", 0, Schema.STRING_SCHEMA, "bad", null, invalidBody, 1);
+        Assertions.assertThrows(DataException.class, () -> task.put(List.of(valid, invalid)));
+        assertEquals(0, redisConnection.sync().exists("valid"));
+        assertEquals(0, redisConnection.sync().exists("bad"));
+    }
+
     @Test
     void malformedJsonBatchIsRejectedBeforeWrites() {
         task.start(Map.of("redis.uri", getRedisServer().getRedisURI(), "redis.type", "JSON", "redis.keyspace", ""));
