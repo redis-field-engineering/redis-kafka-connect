@@ -36,6 +36,7 @@ public class RedisStreamSourceTask extends SourceTask {
     private final Set<String> inFlight = new HashSet<>();
     private AbstractRedisClient client;
     private volatile RedisConnection<String, String> connection;
+    private volatile RedisConnection<String, String> acknowledgmentConnection;
     private RedisStreamSourceConfig config;
     private StreamMessageConverter converter;
     private Consumer<String> consumer;
@@ -95,6 +96,10 @@ public class RedisStreamSourceTask extends SourceTask {
         client = config.client();
         try {
             connection = RedisConnection.open(client, StringCodec.UTF8);
+            if (!atMostOnce()) {
+                // Connect commits on another thread while poll may block in XREADGROUP.
+                acknowledgmentConnection = RedisConnection.open(client, StringCodec.UTF8);
+            }
             try {
                 commands().xgroupCreate(StreamOffset.from(config.getStreamName(), resumeOffset), consumer.getGroup(),
                         XGroupCreateArgs.Builder.mkstream(true));
@@ -126,8 +131,10 @@ public class RedisStreamSourceTask extends SourceTask {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public void commit() {
-        if (connection == null || atMostOnce()) {
+        RedisConnection<String, String> current = acknowledgmentConnection;
+        if (current == null) {
             return;
         }
         List<String> batch;
@@ -139,7 +146,8 @@ public class RedisStreamSourceTask extends SourceTask {
         }
         try {
             synchronized (inFlight) {
-                commands().xack(config.getStreamName(), consumer.getGroup(), batch.toArray(String[]::new));
+                RedisStreamCommands<String, String> acknowledgments = current.sync(RedisStreamCommands.class);
+                acknowledgments.xack(config.getStreamName(), consumer.getGroup(), batch.toArray(String[]::new));
                 inFlight.removeAll(batch);
             }
             synchronized (delivered) {
@@ -253,9 +261,17 @@ public class RedisStreamSourceTask extends SourceTask {
                 current.close();
             }
         } finally {
-            if (client != null) {
-                client.shutdown();
-                client = null;
+            try {
+                RedisConnection<String, String> current = acknowledgmentConnection;
+                acknowledgmentConnection = null;
+                if (current != null) {
+                    current.close();
+                }
+            } finally {
+                if (client != null) {
+                    client.shutdown();
+                    client = null;
+                }
             }
         }
     }

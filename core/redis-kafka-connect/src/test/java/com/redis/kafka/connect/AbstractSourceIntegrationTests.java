@@ -632,6 +632,41 @@ abstract class AbstractSourceIntegrationTests extends AbstractRedisIntegrationTe
     }
 
     @Test
+    void streamCommitDoesNotWaitForBlockedRead() throws Exception {
+        String stream = "commit-while-blocked";
+        startStreamSourceTask("redis.stream.name", stream, "redis.stream.block", "30000");
+        redisConnection.sync().xadd(stream, Map.of("value", "first"));
+        SourceRecord first = streamSourceTask.poll().get(0);
+        streamSourceTask.commitRecord(first, null);
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        try {
+            AtomicReference<Thread> pollingThread = new AtomicReference<>();
+            Future<List<SourceRecord>> polling = executor.submit(() -> {
+                pollingThread.set(Thread.currentThread());
+                return streamSourceTask.poll();
+            });
+            // Enterprise's proxy does not expose the same blocked-client flags as Redis.
+            // Wait until the task is awaiting the blocking command's reply on either server.
+            Awaitility.await().atMost(Duration.ofSeconds(5)).until(() -> {
+                Thread thread = pollingThread.get();
+                return thread != null && (thread.getState() == Thread.State.WAITING
+                        || thread.getState() == Thread.State.TIMED_WAITING)
+                        && Arrays.stream(thread.getStackTrace()).anyMatch(frame -> frame.getMethodName().equals("xreadgroup"));
+            });
+            Future<?> committing = executor.submit(() -> streamSourceTask.commit());
+            committing.get(3, TimeUnit.SECONDS);
+            Assertions.assertEquals(0, redisConnection.sync().xpending(stream, "kafka-consumer-group").getCount());
+            Assertions.assertFalse(polling.isDone(), "acknowledgment must complete while the read remains blocked");
+            streamSourceTask.stop();
+            Assertions.assertTrue(polling.get(3, TimeUnit.SECONDS).isEmpty());
+        } finally {
+            streamSourceTask.stop();
+            executor.shutdownNow();
+            Assertions.assertTrue(executor.awaitTermination(5, TimeUnit.SECONDS));
+        }
+    }
+
+    @Test
     void streamStopCancelsBlockedRead() throws Exception {
         startStreamSourceTask("redis.stream.name", "stop", "redis.stream.block", "30000");
         ExecutorService executor = Executors.newSingleThreadExecutor();
