@@ -681,16 +681,6 @@ abstract class AbstractSourceIntegrationTests extends AbstractRedisIntegrationTe
     }
 
     @Test
-    void keysReloadReadScriptAfterCacheFlush() throws Exception {
-        redisConnection.sync().set("cached-script", "value");
-        startKeysSourceTask("redis.keys.pattern", "cached-script");
-        redisConnection.sync().scriptFlush();
-        List<SourceRecord> records = new ArrayList<>();
-        awaitUntil(() -> records.addAll(keysSourceTask.poll()));
-        Assertions.assertEquals("value", ((Struct) records.get(0).value()).getString("string"));
-    }
-
-    @Test
     void claimedMessageBelowScopedCheckpointIsNotDiscarded() throws Exception {
         String stream = "claimed-lower";
         String group = "kafka-consumer-group";

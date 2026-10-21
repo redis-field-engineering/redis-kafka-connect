@@ -1,6 +1,6 @@
 package com.redis.kafka.connect.source;
 
-/** Point-in-time key data. Expiry is an epoch millisecond timestamp, or a Redis negative TTL sentinel. */
+/** Best-effort key data read with native commands. Expiry is an epoch millisecond timestamp, or a Redis negative TTL sentinel. */
 public record KeySnapshot(String key, Long ttl, String type, Object value) {
     public static final String TYPE_HASH = "hash";
     public static final String TYPE_JSON = "ReJSON-RL";

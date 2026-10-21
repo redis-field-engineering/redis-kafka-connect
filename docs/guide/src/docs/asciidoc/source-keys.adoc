@@ -82,3 +82,9 @@ After investigating the cause, restart the failed task. `LIVE` takes a fresh sna
 The published sorted-set value schema maps score to member and cannot represent
 multiple members with the same score. Such a key fails explicitly rather than dropping
 members. Supporting tied scores requires a separately versioned record schema.
+
+Key reads use pipelined native commands and do not require Lua, `EVAL`, `EVALSHA`,
+or `SCRIPT` permissions. Type changes and `WRONGTYPE` replies trigger up to three
+read attempts, after which the task fails explicitly. Reads are not atomic: values
+and expiry metadata may reflect different moments during concurrent updates, including
+same-type replacements. Expiry timestamps are estimated from server `TIME` and `PTTL`.

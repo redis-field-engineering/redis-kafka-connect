@@ -69,3 +69,9 @@ the old reader does not implement abandoned-consumer claiming, and lower claimed
 may be stranded behind its legacy checkpoint. Additional duplicates are possible. A rollback cannot undo commands already applied, restore lost notifications,
 or recover stream entries that have been trimmed. Re-test the original dependency/JDK
 combination when rolling back; the new Java qualification does not extend to the old JAR.
+
+Key reads use pipelined native commands and do not require Lua, `EVAL`, `EVALSHA`,
+or `SCRIPT` permissions. Type changes and `WRONGTYPE` replies trigger up to three
+read attempts, after which the task fails explicitly. Reads are not atomic: values
+and expiry metadata may reflect different moments during concurrent updates, including
+same-type replacements. Expiry timestamps are estimated from server `TIME` and `PTTL`.

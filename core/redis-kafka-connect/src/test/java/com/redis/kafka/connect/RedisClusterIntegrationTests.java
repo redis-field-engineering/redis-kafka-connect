@@ -128,12 +128,12 @@ class RedisClusterIntegrationTests {
     }
 
     @Test
-    void keysLoadAndReloadScriptsWithReplicaOffline() throws Exception {
+    void keysSnapshotAndLiveReadsWithReplicaOffline() throws Exception {
         assertEquals(0, container.execInContainer("redis-cli", "-p", "17003", "shutdown", "nosave").getExitCode());
         RedisKeysSourceTask source = new RedisKeysSourceTask();
         try {
             Set<String> keys = Set.of("{a}:snapshot", "{b}:snapshot", "{c}:snapshot");
-            keys.forEach(key -> connection.sync().set(key, "before-flush"));
+            keys.forEach(key -> connection.sync().set(key, "snapshot"));
             source.start(Map.of("redis.uri", uri(), "redis.cluster", "true", "redis.timeout", "2",
                     "redis.keys.timeout", "100"));
             List<SourceRecord> records = new ArrayList<>();
@@ -142,18 +142,17 @@ class RedisClusterIntegrationTests {
                 return records.stream().map(SourceRecord::key).collect(Collectors.toSet()).containsAll(keys);
             });
             assertTrue(records.stream().map(SourceRecord::value).map(Struct.class::cast)
-                    .allMatch(value -> "before-flush".equals(value.getString("string"))));
-            connection.sync().masters().commands().scriptFlush();
+                    .allMatch(value -> "snapshot".equals(value.getString("string"))));
             records.clear();
             Set<String> updates = Set.of("{a}:update", "{b}:update", "{c}:update");
-            updates.forEach(key -> connection.sync().set(key, "after-flush"));
+            updates.forEach(key -> connection.sync().set(key, "live"));
             await().atMost(Duration.ofSeconds(10)).until(() -> {
                 records.addAll(source.poll());
                 return records.stream().map(SourceRecord::key).collect(Collectors.toSet()).containsAll(updates);
             });
             assertTrue(records.stream().map(SourceRecord::value).map(Struct.class::cast)
                     .filter(value -> updates.contains(value.getString("key")))
-                    .allMatch(value -> "after-flush".equals(value.getString("string"))));
+                    .allMatch(value -> "live".equals(value.getString("string"))));
         } finally {
             try {
                 source.stop();
