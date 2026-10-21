@@ -42,7 +42,7 @@ The project separates unit and integration test tasks:
 - Integration tests with Redis Enterprise 8.2 and Redis 8.2: Use `integrationTest`
 - Tests use Testcontainers for Redis instances
 - `./gradlew workerTest` runs the shaded artifact inside Confluent Platform 8.3.2 on Java 21
-- Cluster integration tests use ports 17000–17002; the worker broker uses port 19093
+- Cluster integration tests use ports 17000–17003; the worker broker uses port 19093
 
 ## Architecture
 

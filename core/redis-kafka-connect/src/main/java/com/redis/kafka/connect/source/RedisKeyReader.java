@@ -16,6 +16,7 @@ import io.lettuce.core.api.async.RedisScriptingAsyncCommands;
 import io.lettuce.core.api.sync.RedisKeyCommands;
 import io.lettuce.core.api.sync.RedisScriptingCommands;
 import io.lettuce.core.cluster.RedisClusterClient;
+import io.lettuce.core.cluster.api.StatefulRedisClusterConnection;
 import io.lettuce.core.cluster.models.partitions.RedisClusterNode;
 import io.lettuce.core.cluster.pubsub.StatefulRedisClusterPubSubConnection;
 import io.lettuce.core.codec.StringCodec;
@@ -179,9 +180,22 @@ public final class RedisKeyReader implements AutoCloseable {
 
     @SuppressWarnings("unchecked")
     private void loadScript() {
+        byte[] script = READ_KEY.getBytes(StandardCharsets.UTF_8);
+        if (client instanceof RedisClusterClient cluster) {
+            Set<String> primaries = primaryNodes(cluster);
+            if (primaries.isEmpty()) {
+                throw new ConnectException("Redis cluster has no primaries for keys-source script loading");
+            }
+            StatefulRedisClusterConnection<String, String> connection =
+                    (StatefulRedisClusterConnection<String, String>) data.stateful();
+            // Reads route to primaries; a replica outage must not prevent loading or reloading.
+            for (String node : primaries) {
+                scriptDigest = connection.getConnection(node).sync().scriptLoad(script);
+            }
+            return;
+        }
         RedisScriptingCommands<String, String> scripts = data.sync(RedisScriptingCommands.class);
-        // The advanced cluster implementation loads the script on every node.
-        scriptDigest = scripts.scriptLoad(READ_KEY.getBytes(StandardCharsets.UTF_8));
+        scriptDigest = scripts.scriptLoad(script);
     }
 
     private List<KeySnapshot> readBatch(List<PendingKey> pending) {

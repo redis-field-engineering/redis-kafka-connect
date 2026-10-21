@@ -80,7 +80,7 @@ This task builds a test-only worker image with an explicit Java 21 runtime, chec
 ServiceLoader-only plugin discovery, and exercises all three connectors through Kafka Connect REST and
 Kafka producers/consumers. It covers task restart, broker and Redis server restarts, stream task scale-down,
 and keys-source recovery after a notification gap. It requires broker port 19093;
-the cluster integration fixture also requires ports 17000–17002. Image overrides use
+the cluster integration fixture also requires ports 17000–17003. Image overrides use
 `-PconfluentVersion` and the Redis properties above. `check` and `build` include this task.
 
 See the guide's migration section before replacing an existing installation.

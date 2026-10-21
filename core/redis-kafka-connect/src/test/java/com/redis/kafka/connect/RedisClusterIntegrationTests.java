@@ -5,6 +5,7 @@ import com.redis.kafka.connect.source.RedisKeysSourceTask;
 import io.lettuce.core.RedisClient;
 import io.lettuce.core.cluster.RedisClusterClient;
 import io.lettuce.core.cluster.api.StatefulRedisClusterConnection;
+import io.lettuce.core.cluster.models.partitions.RedisClusterNode;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -34,15 +35,16 @@ class RedisClusterIntegrationTests {
     private static final class ClusterContainer extends GenericContainer<ClusterContainer> {
         ClusterContainer() {
             super(DockerImageName.parse(RedisContainerFactory.REDIS_IMAGE));
-            for (int port = 17000; port <= 17002; port++) {
+            for (int port = 17000; port <= 17003; port++) {
                 addFixedExposedPort(port, port);
             }
             withCommand("sh", "-ec", """
                     redis-server --port 17000 --cluster-enabled yes --cluster-config-file /tmp/node0.conf --cluster-announce-ip 127.0.0.1 --protected-mode no &
                     redis-server --port 17001 --cluster-enabled yes --cluster-config-file /tmp/node1.conf --cluster-announce-ip 127.0.0.1 --protected-mode no &
+                    redis-server --port 17003 --cluster-enabled yes --cluster-config-file /tmp/node3.conf --cluster-announce-ip 127.0.0.1 --protected-mode no &
                     exec redis-server --port 17002 --cluster-enabled yes --cluster-config-file /tmp/node2.conf --cluster-announce-ip 127.0.0.1 --protected-mode no
                     """);
-            waitingFor(Wait.forListeningPorts(17000, 17001, 17002));
+            waitingFor(Wait.forListeningPorts(17000, 17001, 17002, 17003));
             withStartupTimeout(Duration.ofMinutes(1));
         }
     }
@@ -61,6 +63,16 @@ class RedisClusterIntegrationTests {
         await().atMost(Duration.ofSeconds(20)).ignoreExceptions().untilAsserted(() -> {
             connection.sync().set("ready", "yes");
             assertEquals("yes", connection.sync().get("ready"));
+        });
+        List<String> primaries = client.getPartitions().stream()
+                .filter(node -> node.is(RedisClusterNode.NodeFlag.UPSTREAM)).map(RedisClusterNode::getNodeId).toList();
+        String primary = client.getPartitions().getPartitionBySlot(0).getNodeId();
+        assertEquals(0, container.execInContainer("redis-cli", "--cluster", "add-node", "127.0.0.1:17003",
+                "127.0.0.1:17000", "--cluster-slave", "--cluster-master-id", primary).getExitCode());
+        await().atMost(Duration.ofSeconds(20)).until(() -> {
+            client.reloadPartitions();
+            return primaries.stream().allMatch(node -> connection.getConnection(node).sync().clusterNodes().lines()
+                    .anyMatch(line -> line.contains(":17003@") && line.split(" ")[2].contains("slave")));
         });
     }
 
@@ -112,6 +124,44 @@ class RedisClusterIntegrationTests {
             assertNotNull(connection.sync().get("com.redis.kafka.connect.sink.offset.default.list-b.0"));
         } finally {
             sink.stop();
+        }
+    }
+
+    @Test
+    void keysLoadAndReloadScriptsWithReplicaOffline() throws Exception {
+        assertEquals(0, container.execInContainer("redis-cli", "-p", "17003", "shutdown", "nosave").getExitCode());
+        RedisKeysSourceTask source = new RedisKeysSourceTask();
+        try {
+            Set<String> keys = Set.of("{a}:snapshot", "{b}:snapshot", "{c}:snapshot");
+            keys.forEach(key -> connection.sync().set(key, "before-flush"));
+            source.start(Map.of("redis.uri", uri(), "redis.cluster", "true", "redis.timeout", "2",
+                    "redis.keys.timeout", "100"));
+            List<SourceRecord> records = new ArrayList<>();
+            await().atMost(Duration.ofSeconds(10)).until(() -> {
+                records.addAll(source.poll());
+                return records.stream().map(SourceRecord::key).collect(Collectors.toSet()).containsAll(keys);
+            });
+            assertTrue(records.stream().map(SourceRecord::value).map(Struct.class::cast)
+                    .allMatch(value -> "before-flush".equals(value.getString("string"))));
+            connection.sync().masters().commands().scriptFlush();
+            records.clear();
+            Set<String> updates = Set.of("{a}:update", "{b}:update", "{c}:update");
+            updates.forEach(key -> connection.sync().set(key, "after-flush"));
+            await().atMost(Duration.ofSeconds(10)).until(() -> {
+                records.addAll(source.poll());
+                return records.stream().map(SourceRecord::key).collect(Collectors.toSet()).containsAll(updates);
+            });
+            assertTrue(records.stream().map(SourceRecord::value).map(Struct.class::cast)
+                    .filter(value -> updates.contains(value.getString("key")))
+                    .allMatch(value -> "after-flush".equals(value.getString("string"))));
+        } finally {
+            try {
+                source.stop();
+            } finally {
+                assertEquals(0, container.execInContainer("redis-server", "--port", "17003", "--cluster-enabled", "yes",
+                        "--cluster-config-file", "/tmp/node3.conf", "--cluster-announce-ip", "127.0.0.1",
+                        "--protected-mode", "no", "--daemonize", "yes").getExitCode());
+            }
         }
     }
 
