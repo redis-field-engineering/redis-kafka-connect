@@ -44,12 +44,31 @@ permissions:
 
 jobs:
   build:
-    name: Build
+    name: Java ${{ matrix.test-java }}
+    strategy:
+      fail-fast: false
+      matrix:
+        test-java: ['21', '25', '27']
     uses: redis/github-workflows/.github/workflows/build.yml@main
     with:
       split-jobs: true
-      java-version: '17'
-      lint-gradle-tasks: ${{ inputs.lint-gradle-tasks || '' }}
-      test-gradle-tasks: ${{ inputs.test-gradle-tasks || '--parallel test' }}
-      integration-gradle-tasks: ${{ inputs.integration-gradle-tasks || '--parallel integrationTest' }}
-      package-gradle-tasks: ${{ inputs.package-gradle-tasks || '--parallel assemble' }}
+      java-version: |
+        ${{ matrix.test-java }}
+        27
+      lint-gradle-tasks: ${{ matrix.test-java == '27' && inputs.lint-gradle-tasks || '' }}
+      test-gradle-tasks: ${{ format('{0} -PtestJavaVersion={1}', inputs.test-gradle-tasks || '--parallel test', matrix.test-java) }}
+      integration-gradle-tasks: ${{ format('{0} -PtestJavaVersion={1}', inputs.integration-gradle-tasks || '--parallel integrationTest', matrix.test-java) }}
+      package-gradle-tasks: ${{ matrix.test-java == '27' && (inputs.package-gradle-tasks || '--parallel assemble') || '' }}
+
+  worker:
+    name: Confluent 8.3 / Java 21
+    uses: redis/github-workflows/.github/workflows/build.yml@main
+    with:
+      split-jobs: true
+      java-version: |
+        21
+        27
+      lint-gradle-tasks: ''
+      test-gradle-tasks: ''
+      integration-gradle-tasks: 'workerTest -PtestJavaVersion=21'
+      package-gradle-tasks: ''

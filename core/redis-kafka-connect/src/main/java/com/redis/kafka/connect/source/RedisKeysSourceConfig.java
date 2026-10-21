@@ -15,13 +15,14 @@
  */
 package com.redis.kafka.connect.source;
 
-import com.redis.spring.batch.item.redis.RedisItemReader;
-
 import java.time.Duration;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 
 public class RedisKeysSourceConfig extends RedisSourceConfig {
+
+    public enum ReaderMode { LIVE, LIVEONLY }
 
     public static final RedisKeysSourceConfigDef CONFIG = new RedisKeysSourceConfigDef();
 
@@ -31,14 +32,14 @@ public class RedisKeysSourceConfig extends RedisSourceConfig {
 
     private final Duration idleTimeout;
 
-    private final RedisItemReader.ReaderMode mode;
+    private final ReaderMode mode;
 
     public RedisKeysSourceConfig(Map<?, ?> originals) {
         super(new RedisKeysSourceConfigDef(), originals);
         this.topicName = getString(RedisKeysSourceConfigDef.TOPIC_CONFIG);
         this.keyPattern = getString(RedisKeysSourceConfigDef.KEY_PATTERN_CONFIG);
         this.idleTimeout = Duration.ofMillis(getLong(RedisKeysSourceConfigDef.IDLE_TIMEOUT_CONFIG));
-        this.mode = RedisItemReader.ReaderMode.valueOf(getString(RedisKeysSourceConfigDef.MODE_CONFIG).toUpperCase());
+        this.mode = ReaderMode.valueOf(getString(RedisKeysSourceConfigDef.MODE_CONFIG).toUpperCase(Locale.ROOT));
     }
 
     public String getKeyPattern() {
@@ -53,7 +54,7 @@ public class RedisKeysSourceConfig extends RedisSourceConfig {
         return idleTimeout;
     }
 
-    public RedisItemReader.ReaderMode getMode() {
+    public ReaderMode getMode() {
         return mode;
     }
 

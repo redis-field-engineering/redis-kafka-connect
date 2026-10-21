@@ -1,8 +1,8 @@
-ARG CP_VERSION=7.7.0
+ARG CP_VERSION=8.3.2
 ARG BASE_PREFIX=confluentinc
 ARG CONNECT_IMAGE=cp-kafka-connect
 
-FROM openjdk:18-jdk-slim AS build
+FROM eclipse-temurin:27-jdk AS build
 WORKDIR /root/redis-kafka-connect
 COPY . /root/redis-kafka-connect
 RUN ./gradlew createConfluentArchive

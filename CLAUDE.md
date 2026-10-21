@@ -26,19 +26,10 @@ This project uses **Gradle** as the build system with a multi-project structure:
 ./gradlew test
 
 # Run all tests (including integration tests)
-./gradlew redis-kafka-connect:allTests
+./gradlew integrationTest
 
 # Create distribution JAR
 ./gradlew redis-kafka-connect:shadowJar
-
-# Run test coverage
-./gradlew redis-kafka-connect:jacocoTestReport
-
-# Check license headers
-./gradlew license
-
-# Format license headers
-./gradlew licenseFormat
 
 # Create Confluent Hub archive
 ./gradlew redis-kafka-connect:createConfluentArchive
@@ -46,10 +37,12 @@ This project uses **Gradle** as the build system with a multi-project structure:
 
 ### Testing
 
-The project includes comprehensive test suites:
+The project separates unit and integration test tasks:
 - Unit tests: `./gradlew test`
-- Integration tests with Redis Enterprise and Redis Stack: Use `redis-kafka-connect:allTests`
-- Tests use TestContainers for Redis instances
+- Integration tests with Redis Enterprise 8.2 and Redis 8.2: Use `integrationTest`
+- Tests use Testcontainers for Redis instances
+- `./gradlew workerTest` runs the shaded artifact inside Confluent Platform 8.3.2 on Java 21
+- Cluster integration tests use ports 17000–17003; the worker broker uses port 19093
 
 ## Architecture
 
@@ -112,7 +105,7 @@ docker compose down
 1. **Unit Tests**: Test individual components in isolation
 2. **Integration Tests**: Test against real Redis instances using TestContainers
 3. **Enterprise Tests**: Test Redis Enterprise features
-4. **Stack Tests**: Test Redis Stack features (JSON, Search, etc.)
+4. **Redis Tests**: Test Redis 8 features, including JSON and TimeSeries
 
 ### Running Specific Tests
 
@@ -121,7 +114,7 @@ docker compose down
 ./gradlew test --tests "StreamSourceConnectorTest"
 
 # Run integration tests only
-./gradlew redis-kafka-connect:allTests -Dtest.include.tags="integration"
+./gradlew integrationTest
 ```
 
 ## Configuration
@@ -145,21 +138,37 @@ The connectors support multiple Redis deployment types:
 
 ### Core Dependencies
 
-- **Lettuce**: Redis client library (configured via `lettucemodVersion` in gradle.properties)
+- **Lettuce**: Redis client library (versions managed in `gradle/libs.versions.toml`)
 - **Kafka Connect API**: For connector framework integration
-- **Spring Batch Redis**: For batch processing utilities
+- **Direct Lettuce commands**: Task-owned batching, stream groups, and keyspace notification readers
 - **TestContainers**: For integration testing
 
 ### Version Management
 
-Key versions are managed in `gradle.properties`:
-- Java compatibility: JDK 17
-- Lettuce version: 6.5.2.RELEASE
-- TestContainers Redis: 2.2.3
+Key versions are managed in `gradle/libs.versions.toml`:
+- Build and default test runtime: JDK 27
+- Connector bytecode and API compatibility: Java 17 (`--release 17`)
+- Lettuce: 7.9.0.RELEASE; Netty: 4.2.19.Final
+- Native Gradle BOM imports and catalog versions; no Spring Batch, Spring Boot, or LettuceMod
+- Testcontainers Redis: 3.0.0; Testcontainers: 2.0.5
+- Integration images: `redislabs/redis:8.2.0-125.19` and `redis:8.2.10`
+- Override test runtime/images with `-PtestJavaVersion`, `-PredisEnterpriseImage`, and `-PredisImage`
 
 ## Release Process
 
 The project uses JReleaser for release management:
 - Confluent Hub distribution via `createConfluentArchive` task
 - GitHub releases with automated changelog generation
-- Version management through Gradle properties
+- Version management through Axion Git tags; dependency versions use the Gradle catalog
+
+## Runtime ownership and compatibility
+
+Each task owns its Lettuce client and connections. The sink validates commands before
+sending a batch, awaits all pipeline results, and uses a physical primary connection
+for each cluster slot's transaction and WAIT. Transactions do not span slots.
+
+Stream checkpoints use stream/group/consumer source partitions with the existing
+`offset` field. Legacy empty-partition checkpoints are read for group initialization;
+all pending entries replay conservatively, including claimed IDs below a saved checkpoint. Keys subscriptions are established before
+SCAN, use a bounded queue, and fail explicitly on overflow, disconnect, or topology
+change. Keep Redis callbacks free of blocking I/O. The keys source emits one task only.

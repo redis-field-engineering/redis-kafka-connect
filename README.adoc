@@ -25,6 +25,78 @@ The connector is published on https://www.confluent.io/hub/redis/redis-kafka-con
 
 {project-name} is supported by Redis, Inc. for enterprise-tier customers as a 'Developer Tool' under the https://redis.io/legal/software-support-policy/[Redis Software Support Policy.] For non enterprise-tier customers we supply support for {project-name} on a good-faith basis.
 
+== Building and Testing
+
+Build with JDK 27 and the Gradle wrapper. The connector is compiled with `--release 17`;
+tests run on JDK 27 by default. Docker must be running for integration tests.
+CI runs the unit and integration suites on Java 21, 25, and 27.
+
+[source,console]
+----
+./gradlew test
+./gradlew integrationTest
+./gradlew build publish
+----
+
+`publish` stages Maven artifacts under `build/staging-deploy`; it does not upload them.
+`build` also creates the Confluent Hub archive under
+`core/redis-kafka-connect/build/confluent`.
+
+The same source and sink contracts run against every deployment profile:
+
+[cols="1,2,2"]
+|===
+|Profile |Topology and client |Default image
+|Standalone Redis |One server, `RedisClient` |`redis:8.2.10`
+|OSS cluster |Three primaries, `RedisClusterClient` |`redis:8.2.10`
+|Enterprise sharded proxy |Three shards, OSS API disabled, `RedisClient` |`redislabs/redis:8.2.0-125.19`
+|Enterprise OSS Cluster API |Three shards, OSS API enabled, `RedisClusterClient` |`redislabs/redis:8.2.0-125.19`
+|===
+
+Fixtures assert the actual Enterprise database configuration and complete cluster slot
+coverage. Enterprise runs on one node and may advertise a proxy endpoint for multiple
+shards. OSS cluster servers share one test container; additional cases attach a replica
+and verify nontransactional/transactional pipelines, a successful `WAIT` on a non-seed
+primary, and keys-source operation with that replica offline. These fixtures do not
+qualify multi-host failover or Enterprise replication.
+
+Redis 8 includes JSON, Search, and TimeSeries, replacing the older Redis Stack fixture.
+Enterprise tests run on every supported Docker host, including Docker Desktop on macOS.
+Test containers use fixed Enterprise ports 8443, 9443, and 12000; these ports must be free.
+
+Select another installed test JDK or server image with Gradle properties:
+
+[source,console]
+----
+./gradlew integrationTest -PtestJavaVersion=21
+./gradlew integrationTest -PredisEnterpriseImage=redislabs/redis:8.0.20-127.28
+./gradlew integrationTest -PredisImage=redis:8.8.3
+----
+
+Dependency versions are maintained in `gradle/libs.versions.toml` using native Gradle
+platform dependencies. Runtime code uses Lettuce directly; Spring Batch, Spring Batch
+Redis, Spring Boot dependency management, and LettuceMod are no longer required.
+
+Run the packaged connector in Confluent Platform 8.3.2 on Java 21 against Redis
+Enterprise 8.2 with:
+
+[source,console]
+----
+./gradlew workerTest
+----
+
+This task builds a test-only worker image with an explicit Java 21 runtime, checks
+ServiceLoader-only plugin discovery, and exercises all three connectors through Kafka Connect REST and
+Kafka producers/consumers. It covers task restart, broker and Redis server restarts, stream task scale-down,
+and keys-source recovery after a notification gap. It requires broker port 19093;
+the cluster integration fixture also requires ports 17000–17003. Image overrides use
+`-PconfluentVersion` and the Redis properties above. `check` and `build` include this task.
+
+See the guide's migration section before replacing an existing installation.
+Schemas and sink offset JSON remain unchanged. Stream checkpoints now use a partition
+scoped to stream, consumer group, and consumer; legacy checkpoints remain readable.
+In at-least-once mode, unacknowledged messages replay conservatively, including messages claimed below a saved checkpoint.
+
 == Docker Example
 
 Clone this repository, execute `run.sh` and follow prompts:

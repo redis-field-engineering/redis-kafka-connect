@@ -1,17 +1,15 @@
 package com.redis.kafka.connect.source;
 
+import io.lettuce.core.StreamMessage;
 import java.time.Clock;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
-
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.SchemaBuilder;
 import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.source.SourceRecord;
-
-import io.lettuce.core.StreamMessage;
 
 public class StreamMessageConverter implements Function<StreamMessage<String, String>, SourceRecord> {
 
@@ -35,7 +33,7 @@ public class StreamMessageConverter implements Function<StreamMessage<String, St
 
 	@Override
 	public SourceRecord apply(StreamMessage<String, String> message) {
-		Map<String, ?> partition = new HashMap<>();
+		Map<String, ?> partition = config.sourcePartition();
 		Map<String, ?> offset = Collections.singletonMap(RedisStreamSourceTask.OFFSET_FIELD, message.getId());
 		String topic = config.getTopicName().replace(RedisStreamSourceConfigDef.TOKEN_STREAM, message.getStream());
 		String key = message.getId();

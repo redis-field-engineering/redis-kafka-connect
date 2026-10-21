@@ -1,170 +1,278 @@
-/*
- * Copyright © 2021 Redis
- * <p>
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- * <p>
- * http://www.apache.org/licenses/LICENSE-2.0
- * <p>
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
 package com.redis.kafka.connect.source;
 
+import com.redis.kafka.connect.common.ManifestVersionProvider;
+import com.redis.kafka.connect.common.RedisConnection;
+import io.lettuce.core.AbstractRedisClient;
+import io.lettuce.core.Consumer;
+import io.lettuce.core.RedisBusyException;
+import io.lettuce.core.RedisCommandTimeoutException;
+import io.lettuce.core.StreamMessage;
+import io.lettuce.core.XAutoClaimArgs;
+import io.lettuce.core.XGroupCreateArgs;
+import io.lettuce.core.XReadArgs.StreamOffset;
+import io.lettuce.core.XReadArgs;
+import io.lettuce.core.api.sync.RedisStreamCommands;
+import io.lettuce.core.codec.StringCodec;
+import io.lettuce.core.models.stream.ClaimedMessages;
 import java.time.Clock;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
-import java.util.stream.Collectors;
-
+import java.util.Set;
 import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.errors.RetriableException;
 import org.apache.kafka.connect.source.SourceRecord;
 import org.apache.kafka.connect.source.SourceTask;
-import org.springframework.batch.item.ExecutionContext;
-
-import com.redis.kafka.connect.common.ManifestVersionProvider;
-import com.redis.spring.batch.item.redis.reader.StreamItemReader;
-import com.redis.spring.batch.item.redis.reader.StreamItemReader.AckPolicy;
-
-import io.lettuce.core.AbstractRedisClient;
-import io.lettuce.core.Consumer;
-import io.lettuce.core.RedisCommandTimeoutException;
-import io.lettuce.core.StreamMessage;
-import io.lettuce.core.XReadArgs.StreamOffset;
-import io.lettuce.core.codec.StringCodec;
 
 public class RedisStreamSourceTask extends SourceTask {
+    public static final String TASK_ID = "task.id";
+    public static final String OFFSET_FIELD = "offset";
 
-	public static final String TASK_ID = "task.id";
+    private final Clock clock;
+    private final List<String> delivered = new ArrayList<>();
+    private final Set<String> inFlight = new HashSet<>();
+    private AbstractRedisClient client;
+    private volatile RedisConnection<String, String> connection;
+    private volatile RedisConnection<String, String> acknowledgmentConnection;
+    private RedisStreamSourceConfig config;
+    private StreamMessageConverter converter;
+    private Consumer<String> consumer;
+    private String resumeOffset;
+    private String pendingCursor = "0-0";
+    private String claimCursor = "0-0";
+    private boolean recovering = true;
+    private volatile boolean stopped;
 
-	public static final String OFFSET_FIELD = "offset";
+    public RedisStreamSourceTask() {
+        this(Clock.systemDefaultZone());
+    }
 
-	/**
-	 * The offsets that have been processed and that are to be acknowledged by the
-	 * reader in {@link RedisStreamSourceTask#commit()}.
-	 */
-	private final List<Map<String, ?>> sourceOffsets = new ArrayList<>();
-	private final Clock clock;
+    public RedisStreamSourceTask(Clock clock) {
+        this.clock = clock;
+    }
 
-	private RedisStreamSourceConfig config;
-	private StreamItemReader<String, String> reader;
-	private AbstractRedisClient client;
-	private StreamMessageConverter converter;
+    @Override
+    public String version() {
+        return ManifestVersionProvider.getVersion();
+    }
 
-	public RedisStreamSourceTask() {
-		this(Clock.systemDefaultZone());
-	}
+    @Override
+    public void start(Map<String, String> props) {
+        config = new RedisStreamSourceConfig(props);
+        converter = new StreamMessageConverter(clock, config);
+        String taskId = props.getOrDefault(TASK_ID, "0");
+        consumer = Consumer.from(config.getStreamConsumerGroup(),
+                config.getStreamConsumerName().replace(RedisStreamSourceConfigDef.TOKEN_TASK, taskId));
+        resumeOffset = config.getStreamOffset();
+        if (context != null) {
+            Map<String, Object> offset = context.offsetStorageReader().offset(config.sourcePartition());
+            if (offset == null) {
+                offset = context.offsetStorageReader().offset(Collections.emptyMap());
+            }
+            if (offset != null && offset.containsKey(OFFSET_FIELD)) {
+                Object value = offset.get(OFFSET_FIELD);
+                if (!(value instanceof String)) {
+                    throw new ConnectException("Stored Redis stream offset must be a string");
+                }
+                resumeOffset = (String) value;
+                if (!resumeOffset.matches("[0-9]+-[0-9]+")) {
+                    throw new ConnectException("Stored Redis stream offset is not a stream ID");
+                }
+            }
+        }
+        recovering = true;
+        stopped = false;
+        pendingCursor = "0-0";
+        claimCursor = "0-0";
+        synchronized (delivered) {
+            delivered.clear();
+        }
+        synchronized (inFlight) {
+            inFlight.clear();
+        }
+        client = config.client();
+        try {
+            connection = RedisConnection.open(client, StringCodec.UTF8);
+            if (!atMostOnce()) {
+                // Connect commits on another thread while poll may block in XREADGROUP.
+                acknowledgmentConnection = RedisConnection.open(client, StringCodec.UTF8);
+            }
+            try {
+                commands().xgroupCreate(StreamOffset.from(config.getStreamName(), resumeOffset), consumer.getGroup(),
+                        XGroupCreateArgs.Builder.mkstream(true));
+            } catch (RedisBusyException e) {
+                // An existing consumer group owns its position; never reset it during a restart.
+            }
+        } catch (Exception e) {
+            stop();
+            throw new ConnectException("Could not start Redis stream source", e);
+        }
+    }
 
-	public RedisStreamSourceTask(Clock clock) {
-		this.clock = clock;
-	}
+    @SuppressWarnings("unchecked")
+    private RedisStreamCommands<String, String> commands() {
+        return connection.sync(RedisStreamCommands.class);
+    }
 
-	@Override
-	public String version() {
-		return ManifestVersionProvider.getVersion();
-	}
+    @Override
+    public void commitRecord(SourceRecord record, RecordMetadata metadata) {
+        if (!atMostOnce() && record.sourceOffset() != null) {
+            Object id = record.sourceOffset().get(OFFSET_FIELD);
+            if (!(id instanceof String)) {
+                throw new ConnectException("Redis stream record has no valid offset");
+            }
+            synchronized (delivered) {
+                delivered.add((String) id);
+            }
+        }
+    }
 
-	@Override
-	public void start(Map<String, String> props) {
-		this.config = new RedisStreamSourceConfig(props);
-		this.converter = new StreamMessageConverter(clock, config);
-		this.client = config.client();
-		int taskId = Integer.parseInt(props.getOrDefault(TASK_ID, String.valueOf(0)));
-		this.reader = reader(client, taskId, config);
-		reader.open(new ExecutionContext());
-	}
+    @Override
+    @SuppressWarnings("unchecked")
+    public void commit() {
+        RedisConnection<String, String> current = acknowledgmentConnection;
+        if (current == null) {
+            return;
+        }
+        List<String> batch;
+        synchronized (delivered) {
+            batch = new ArrayList<>(delivered);
+        }
+        if (batch.isEmpty()) {
+            return;
+        }
+        try {
+            synchronized (inFlight) {
+                RedisStreamCommands<String, String> acknowledgments = current.sync(RedisStreamCommands.class);
+                acknowledgments.xack(config.getStreamName(), consumer.getGroup(), batch.toArray(String[]::new));
+                inFlight.removeAll(batch);
+            }
+            synchronized (delivered) {
+                // Do not clear delivery callbacks that arrived while XACK was in flight.
+                delivered.subList(0, batch.size()).clear();
+            }
+        } catch (Exception e) {
+            throw new ConnectException("Could not acknowledge Redis stream records", e);
+        }
+    }
 
-	@SuppressWarnings("unchecked")
-	private StreamItemReader<String, String> reader(AbstractRedisClient client, int taskId,
-			RedisStreamSourceConfig config) {
-		String task = String.valueOf(taskId);
-		String consumerName = config.getStreamConsumerName().replace(RedisStreamSourceConfigDef.TOKEN_TASK, task);
-		Consumer<String> consumer = Consumer.from(config.getStreamConsumerGroup(), consumerName);
-		String offset = offsetMap().map(m -> (String) m.get(OFFSET_FIELD)).orElse(config.getStreamOffset());
-		String stream = config.getStreamName();
-		StreamOffset<String> streamOffset = StreamOffset.from(stream, offset);
-		StreamItemReader<String, String> reader = new StreamItemReader<>(client, StringCodec.UTF8, streamOffset);
-		reader.setConsumer(consumer);
-		reader.setBlock(Duration.ofMillis(config.getStreamBlock()));
-		reader.setCount(config.getBatchSize());
-		reader.setAckPolicy(ackPolicy(config));
-		return reader;
-	}
+    @Override
+    public List<SourceRecord> poll() {
+        if (stopped) {
+            return List.of();
+        }
+        try {
+            List<StreamMessage<String, String>> messages = read();
+            if (atMostOnce() && !messages.isEmpty()) {
+                ack(messages);
+            }
+            List<SourceRecord> records = messages.stream().map(converter).toList();
+            if (!atMostOnce()) {
+                synchronized (inFlight) {
+                    messages.forEach(message -> inFlight.add(message.getId()));
+                }
+            }
+            return records;
+        } catch (RedisCommandTimeoutException e) {
+            if (stopped) {
+                return List.of();
+            }
+            throw new RetriableException("Timeout while reading Redis stream", e);
+        } catch (Exception e) {
+            if (stopped) {
+                return List.of();
+            }
+            throw new ConnectException("Could not read Redis stream", e);
+        }
+    }
 
-	private Optional<Map<String, Object>> offsetMap() {
-		if (context == null) {
-			return Optional.empty();
-		}
-		return Optional.ofNullable(context.offsetStorageReader().offset(Collections.emptyMap()));
-	}
+    @SuppressWarnings("unchecked")
+    private List<StreamMessage<String, String>> read() {
+        RedisStreamCommands<String, String> commands = commands();
+        XReadArgs pendingArgs = XReadArgs.Builder.count(config.getBatchSize());
+        if (recovering && !stopped) {
+            List<StreamMessage<String, String>> pending = commands.xreadgroup(consumer, pendingArgs,
+                    StreamOffset.from(config.getStreamName(), pendingCursor));
+            if (pending.isEmpty()) {
+                recovering = false;
+            } else {
+                pendingCursor = pending.get(pending.size() - 1).getId();
+                List<StreamMessage<String, String>> replay = new ArrayList<>();
+                List<StreamMessage<String, String>> completed = new ArrayList<>();
+                for (StreamMessage<String, String> message : pending) {
+                    if (atMostOnce() || message.getBody() == null) {
+                        completed.add(message);
+                    } else {
+                        replay.add(message);
+                    }
+                }
+                ack(completed);
+                // Recover at most one page per poll, even when every entry is deleted or auto-acked.
+                return replay;
+            }
+        }
+        if (stopped) {
+            return List.of();
+        }
+        long idle = config.getLong(RedisStreamSourceConfigDef.STREAM_CLAIM_IDLE_CONFIG);
+        if (idle > 0) {
+            // XAUTOCLAIM includes our own PEL. Keep records already handed to Connect out
+            // of replay until XACK succeeds, even when offset commits take longer than idle.
+            synchronized (inFlight) {
+                ClaimedMessages<String, String> claimed = commands.xautoclaim(config.getStreamName(),
+                        XAutoClaimArgs.Builder.xautoclaim(consumer, idle, claimCursor).count(config.getBatchSize()));
+                claimCursor = claimed.getId();
+                List<StreamMessage<String, String>> replay = claimed.getMessages().stream()
+                        .filter(message -> !inFlight.contains(message.getId())).toList();
+                if (!replay.isEmpty()) {
+                    return replay;
+                }
+            }
+        }
+        XReadArgs args = XReadArgs.Builder.count(config.getBatchSize());
+        // Redis BLOCK 0 means forever. Preserve a bounded poll even when configured with zero.
+        if (config.getStreamBlock() > 0) {
+            args.block(Math.min(config.getStreamBlock(), config.uri().getTimeout().toMillis() / 2));
+        }
+        return commands.xreadgroup(consumer, args, StreamOffset.lastConsumed(config.getStreamName()));
+    }
 
-	@Override
-	public void commitRecord(SourceRecord sourceRecord, RecordMetadata metadata) throws InterruptedException {
-		Map<String, ?> currentOffset = sourceRecord.sourceOffset();
-		if (currentOffset != null) {
-			sourceOffsets.add(currentOffset);
-		}
-	}
+    private boolean atMostOnce() {
+        return RedisStreamSourceConfig.STREAM_DELIVERY_AT_MOST_ONCE.equals(config.getStreamDelivery());
+    }
 
-	@Override
-	public void commit() throws InterruptedException {
-		if (reader != null) {
-			String[] ids = sourceOffsets.stream().map(m -> (String) m.get(OFFSET_FIELD)).toArray(String[]::new);
-			try {
-				reader.ack(config.getStreamName(), ids);
-				sourceOffsets.clear();
-			} catch (Exception e) {
-				throw new ConnectException("Could not ack offsets to Redis", e);
-			}
-		}
-	}
+    private void ack(List<StreamMessage<String, String>> messages) {
+        if (!messages.isEmpty()) {
+            commands().xack(config.getStreamName(), consumer.getGroup(),
+                    messages.stream().map(StreamMessage::getId).toArray(String[]::new));
+        }
+    }
 
-	@Override
-	public void stop() {
-		if (reader != null) {
-			reader.close();
-			reader = null;
-		}
-		if (client != null) {
-			client.shutdown();
-			client.getResources().shutdown();
-			client = null;
-		}
-	}
-
-	@Override
-	public List<SourceRecord> poll() {
-		List<StreamMessage<String, String>> messages;
-		try {
-			messages = reader.readMessages();
-		} catch (RedisCommandTimeoutException e) {
-			throw new RetriableException("Timeout while reading stream messages", e);
-		} catch (Exception e) {
-			throw new ConnectException("Could not read messages from stream", e);
-		}
-		// TODO: return heartbeat if no records
-		return messages.stream().map(converter).collect(Collectors.toList());
-	}
-
-	private StreamItemReader.AckPolicy ackPolicy(RedisStreamSourceConfig config) {
-		switch (config.getStreamDelivery()) {
-		case RedisStreamSourceConfig.STREAM_DELIVERY_AT_MOST_ONCE:
-			return AckPolicy.AUTO;
-		case RedisStreamSourceConfig.STREAM_DELIVERY_AT_LEAST_ONCE:
-			return AckPolicy.MANUAL;
-		default:
-			throw new IllegalArgumentException("Illegal value for " + RedisStreamSourceConfigDef.STREAM_DELIVERY_CONFIG
-					+ ": " + config.getStreamDelivery());
-		}
-	}
-
+    @Override
+    public void stop() {
+        stopped = true;
+        try {
+            RedisConnection<String, String> current = connection;
+            connection = null;
+            if (current != null) {
+                current.close();
+            }
+        } finally {
+            try {
+                RedisConnection<String, String> current = acknowledgmentConnection;
+                acknowledgmentConnection = null;
+                if (current != null) {
+                    current.close();
+                }
+            } finally {
+                if (client != null) {
+                    client.shutdown();
+                    client = null;
+                }
+            }
+        }
+    }
 }

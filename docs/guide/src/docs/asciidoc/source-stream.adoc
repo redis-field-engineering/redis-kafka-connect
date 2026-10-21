@@ -94,3 +94,20 @@ For example, `foo${task}` and task `123` => consumer `foo123`.
 May contain `${stream}` as a placeholder for the originating stream name.
 For example, `redis_${stream}` and stream `orders` => topic `redis_orders`.
 
+
+== Pending Messages and Checkpoints
+
+Each task first recovers pending messages for its consumer and then reads new messages.
+With multiple tasks, `redis.stream.consumer.name` must contain `${task}` so consumer
+identities are distinct. Keep the consumer group and name format stable across restarts.
+
+`redis.stream.claim.idle` sets the minimum idle time in milliseconds before a task can
+claim abandoned pending messages, including messages owned by a removed task (default
+`60000`; `0` disables claiming). Set it above normal end-to-end processing time. A slow
+active consumer may otherwise have its messages reclaimed and delivered again.
+At-least-once delivery permits these duplicates.
+
+Checkpoints use source partitions containing `stream`, `group`, and `consumer`, with the
+existing `offset` field holding the stream ID. See the migration section for legacy
+checkpoint handling. Stream data must remain available until its pending messages have
+been delivered; trimming or deleting pending entries can make recovery impossible.

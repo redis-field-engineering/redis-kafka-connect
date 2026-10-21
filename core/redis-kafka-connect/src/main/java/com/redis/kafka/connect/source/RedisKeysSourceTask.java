@@ -1,134 +1,94 @@
-/*
- * Copyright © 2021 Redis
- * <p>
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- * <p>
- * http://www.apache.org/licenses/LICENSE-2.0
- * <p>
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
 package com.redis.kafka.connect.source;
 
 import com.redis.kafka.connect.common.ManifestVersionProvider;
-import com.redis.spring.batch.item.redis.RedisItemReader;
-import com.redis.spring.batch.item.redis.common.KeyValue;
 import io.lettuce.core.AbstractRedisClient;
+import java.time.Clock;
+import java.util.List;
+import java.util.Map;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.errors.ConnectException;
-import org.apache.kafka.connect.errors.RetriableException;
 import org.apache.kafka.connect.source.SourceRecord;
 import org.apache.kafka.connect.source.SourceTask;
-import org.springframework.batch.item.ExecutionContext;
-import org.springframework.batch.item.ItemStreamException;
-
-import java.time.Clock;
-import java.util.*;
 
 public class RedisKeysSourceTask extends SourceTask {
+    public static final Schema KEY_SCHEMA = Schema.STRING_SCHEMA;
 
-	public static final Schema KEY_SCHEMA = Schema.STRING_SCHEMA;
+    private final ToStructFunction converter = new ToStructFunction();
+    private final Clock clock;
+    private AbstractRedisClient client;
+    private volatile RedisKeyReader reader;
+    private volatile boolean stopped = true;
+    private String topic;
 
-	private final ToStructFunction converter = new ToStructFunction();
-	private final Clock clock;
+    public RedisKeysSourceTask() {
+        this(Clock.systemDefaultZone());
+    }
 
-	private AbstractRedisClient client;
-	private RedisItemReader<String, String> reader;
-	private int batchSize;
-	private String topic;
+    public RedisKeysSourceTask(Clock clock) {
+        this.clock = clock;
+    }
 
-	public RedisKeysSourceTask() {
-		this(Clock.systemDefaultZone());
-	}
+    @Override
+    public String version() {
+        return ManifestVersionProvider.getVersion();
+    }
 
-	public RedisKeysSourceTask(Clock clock) {
-		this.clock = clock;
-	}
+    public RedisKeyReader getReader() {
+        return reader;
+    }
 
-	@Override
-	public String version() {
-		return ManifestVersionProvider.getVersion();
-	}
+    @Override
+    public void start(Map<String, String> props) {
+        RedisKeysSourceConfig config = new RedisKeysSourceConfig(props);
+        topic = config.getTopicName();
+        stopped = false;
+        client = config.client();
+        reader = new RedisKeyReader(client, config);
+        try {
+            reader.open();
+        } catch (Exception e) {
+            stop();
+            throw new ConnectException("Could not start Redis keys source", e);
+        }
+    }
 
-	public RedisItemReader<String, String> getReader() {
-		return reader;
-	}
+    @Override
+    public void stop() {
+        stopped = true;
+        RedisKeyReader current = reader;
+        reader = null;
+        try {
+            if (current != null) {
+                current.close();
+            }
+        } finally {
+            if (client != null) {
+                client.shutdown();
+                client = null;
+            }
+        }
+    }
 
-	@Override
-	public void start(Map<String, String> props) {
-		RedisKeysSourceConfig config = new RedisKeysSourceConfig(props);
-		this.topic = config.getTopicName();
-		this.batchSize = Math.toIntExact(config.getBatchSize());
-		this.client = config.client();
-		reader = RedisItemReader.struct();
-		// Use a random job name to not interfere with other key source tasks
-		reader.setName(UUID.randomUUID().toString());
-		reader.setClient(client);
-		reader.setMode(config.getMode());
-		reader.setPoolSize(config.getPoolSize());
-		reader.setDatabase(config.uri().getDatabase());
-		reader.setKeyPattern(config.getKeyPattern());
-		reader.setChunkSize(batchSize);
-		if (!config.getIdleTimeout().isNegative() && !config.getIdleTimeout().isZero()) {
-			reader.setIdleTimeout(config.getIdleTimeout());
-		}
-		try {
-			reader.open(new ExecutionContext());
-		} catch (ItemStreamException e) {
-			throw new RetriableException("Could not open reader", e);
-		}
-	}
+    private SourceRecord convert(KeySnapshot input) {
+        return new SourceRecord(Map.of(), Map.of(), topic, null, KEY_SCHEMA, input.key(), ToStructFunction.VALUE_SCHEMA,
+                converter.apply(input), clock.instant().toEpochMilli());
+    }
 
-	@Deprecated
-	@Override
-	public void commitRecord(SourceRecord sourceRecord) throws InterruptedException {
-		// do nothing - offset tracking not needed for Redis key monitoring
-	}
-
-	@Override
-	public void commit() throws InterruptedException {
-		// do nothing
-	}
-
-	@Override
-	public void stop() {
-		if (reader != null) {
-			reader.close();
-			reader = null;
-		}
-		if (client != null) {
-			client.shutdown();
-			client.getResources().shutdown();
-			client = null;
-		}
-	}
-
-	private SourceRecord convert(KeyValue<String> input) {
-		Map<String, ?> partition = new HashMap<>();
-		Map<String, ?> offset = new HashMap<>();
-		String key = input.getKey();
-		long epoch = clock.instant().toEpochMilli();
-		return new SourceRecord(partition, offset, topic, null, KEY_SCHEMA, key, ToStructFunction.VALUE_SCHEMA,
-				converter.apply(input), epoch);
-	}
-
-	@Override
-	public List<SourceRecord> poll() {
-		List<SourceRecord> records = new ArrayList<>();
-		KeyValue<String> item;
-		try {
-			while (records.size() < batchSize && (item = reader.read()) != null) {
-				records.add(convert(item));
-			}
-		} catch (Exception e) {
-			throw new ConnectException("Could not read from Redis", e);
-		}
-		return records;
-	}
-
+    @Override
+    public List<SourceRecord> poll() throws InterruptedException {
+        RedisKeyReader current = reader;
+        if (current == null) {
+            return List.of();
+        }
+        try {
+            return current.poll().stream().map(this::convert).toList();
+        } catch (InterruptedException e) {
+            throw e;
+        } catch (Exception e) {
+            if (stopped) {
+                return List.of();
+            }
+            throw e instanceof ConnectException connect ? connect : new ConnectException("Could not read from Redis", e);
+        }
+    }
 }

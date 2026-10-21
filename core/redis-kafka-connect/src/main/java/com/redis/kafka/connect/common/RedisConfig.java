@@ -15,23 +15,20 @@
  */
 package com.redis.kafka.connect.common;
 
+import io.lettuce.core.AbstractRedisClient;
+import io.lettuce.core.ClientOptions;
+import io.lettuce.core.RedisClient;
+import io.lettuce.core.RedisURI;
+import io.lettuce.core.SslOptions.Builder;
+import io.lettuce.core.SslOptions;
+import io.lettuce.core.cluster.ClusterClientOptions;
+import io.lettuce.core.cluster.ClusterTopologyRefreshOptions;
+import io.lettuce.core.cluster.RedisClusterClient;
 import java.io.File;
 import java.time.Duration;
 import java.util.Map;
-
 import org.apache.kafka.common.config.AbstractConfig;
 import org.apache.kafka.common.config.types.Password;
-import org.springframework.util.StringUtils;
-
-import com.redis.lettucemod.RedisModulesClient;
-import com.redis.lettucemod.cluster.RedisModulesClusterClient;
-
-import io.lettuce.core.AbstractRedisClient;
-import io.lettuce.core.ClientOptions;
-import io.lettuce.core.RedisURI;
-import io.lettuce.core.SslOptions;
-import io.lettuce.core.SslOptions.Builder;
-import io.lettuce.core.cluster.ClusterClientOptions;
 
 public abstract class RedisConfig extends AbstractConfig {
 
@@ -54,9 +51,9 @@ public abstract class RedisConfig extends AbstractConfig {
         Password password = getPassword(RedisConfigDef.PASSWORD_CONFIG);
         if (password != null) {
             String passwordString = password.value();
-            if (StringUtils.hasLength(passwordString)) {
+            if ((passwordString != null && !passwordString.isEmpty())) {
                 String username = getString(RedisConfigDef.USERNAME_CONFIG);
-                if (StringUtils.hasLength(username)) {
+                if ((username != null && !username.isEmpty())) {
                     builder.withAuthentication(username, passwordString);
                 } else {
                     builder.withPassword((CharSequence) passwordString);
@@ -72,7 +69,7 @@ public abstract class RedisConfig extends AbstractConfig {
 
     private RedisURI.Builder redisURIBuilder() {
         String uri = getString(RedisConfigDef.URI_CONFIG);
-        if (StringUtils.hasLength(uri)) {
+        if ((uri != null && !uri.isEmpty())) {
             return RedisURI.builder(RedisURI.create(uri));
         }
         String host = getString(RedisConfigDef.HOST_CONFIG);
@@ -83,11 +80,13 @@ public abstract class RedisConfig extends AbstractConfig {
     private AbstractRedisClient client(RedisURI uri) {
         Boolean cluster = getBoolean(RedisConfigDef.CLUSTER_CONFIG);
         if (Boolean.TRUE.equals(cluster)) {
-            RedisModulesClusterClient client = RedisModulesClusterClient.create(uri);
-            client.setOptions(clientOptions(ClusterClientOptions.builder()).build());
+            RedisClusterClient client = RedisClusterClient.create(uri);
+            client.setOptions(clientOptions(ClusterClientOptions.builder().topologyRefreshOptions(
+                    ClusterTopologyRefreshOptions.builder().enableAllAdaptiveRefreshTriggers()
+                            .enablePeriodicRefresh(Duration.ofSeconds(30)).build())).build());
             return client;
         }
-        RedisModulesClient client = RedisModulesClient.create(uri);
+        RedisClient client = RedisClient.create(uri);
         client.setOptions(clientOptions(ClientOptions.builder()).build());
         return client;
     }
@@ -100,14 +99,14 @@ public abstract class RedisConfig extends AbstractConfig {
     private SslOptions sslOptions() {
         Builder options = SslOptions.builder();
         String key = getString(RedisConfigDef.KEY_CONFIG);
-        if (StringUtils.hasLength(key)) {
+        if ((key != null && !key.isEmpty())) {
             String cert = getString(RedisConfigDef.KEY_CERT_CONFIG);
             Password password = getPassword(RedisConfigDef.KEY_PASSWORD_CONFIG);
             char[] passwordCharArray = password == null ? EMPTY_PASSWORD : password.value().toCharArray();
             options.keyManager(new File(cert), new File(key), passwordCharArray);
         }
         String cacert = getString(RedisConfigDef.CACERT_CONFIG);
-        if (StringUtils.hasLength(cacert)) {
+        if ((cacert != null && !cacert.isEmpty())) {
             options.trustManager(new File(cacert));
         }
         return options.build();
