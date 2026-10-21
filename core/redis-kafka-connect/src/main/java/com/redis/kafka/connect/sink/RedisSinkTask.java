@@ -211,7 +211,7 @@ public class RedisSinkTask extends SinkTask {
         long ttl = ttl(record);
         return switch (config.getType()) {
             case STRING -> write(CommandType.SET, key, List.of(value(record)), RedisWrite.Reply.STATUS, ttl);
-            case JSON -> write(ModuleCommand.JSON_SET, key, List.of(number("$"), jsonValue(record)), RedisWrite.Reply.STATUS, ttl);
+            case JSON -> write(CommandType.JSON_SET, key, List.of(number("$"), jsonValue(record)), RedisWrite.Reply.STATUS, ttl);
             case HASH -> write(CommandType.HSET, key, fields(record), RedisWrite.Reply.INTEGER, ttl);
             case STREAM -> {
                 List<byte[]> args = new ArrayList<>();
