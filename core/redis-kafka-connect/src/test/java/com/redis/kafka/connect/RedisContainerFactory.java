@@ -2,7 +2,6 @@ package com.redis.kafka.connect;
 
 import com.redis.enterprise.Database;
 import com.redis.enterprise.RedisModule;
-import com.redis.enterprise.testcontainers.RedisEnterpriseServer;
 import com.redis.testcontainers.RedisContainer;
 import org.testcontainers.utility.DockerImageName;
 
@@ -17,16 +16,17 @@ public interface RedisContainerFactory {
 
 	@SuppressWarnings("resource")
 	static RedisEnterprise8Container enterprise() {
-		return new RedisEnterprise8Container(DockerImageName.parse(ENTERPRISE_IMAGE),
-				Database.builder().name("ConnectorTests").port(12000).memoryMB(100).ossCluster(true)
-						.modules(RedisModule.TIMESERIES, RedisModule.JSON, RedisModule.SEARCH).build());
-	}
+        return enterprise(false);
+    }
 
-	static RedisEnterpriseServer enterpriseServer() {
-		RedisEnterpriseServer server = new RedisEnterpriseServer();
-		server.withDatabase(Database.builder().shardCount(2).port(12001).ossCluster(true)
-				.modules(RedisModule.JSON, RedisModule.SEARCH, RedisModule.TIMESERIES).build());
-		return server;
+    static RedisEnterprise8Container enterpriseCluster() {
+        return enterprise(true);
+    }
+
+    private static RedisEnterprise8Container enterprise(boolean ossCluster) {
+        return new RedisEnterprise8Container(DockerImageName.parse(ENTERPRISE_IMAGE),
+                Database.builder().name("ConnectorTests").port(12000).memoryMB(100).shardCount(3).ossCluster(ossCluster)
+						.modules(RedisModule.TIMESERIES, RedisModule.JSON, RedisModule.SEARCH).build());
 	}
 
 }

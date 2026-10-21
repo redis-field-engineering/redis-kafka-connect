@@ -3,6 +3,7 @@ package com.redis.kafka.connect;
 import com.redis.kafka.connect.sink.RedisSinkTask;
 import com.redis.kafka.connect.source.RedisKeysSourceTask;
 import io.lettuce.core.RedisClient;
+import io.lettuce.core.api.StatefulRedisConnection;
 import io.lettuce.core.cluster.RedisClusterClient;
 import io.lettuce.core.cluster.api.StatefulRedisClusterConnection;
 import io.lettuce.core.cluster.models.partitions.RedisClusterNode;
@@ -22,42 +23,22 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+import io.lettuce.core.cluster.SlotHash;
 import org.junit.jupiter.api.TestInstance;
-import org.testcontainers.containers.GenericContainer;
-import org.testcontainers.containers.wait.strategy.Wait;
-import org.testcontainers.utility.DockerImageName;
 import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.*;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class RedisClusterIntegrationTests {
-    // Equal internal/external ports keep advertised cluster addresses valid on local Docker hosts.
-    private static final class ClusterContainer extends GenericContainer<ClusterContainer> {
-        ClusterContainer() {
-            super(DockerImageName.parse(RedisContainerFactory.REDIS_IMAGE));
-            for (int port = 17000; port <= 17003; port++) {
-                addFixedExposedPort(port, port);
-            }
-            withCommand("sh", "-ec", """
-                    redis-server --port 17000 --cluster-enabled yes --cluster-config-file /tmp/node0.conf --cluster-announce-ip 127.0.0.1 --protected-mode no &
-                    redis-server --port 17001 --cluster-enabled yes --cluster-config-file /tmp/node1.conf --cluster-announce-ip 127.0.0.1 --protected-mode no &
-                    redis-server --port 17003 --cluster-enabled yes --cluster-config-file /tmp/node3.conf --cluster-announce-ip 127.0.0.1 --protected-mode no &
-                    exec redis-server --port 17002 --cluster-enabled yes --cluster-config-file /tmp/node2.conf --cluster-announce-ip 127.0.0.1 --protected-mode no
-                    """);
-            waitingFor(Wait.forListeningPorts(17000, 17001, 17002, 17003));
-            withStartupTimeout(Duration.ofMinutes(1));
-        }
-    }
-
-    private final ClusterContainer container = new ClusterContainer();
+    private final RedisOssClusterContainer container = new RedisOssClusterContainer();
     private RedisClusterClient client;
     private StatefulRedisClusterConnection<String, String> connection;
 
     @BeforeAll
     void startCluster() throws Exception {
         container.start();
-        assertEquals(0, container.execInContainer("redis-cli", "--cluster", "create", "127.0.0.1:17000",
-                "127.0.0.1:17001", "127.0.0.1:17002", "--cluster-yes").getExitCode());
         client = RedisClusterClient.create(uri());
         connection = client.connect();
         await().atMost(Duration.ofSeconds(20)).ignoreExceptions().untilAsserted(() -> {
@@ -66,7 +47,7 @@ class RedisClusterIntegrationTests {
         });
         List<String> primaries = client.getPartitions().stream()
                 .filter(node -> node.is(RedisClusterNode.NodeFlag.UPSTREAM)).map(RedisClusterNode::getNodeId).toList();
-        String primary = client.getPartitions().getPartitionBySlot(0).getNodeId();
+        String primary = client.getPartitions().getPartitionBySlot(16383).getNodeId();
         assertEquals(0, container.execInContainer("redis-cli", "--cluster", "add-node", "127.0.0.1:17003",
                 "127.0.0.1:17000", "--cluster-slave", "--cluster-master-id", primary).getExitCode());
         await().atMost(Duration.ofSeconds(20)).until(() -> {
@@ -103,12 +84,13 @@ class RedisClusterIntegrationTests {
         }
     }
 
-    @Test
-    void sinkRoutesTransactionsAndTtlsAcrossSlots() {
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    void sinkRoutesTransactionsAndTtlsAcrossSlots(boolean transaction) {
         RedisSinkTask sink = new RedisSinkTask();
         try {
             sink.start(Map.of("redis.uri", uri(), "redis.cluster", "true", "redis.type", "LIST",
-                    "redis.keyspace", "${topic}", "redis.multiexec", "true", "redis.key.ttl", "3600"));
+                    "redis.keyspace", "${topic}", "redis.multiexec", Boolean.toString(transaction), "redis.key.ttl", "3600"));
             List<SinkRecord> records = List.of(
                     new SinkRecord("list-a", 0, Schema.STRING_SCHEMA, "first", Schema.STRING_SCHEMA, "value", 0),
                     new SinkRecord("list-b", 0, Schema.STRING_SCHEMA, "other", Schema.STRING_SCHEMA, "value", 0),
@@ -122,6 +104,30 @@ class RedisClusterIntegrationTests {
                     new TopicPartition("list-b", 0), new OffsetAndMetadata(1)));
             assertNotNull(connection.sync().get("com.redis.kafka.connect.sink.offset.default.list-a.0"));
             assertNotNull(connection.sync().get("com.redis.kafka.connect.sink.offset.default.list-b.0"));
+        } finally {
+            sink.stop();
+        }
+    }
+
+    @Test
+    void waitAcknowledgesWritesOnTheNonSeedPrimary() throws Exception {
+        await().atMost(Duration.ofSeconds(20)).until(() -> container.execInContainer("redis-cli", "-p", "17003",
+                "info", "replication").getStdout().contains("master_link_status:up"));
+        String key = "{a}:replicated";
+        assertNotEquals(17000, client.getPartitions().getPartitionBySlot(SlotHash.getSlot(key))
+                .getUri().getPort());
+        RedisSinkTask sink = new RedisSinkTask();
+        try {
+            sink.start(Map.of("redis.uri", uri(), "redis.cluster", "true", "redis.type", "STRING",
+                    "redis.keyspace", "", "redis.wait.replicas", "1", "redis.wait.timeout", "2000"));
+            sink.put(List.of(new SinkRecord("replicated", 0, Schema.STRING_SCHEMA, key,
+                    Schema.STRING_SCHEMA, "replicated-value", 0)));
+            assertEquals("replicated-value", connection.sync().get(key));
+            try (RedisClient replica = RedisClient.create("redis://" + container.getHost() + ":17003");
+                    StatefulRedisConnection<String, String> replicated = replica.connect()) {
+                replicated.sync().readOnly();
+                assertEquals("replicated-value", replicated.sync().get(key));
+            }
         } finally {
             sink.stop();
         }
@@ -157,7 +163,8 @@ class RedisClusterIntegrationTests {
             try {
                 source.stop();
             } finally {
-                assertEquals(0, container.execInContainer("redis-server", "--port", "17003", "--cluster-enabled", "yes",
+                assertEquals(0, container.execInContainer("redis-server", "--loadmodule", "/usr/local/lib/redis/modules/rejson.so",
+                        "--loadmodule", "/usr/local/lib/redis/modules/redistimeseries.so", "--port", "17003", "--cluster-enabled", "yes",
                         "--cluster-config-file", "/tmp/node3.conf", "--cluster-announce-ip", "127.0.0.1",
                         "--protected-mode", "no", "--daemonize", "yes").getExitCode());
             }

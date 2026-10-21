@@ -5,11 +5,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.redis.kafka.connect.sink.RedisSinkConfig.RedisType;
 import com.redis.kafka.connect.sink.RedisSinkConfigDef;
 import com.redis.kafka.connect.sink.RedisSinkTask;
+import com.redis.kafka.connect.common.RedisConnection;
+import io.lettuce.core.api.sync.RedisStringCommands;
 import io.lettuce.core.KeyValue;
 import io.lettuce.core.Range;
 import io.lettuce.core.ScoredValue;
 import io.lettuce.core.StreamMessage;
-import io.lettuce.core.api.StatefulRedisConnection;
 import io.lettuce.core.codec.ByteArrayCodec;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -97,6 +98,10 @@ abstract class AbstractSinkIntegrationTests extends AbstractRedisIntegrationTest
 
     private RedisSinkTask task;
 
+    private void startSinkTask(Map<String, String> props) {
+        task.start(deploymentProps(props));
+    }
+
     @BeforeEach
     public void createTask() {
         task = new RedisSinkTask();
@@ -114,7 +119,7 @@ abstract class AbstractSinkIntegrationTests extends AbstractRedisIntegrationTest
         SinkTaskContext taskContext = mock(SinkTaskContext.class);
         when(taskContext.assignment()).thenReturn(Set.of());
         this.task.initialize(taskContext);
-        this.task.start(Map.of(RedisSinkConfigDef.URI_CONFIG, getRedisServer().getRedisURI()));
+        this.startSinkTask(Map.of(RedisSinkConfigDef.URI_CONFIG, getRedisServer().getRedisURI()));
     }
 
     @Test
@@ -122,7 +127,7 @@ abstract class AbstractSinkIntegrationTests extends AbstractRedisIntegrationTest
         String topic = "putWrite";
         SinkTaskContext context = mock(SinkTaskContext.class);
         this.task.initialize(context);
-        this.task.start(Map.of(RedisSinkConfigDef.URI_CONFIG, getRedisServer().getRedisURI()));
+        this.startSinkTask(Map.of(RedisSinkConfigDef.URI_CONFIG, getRedisServer().getRedisURI()));
         this.task.put(List.of());
     }
 
@@ -132,7 +137,7 @@ abstract class AbstractSinkIntegrationTests extends AbstractRedisIntegrationTest
         TopicPartition topicPartition = new TopicPartition(topic, PARTITION);
         SinkTaskContext context = mock(SinkTaskContext.class);
         this.task.initialize(context);
-        this.task.start(sinkProps("connector-a"));
+        this.startSinkTask(sinkProps("connector-a"));
 
         this.task.flush(Map.of(topicPartition, new OffsetAndMetadata(123L)));
 
@@ -151,7 +156,7 @@ abstract class AbstractSinkIntegrationTests extends AbstractRedisIntegrationTest
         redisConnection.sync().set(offsetKey("connector-a", topicPartition), offsetValue(topic, PARTITION, 456L));
         SinkTaskContext context = mock(SinkTaskContext.class);
         this.task.initialize(context);
-        this.task.start(sinkProps("connector-a"));
+        this.startSinkTask(sinkProps("connector-a"));
 
         this.task.open(List.of(topicPartition));
 
@@ -163,7 +168,7 @@ abstract class AbstractSinkIntegrationTests extends AbstractRedisIntegrationTest
         TopicPartition topicPartition = new TopicPartition("openDoesNotSeekPartitionsWithoutStoredOffsets", PARTITION);
         SinkTaskContext context = mock(SinkTaskContext.class);
         this.task.initialize(context);
-        this.task.start(sinkProps("connector-a"));
+        this.startSinkTask(sinkProps("connector-a"));
 
         this.task.open(List.of(topicPartition));
 
@@ -177,7 +182,7 @@ abstract class AbstractSinkIntegrationTests extends AbstractRedisIntegrationTest
         redisConnection.sync().set(legacyOffsetKey(topicPartition), offsetValue(topic, PARTITION, 789L));
         SinkTaskContext context = mock(SinkTaskContext.class);
         this.task.initialize(context);
-        this.task.start(sinkProps("connector-a"));
+        this.startSinkTask(sinkProps("connector-a"));
 
         this.task.open(List.of(topicPartition));
 
@@ -190,13 +195,13 @@ abstract class AbstractSinkIntegrationTests extends AbstractRedisIntegrationTest
         TopicPartition topicPartition = new TopicPartition(topic, PARTITION);
         SinkTaskContext context = mock(SinkTaskContext.class);
         this.task.initialize(context);
-        this.task.start(sinkProps("connector-a"));
+        this.startSinkTask(sinkProps("connector-a"));
 
         this.task.flush(Map.of(topicPartition, new OffsetAndMetadata(11L)));
         this.task.stop();
         this.task = new RedisSinkTask();
         this.task.initialize(context);
-        this.task.start(sinkProps("connector-b"));
+        this.startSinkTask(sinkProps("connector-b"));
         this.task.flush(Map.of(topicPartition, new OffsetAndMetadata(22L)));
 
         Assertions.assertNotNull(redisConnection.sync().get(offsetKey("connector-a", topicPartition)));
@@ -551,7 +556,7 @@ abstract class AbstractSinkIntegrationTests extends AbstractRedisIntegrationTest
         Map<String, String> propsMap = map(RedisSinkConfigDef.URI_CONFIG, getRedisServer().getRedisURI(),
                 RedisSinkConfigDef.TYPE_CONFIG, type.name());
         propsMap.putAll(map(props));
-        task.start(propsMap);
+        startSinkTask(propsMap);
         task.put(records);
     }
 
@@ -588,7 +593,7 @@ abstract class AbstractSinkIntegrationTests extends AbstractRedisIntegrationTest
         SinkTaskContext taskContext = mock(SinkTaskContext.class);
         when(taskContext.assignment()).thenReturn(Set.of(new TopicPartition(topic, 1)));
         this.task.initialize(taskContext);
-        this.task.start(
+        this.startSinkTask(
                 Map.of(RedisSinkConfigDef.URI_CONFIG, getRedisServer().getRedisURI(), RedisSinkConfigDef.TYPE_CONFIG,
                         RedisType.HASH.name()));
         int count = 50;
@@ -614,7 +619,7 @@ abstract class AbstractSinkIntegrationTests extends AbstractRedisIntegrationTest
         SinkTaskContext taskContext = mock(SinkTaskContext.class);
         when(taskContext.assignment()).thenReturn(Set.of(new TopicPartition(topic, 1)));
         this.task.initialize(taskContext);
-        this.task.start(
+        this.startSinkTask(
                 Map.of(RedisSinkConfigDef.URI_CONFIG, getRedisServer().getRedisURI(), RedisSinkConfigDef.TYPE_CONFIG,
                         RedisType.STRING.name(), RedisSinkConfigDef.KEY_TTL_CONFIG, "3600"));
         int count = 50;
@@ -639,7 +644,7 @@ abstract class AbstractSinkIntegrationTests extends AbstractRedisIntegrationTest
 
     @Test
     void writesAndTombstonesKeepInputOrder() {
-        task.start(Map.of(RedisSinkConfigDef.URI_CONFIG, getRedisServer().getRedisURI(),
+        startSinkTask(Map.of(RedisSinkConfigDef.URI_CONFIG, getRedisServer().getRedisURI(),
                 RedisSinkConfigDef.TYPE_CONFIG, "STRING", RedisSinkConfigDef.KEYSPACE_CONFIG, ""));
         SinkRecord first = new SinkRecord("order", 0, Schema.STRING_SCHEMA, "key", Schema.STRING_SCHEMA, "first", 0);
         SinkRecord deleted = new SinkRecord("order", 0, Schema.STRING_SCHEMA, "key", Schema.STRING_SCHEMA, null, 1);
@@ -653,7 +658,7 @@ abstract class AbstractSinkIntegrationTests extends AbstractRedisIntegrationTest
     @ParameterizedTest
     @EnumSource(value = RedisType.class, names = {"LIST", "SET", "ZSET"})
     void collectionTombstonesRemoveMembers(RedisType type) {
-        task.start(Map.of(RedisSinkConfigDef.URI_CONFIG, getRedisServer().getRedisURI(),
+        startSinkTask(Map.of(RedisSinkConfigDef.URI_CONFIG, getRedisServer().getRedisURI(),
                 RedisSinkConfigDef.TYPE_CONFIG, type.name(), RedisSinkConfigDef.KEYSPACE_CONFIG, "collection"));
         SinkRecord add = new SinkRecord("topic", 0, Schema.STRING_SCHEMA, "member", Schema.FLOAT64_SCHEMA, 3.0, 0);
         SinkRecord remove = new SinkRecord("topic", 0, Schema.STRING_SCHEMA, "member", Schema.FLOAT64_SCHEMA, null, 1);
@@ -663,7 +668,7 @@ abstract class AbstractSinkIntegrationTests extends AbstractRedisIntegrationTest
 
     @Test
     void invalidBatchIsRejectedBeforeAnyCommands() {
-        task.start(Map.of(RedisSinkConfigDef.URI_CONFIG, getRedisServer().getRedisURI(),
+        startSinkTask(Map.of(RedisSinkConfigDef.URI_CONFIG, getRedisServer().getRedisURI(),
                 RedisSinkConfigDef.TYPE_CONFIG, "STRING", RedisSinkConfigDef.KEYSPACE_CONFIG, ""));
         SinkRecord valid = new SinkRecord("topic", 0, Schema.STRING_SCHEMA, "valid", Schema.STRING_SCHEMA, "value", 0);
         SinkRecord invalid = new SinkRecord("topic", 0, Schema.STRING_SCHEMA, "invalid", Schema.INT32_SCHEMA, 42, 1);
@@ -673,7 +678,7 @@ abstract class AbstractSinkIntegrationTests extends AbstractRedisIntegrationTest
 
     @Test
     void transactionCommandErrorsArePropagated() {
-        task.start(Map.of(RedisSinkConfigDef.URI_CONFIG, getRedisServer().getRedisURI(),
+        startSinkTask(Map.of(RedisSinkConfigDef.URI_CONFIG, getRedisServer().getRedisURI(),
                 RedisSinkConfigDef.TYPE_CONFIG, "LIST", RedisSinkConfigDef.KEYSPACE_CONFIG, "wrongtype",
                 RedisSinkConfigDef.MULTIEXEC_CONFIG, "true"));
         redisConnection.sync().set("wrongtype", "string");
@@ -684,7 +689,7 @@ abstract class AbstractSinkIntegrationTests extends AbstractRedisIntegrationTest
 
     @Test
     void replicationTargetMustBeAcknowledged() {
-        task.start(Map.of(RedisSinkConfigDef.URI_CONFIG, getRedisServer().getRedisURI(),
+        startSinkTask(Map.of(RedisSinkConfigDef.URI_CONFIG, getRedisServer().getRedisURI(),
                 RedisSinkConfigDef.TYPE_CONFIG, "STRING", RedisSinkConfigDef.KEYSPACE_CONFIG, "",
                 RedisSinkConfigDef.WAIT_REPLICAS_CONFIG, "1", RedisSinkConfigDef.WAIT_TIMEOUT_CONFIG, "10"));
         SinkRecord record = new SinkRecord("topic", 0, Schema.STRING_SCHEMA, "key", Schema.STRING_SCHEMA, "value", 0);
@@ -694,7 +699,7 @@ abstract class AbstractSinkIntegrationTests extends AbstractRedisIntegrationTest
 
     @Test
     void recordTtlAndWritesStayOrdered() {
-        task.start(Map.of(RedisSinkConfigDef.URI_CONFIG, getRedisServer().getRedisURI(),
+        startSinkTask(Map.of(RedisSinkConfigDef.URI_CONFIG, getRedisServer().getRedisURI(),
                 RedisSinkConfigDef.TYPE_CONFIG, "STRING", RedisSinkConfigDef.KEYSPACE_CONFIG, ""));
         SinkRecord expiring = new SinkRecord("topic", 0, Schema.STRING_SCHEMA, "key", Schema.STRING_SCHEMA, "first", 0);
         expiring.headers().addLong(RedisSinkConfigDef.KEY_TTL_CONFIG, 3600);
@@ -707,7 +712,7 @@ abstract class AbstractSinkIntegrationTests extends AbstractRedisIntegrationTest
 
     @Test
     void malformedOffsetStateFailsInsteadOfSeeking() {
-        task.start(sinkProps("bad-state"));
+        startSinkTask(sinkProps("bad-state"));
         TopicPartition partition = new TopicPartition("topic", 0);
         redisConnection.sync().set(offsetKey("bad-state", partition), "{\"topic\":\"topic\",\"partition\":0}");
         Assertions.assertThrows(DataException.class, () -> task.open(List.of(partition)));
@@ -715,21 +720,23 @@ abstract class AbstractSinkIntegrationTests extends AbstractRedisIntegrationTest
 
     @Test
     void namespacedBinaryKeysKeepOriginalBytes() {
-        task.start(Map.of("redis.uri", getRedisServer().getRedisURI(), "redis.type", "STRING", "redis.keyspace", "prefix"));
+        startSinkTask(Map.of("redis.uri", getRedisServer().getRedisURI(), "redis.type", "STRING", "redis.keyspace", "prefix"));
         byte[] suffix = new byte[] {0, 1, (byte) 255};
         task.put(List.of(new SinkRecord("topic", 0, Schema.BYTES_SCHEMA, suffix, Schema.STRING_SCHEMA, "value", 0)));
         byte[] prefix = "prefix:".getBytes(StandardCharsets.UTF_8);
         byte[] key = Arrays.copyOf(prefix, prefix.length + suffix.length);
         System.arraycopy(suffix, 0, key, prefix.length, suffix.length);
-        try (StatefulRedisConnection<byte[], byte[]> binary = redisClient.connect(ByteArrayCodec.INSTANCE)) {
-            Assertions.assertArrayEquals("value".getBytes(StandardCharsets.UTF_8), binary.sync().get(key));
+        try (RedisConnection<byte[], byte[]> binary =
+                RedisConnection.open(redisClient, ByteArrayCodec.INSTANCE)) {
+            RedisStringCommands<byte[], byte[]> strings = binary.sync(RedisStringCommands.class);
+            Assertions.assertArrayEquals("value".getBytes(StandardCharsets.UTF_8), strings.get(key));
         }
     }
 
     @ParameterizedTest
     @EnumSource(value = RedisType.class, names = {"HASH", "STREAM"})
     void nullMapFieldsRejectWholeBatchBeforeWrites(RedisType type) {
-        task.start(Map.of("redis.uri", getRedisServer().getRedisURI(), "redis.type", type.name(), "redis.keyspace", ""));
+        startSinkTask(Map.of("redis.uri", getRedisServer().getRedisURI(), "redis.type", type.name(), "redis.keyspace", ""));
         Map<String, Object> invalidBody = new LinkedHashMap<>();
         invalidBody.put("valid", "value");
         invalidBody.put("invalid", null);
@@ -742,7 +749,7 @@ abstract class AbstractSinkIntegrationTests extends AbstractRedisIntegrationTest
 
     @Test
     void malformedJsonBatchIsRejectedBeforeWrites() {
-        task.start(Map.of("redis.uri", getRedisServer().getRedisURI(), "redis.type", "JSON", "redis.keyspace", ""));
+        startSinkTask(Map.of("redis.uri", getRedisServer().getRedisURI(), "redis.type", "JSON", "redis.keyspace", ""));
         SinkRecord valid = new SinkRecord("topic", 0, Schema.STRING_SCHEMA, "valid", Schema.STRING_SCHEMA, "{\"id\":1}", 0);
         SinkRecord invalid = new SinkRecord("topic", 0, Schema.STRING_SCHEMA, "bad", Schema.STRING_SCHEMA, "{oops", 1);
         Assertions.assertThrows(DataException.class, () -> task.put(List.of(valid, invalid)));

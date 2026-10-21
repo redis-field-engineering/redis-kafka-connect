@@ -63,7 +63,10 @@ class RedisEnterprise8Container extends AbstractRedisEnterpriseContainer<RedisEn
             admin.withHost(getHost()).withDatabaseCreationTimeout(Duration.ofMinutes(2));
             admin.waitForBoostrap();
             super.createCluster();
-            admin.createDatabase(database);
+            Database actual = admin.createDatabase(database);
+            if (!actual.isSharding() || actual.getShardCount() != 3 || actual.isOssCluster() != database.isOssCluster()) {
+                throw new ContainerLaunchException("Enterprise fixture did not create the requested three-shard/API topology");
+            }
         } catch (IOException | GeneralSecurityException e) {
             throw new ContainerLaunchException("Could not create Redis Enterprise database", e);
         }

@@ -42,14 +42,23 @@ CI runs the unit and integration suites on Java 21, 25, and 27.
 `build` also creates the Confluent Hub archive under
 `core/redis-kafka-connect/build/confluent`.
 
-The integration suites cover source and sink connectors against these images:
+The same source and sink contracts run against every deployment profile:
 
-[cols="1,2"]
+[cols="1,2,2"]
 |===
-|Server |Default image
-|Redis Enterprise |`redislabs/redis:8.2.0-125.19`
-|Redis |`redis:8.2.10`
+|Profile |Topology and client |Default image
+|Standalone Redis |One server, `RedisClient` |`redis:8.2.10`
+|OSS cluster |Three primaries, `RedisClusterClient` |`redis:8.2.10`
+|Enterprise sharded proxy |Three shards, OSS API disabled, `RedisClient` |`redislabs/redis:8.2.0-125.19`
+|Enterprise OSS Cluster API |Three shards, OSS API enabled, `RedisClusterClient` |`redislabs/redis:8.2.0-125.19`
 |===
+
+Fixtures assert the actual Enterprise database configuration and complete cluster slot
+coverage. Enterprise runs on one node and may advertise a proxy endpoint for multiple
+shards. OSS cluster servers share one test container; additional cases attach a replica
+and verify nontransactional/transactional pipelines, a successful `WAIT` on a non-seed
+primary, and keys-source operation with that replica offline. These fixtures do not
+qualify multi-host failover or Enterprise replication.
 
 Redis 8 includes JSON, Search, and TimeSeries, replacing the older Redis Stack fixture.
 Enterprise tests run on every supported Docker host, including Docker Desktop on macOS.

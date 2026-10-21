@@ -51,8 +51,12 @@ duplicates between active consumers.
 
 == Validation and Rollout
 
-The automated task suites cover Redis 8.2, Redis Enterprise 8.2, and a three-primary
-Redis Cluster on Java 21, 25, and 27. The build targets Java 17 bytecode. `workerTest`
+The shared task suites run against standalone Redis 8.2, a three-primary OSS cluster,
+and Redis Enterprise 8.2 with three shards in both proxy mode (OSS API disabled) and
+OSS Cluster API mode. Cluster profiles use `RedisClusterClient`. CI runs these profiles
+on Java 21, 25, and 27. Additional OSS cases cover transactions, nontransactional pipelines,
+replication acknowledgment on a non-seed primary, and an offline replica. Enterprise
+replication and multi-host failover are outside this fixture matrix. The build targets Java 17 bytecode. `workerTest`
 qualifies the shaded distribution in Confluent Platform 8.3.2 on Java 21 against
 Redis Enterprise 8.2. These are tested combinations, not a separate support-policy promise.
 

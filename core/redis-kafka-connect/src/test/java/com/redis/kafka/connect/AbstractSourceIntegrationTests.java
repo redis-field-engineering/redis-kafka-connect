@@ -13,7 +13,7 @@ import io.lettuce.core.KillArgs;
 import io.lettuce.core.XClaimArgs;
 import io.lettuce.core.Consumer;
 import io.lettuce.core.XReadArgs.StreamOffset;
-import io.lettuce.core.api.sync.RedisCommands;
+import io.lettuce.core.cluster.api.sync.RedisClusterCommands;
 import io.lettuce.core.models.stream.PendingMessages;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -95,7 +95,7 @@ abstract class AbstractSourceIntegrationTests extends AbstractRedisIntegrationTe
     private void startTask(SourceTask task, String... props) {
         Map<String, String> config = map(props);
         config.put(RedisConfigDef.URI_CONFIG, getRedisServer().getRedisURI());
-        task.start(config);
+        task.start(deploymentProps(config));
     }
 
     private void startStreamSourceTask(String... props) {
@@ -445,7 +445,7 @@ abstract class AbstractSourceIntegrationTests extends AbstractRedisIntegrationTe
         String key = struct.getString(ToStructFunction.FIELD_KEY);
         String type = struct.getString(ToStructFunction.FIELD_TYPE);
         Assertions.assertEquals(redisConnection.sync().type(key), type);
-        RedisCommands<String, String> commands = redisConnection.sync();
+        RedisClusterCommands<String, String> commands = redisConnection.sync();
         switch (type) {
             case KeySnapshot.TYPE_HASH:
                 return compare(commands.hgetall(key), struct.getMap(ToStructFunction.FIELD_HASH));
@@ -584,7 +584,7 @@ abstract class AbstractSourceIntegrationTests extends AbstractRedisIntegrationTe
     void notificationDisconnectFailsExplicitly() {
         enableKeyspaceNotifications();
         startKeysSourceTask(RedisKeysSourceConfigDef.MODE_CONFIG, "LIVEONLY");
-        redisConnection.sync().clientKill(KillArgs.Builder.typePubsub());
+        onPrimaries(commands -> commands.clientKill(KillArgs.Builder.typePubsub()));
         Awaitility.await().atMost(Duration.ofSeconds(5)).untilAsserted(() -> {
             ConnectException error = Assertions.assertThrows(
                     ConnectException.class, () -> keysSourceTask.poll());
@@ -672,7 +672,7 @@ abstract class AbstractSourceIntegrationTests extends AbstractRedisIntegrationTe
         ExecutorService executor = Executors.newSingleThreadExecutor();
         try {
             Future<List<SourceRecord>> result = executor.submit(() -> streamSourceTask.poll());
-            awaitUntil(() -> redisConnection.sync().clientList().contains("cmd=xreadgroup"));
+            awaitUntil(() -> clientList().contains("cmd=xreadgroup"));
             streamSourceTask.stop();
             Assertions.assertTrue(result.get(3, TimeUnit.SECONDS).isEmpty());
         } finally {
