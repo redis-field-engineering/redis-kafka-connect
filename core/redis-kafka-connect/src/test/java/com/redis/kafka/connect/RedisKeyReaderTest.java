@@ -62,7 +62,6 @@ class RedisKeyReaderTest {
         assertEquals(List.of(new KeySnapshot("key", -1L, "hash", Map.of("field", "current"))), reader.poll());
         verify(commands).get("key");
         verify(commands).hgetall("key");
-        verify(connection, times(4)).setAutoFlushCommands(true);
     }
 
     @Test
@@ -99,7 +98,6 @@ class RedisKeyReaderTest {
         doReturn(failed(denied)).when(commands).get("key");
         assertSame(denied, assertThrows(RedisCommandExecutionException.class, () -> reader.poll()));
         verify(commands).get("key");
-        verify(connection, times(2)).setAutoFlushCommands(true);
     }
 
     @Test

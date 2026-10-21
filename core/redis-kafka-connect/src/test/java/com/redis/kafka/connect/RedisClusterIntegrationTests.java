@@ -1,17 +1,35 @@
 package com.redis.kafka.connect;
 
+import com.redis.kafka.connect.common.RedisConnection;
 import com.redis.kafka.connect.sink.RedisSinkTask;
+import com.redis.kafka.connect.source.KeySnapshot;
+import com.redis.kafka.connect.source.RedisKeyReader;
+import com.redis.kafka.connect.source.RedisKeysSourceConfig;
 import com.redis.kafka.connect.source.RedisKeysSourceTask;
 import io.lettuce.core.RedisClient;
 import io.lettuce.core.api.StatefulRedisConnection;
 import io.lettuce.core.cluster.RedisClusterClient;
+import io.lettuce.core.cluster.SlotHash;
 import io.lettuce.core.cluster.api.StatefulRedisClusterConnection;
 import io.lettuce.core.cluster.models.partitions.RedisClusterNode;
+import io.lettuce.core.resource.ClientResources;
+import io.lettuce.core.resource.NettyCustomizer;
+import io.netty.channel.Channel;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelInboundHandlerAdapter;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.TopicPartition;
@@ -23,10 +41,9 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
-import io.lettuce.core.cluster.SlotHash;
-import org.junit.jupiter.api.TestInstance;
 import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -168,6 +185,59 @@ class RedisClusterIntegrationTests {
                         "--cluster-config-file", "/tmp/node3.conf", "--cluster-announce-ip", "127.0.0.1",
                         "--protected-mode", "no", "--daemonize", "yes").getExitCode());
             }
+        }
+    }
+
+    @Test
+    void keysLiveReadsWaitForColdClusterConnections() throws Exception {
+        AtomicBoolean holdNextConnection = new AtomicBoolean();
+        CompletableFuture<Void> releaseHandshake = new CompletableFuture<>();
+        CompletableFuture<Void> connectionHeld = new CompletableFuture<>();
+        AtomicReference<Thread> pollThread = new AtomicReference<>();
+        ClientResources resources = ClientResources.builder().nettyCustomizer(new NettyCustomizer() {
+            @Override
+            public void afterChannelInitialized(Channel channel) {
+                if (holdNextConnection.compareAndSet(true, false)) {
+                    channel.pipeline().addFirst(new ChannelInboundHandlerAdapter() {
+                        @Override
+                        public void channelActive(ChannelHandlerContext context) {
+                            connectionHeld.complete(null);
+                            releaseHandshake.thenRun(() -> context.executor().execute(context::fireChannelActive));
+                        }
+                    });
+                }
+            }
+        }).build();
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        try (RedisClusterClient coldClient = RedisClusterClient.create(resources, uri());
+                RedisKeyReader reader = new RedisKeyReader(coldClient, new RedisKeysSourceConfig(Map.of(
+                        "redis.uri", uri(), "redis.cluster", "true", "redis.timeout", "5",
+                        "mode", "LIVEONLY", "redis.keys.timeout", "100")))) {
+            reader.open();
+            String key = "{a}:cold-connection";
+            connection.sync().set(key, "live");
+            holdNextConnection.set(true);
+            Future<List<KeySnapshot>> read = executor.submit(() -> {
+                pollThread.set(Thread.currentThread());
+                List<KeySnapshot> records = new ArrayList<>();
+                while (records.isEmpty() && !Thread.currentThread().isInterrupted()) {
+                    records.addAll(reader.poll());
+                }
+                return records;
+            });
+            connectionHeld.get(5, TimeUnit.SECONDS);
+            // Cover a first read whose target connection activates only after the batch
+            // is awaiting replies, rather than relying on already warmed cluster connections.
+            await().atMost(Duration.ofSeconds(2)).until(() -> Arrays.stream(pollThread.get().getStackTrace())
+                    .anyMatch(frame -> RedisConnection.class.getName().equals(frame.getClassName())
+                            && "awaitAll".equals(frame.getMethodName())));
+            releaseHandshake.complete(null);
+            List<KeySnapshot> records = read.get(3, TimeUnit.SECONDS);
+            assertEquals(List.of(new KeySnapshot(key, -1L, "string", "live")), records);
+        } finally {
+            releaseHandshake.complete(null);
+            executor.shutdownNow();
+            resources.shutdown().get(5, TimeUnit.SECONDS);
         }
     }
 

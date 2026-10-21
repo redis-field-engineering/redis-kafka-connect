@@ -202,15 +202,11 @@ public final class RedisKeyReader implements AutoCloseable {
     private List<String> readTypes(List<PendingKey> pending) {
         RedisKeyAsyncCommands<String, String> keys = data.async(RedisKeyAsyncCommands.class);
         List<RedisFuture<String>> futures = new ArrayList<>();
-        data.stateful().setAutoFlushCommands(false);
-        try {
-            pending.forEach(key -> futures.add(keys.type(key.key())));
-            data.stateful().flushCommands();
-            RedisConnection.awaitAll(config.uri().getTimeout(), futures);
-            return futures.stream().map(future -> future.toCompletableFuture().getNow(null)).toList();
-        } finally {
-            data.stateful().setAutoFlushCommands(true);
-        }
+        // Issue the asynchronous batch before awaiting replies. Keep automatic flushing
+        // enabled so Lettuce owns dispatch to existing and lazily opened cluster connections.
+        pending.forEach(key -> futures.add(keys.type(key.key())));
+        RedisConnection.awaitAll(config.uri().getTimeout(), futures);
+        return futures.stream().map(future -> future.toCompletableFuture().getNow(null)).toList();
     }
 
     @SuppressWarnings("unchecked")
@@ -218,30 +214,24 @@ public final class RedisKeyReader implements AutoCloseable {
         RedisKeyAsyncCommands<String, String> keys = data.async(RedisKeyAsyncCommands.class);
         List<RedisFuture<?>> futures = new ArrayList<>();
         List<NativeRead> reads = new ArrayList<>();
-        data.stateful().setAutoFlushCommands(false);
-        try {
-            for (int index = 0; index < pending.size(); index++) {
-                String key = pending.get(index).key();
-                RedisServerAsyncCommands<String, String> server = data.nodeForSlot(SlotHash.getSlot(key))
-                        .async(RedisServerAsyncCommands.class);
-                NativeRead read = new NativeRead(types.get(index), readValue(key, types.get(index)),
-                        keys.pttl(key), server.time(), keys.type(key));
-                reads.add(read);
-                futures.addAll(List.of(read.value(), read.ttl(), read.time(), read.finalType()));
-            }
-            data.stateful().flushCommands();
-            try {
-                RedisConnection.awaitAll(config.uri().getTimeout(), futures);
-            } catch (RedisCommandExecutionException e) {
-                if (!wrongType(e)) {
-                    throw e;
-                }
-                // Every future has completed. Decode each reply so other errors still propagate.
-            }
-            return reads;
-        } finally {
-            data.stateful().setAutoFlushCommands(true);
+        for (int index = 0; index < pending.size(); index++) {
+            String key = pending.get(index).key();
+            RedisServerAsyncCommands<String, String> server = data.nodeForSlot(SlotHash.getSlot(key))
+                    .async(RedisServerAsyncCommands.class);
+            NativeRead read = new NativeRead(types.get(index), readValue(key, types.get(index)),
+                    keys.pttl(key), server.time(), keys.type(key));
+            reads.add(read);
+            futures.addAll(List.of(read.value(), read.ttl(), read.time(), read.finalType()));
         }
+        try {
+            RedisConnection.awaitAll(config.uri().getTimeout(), futures);
+        } catch (RedisCommandExecutionException e) {
+            if (!wrongType(e)) {
+                throw e;
+            }
+            // Every future has completed. Decode each reply so other errors still propagate.
+        }
+        return reads;
     }
 
     @SuppressWarnings("unchecked")
