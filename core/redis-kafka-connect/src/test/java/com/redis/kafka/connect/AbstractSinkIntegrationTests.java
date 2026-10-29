@@ -32,6 +32,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.platform.commons.util.Preconditions;
 import org.springframework.util.Assert;
 import org.testcontainers.shaded.com.google.common.collect.ImmutableList;
@@ -612,6 +614,35 @@ abstract class AbstractSinkIntegrationTests extends AbstractTestBase {
         String[] keys = expected.keySet().toArray(new String[0]);
         long actual = redisConnection.sync().exists(keys);
         assertEquals(0L, actual, "All of the keys should be removed from Redis.");
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = RedisType.class, names = { "STRING", "HASH", "JSON" })
+    void putWriteThenDeleteSameBatch(RedisType type) {
+        String topic = "writeThenDelete" + type;
+        SchemaAndValue key = new SchemaAndValue(Schema.STRING_SCHEMA, "1");
+        put(topic, type, Arrays.asList(sinkRecord(topic, key, orderingValue(type)), sinkRecord(topic, key, null)));
+        assertEquals(0L, redisConnection.sync().exists(topic + ":1"), "Tombstone after write must delete the key");
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = RedisType.class, names = { "STRING", "HASH", "JSON" })
+    void putDeleteThenWriteSameBatch(RedisType type) {
+        String topic = "deleteThenWrite" + type;
+        SchemaAndValue key = new SchemaAndValue(Schema.STRING_SCHEMA, "1");
+        put(topic, type, Arrays.asList(sinkRecord(topic, key, null), sinkRecord(topic, key, orderingValue(type))));
+        assertEquals(1L, redisConnection.sync().exists(topic + ":1"), "Write after tombstone must leave the key");
+    }
+
+    private SchemaAndValue orderingValue(RedisType type) {
+        switch (type) {
+            case HASH:
+                return new SchemaAndValue(SchemaBuilder.map(Schema.STRING_SCHEMA, Schema.STRING_SCHEMA), map("f", "v"));
+            case JSON:
+                return new SchemaAndValue(Schema.STRING_SCHEMA, "{\"f\":\"v\"}");
+            default:
+                return new SchemaAndValue(Schema.STRING_SCHEMA, "v");
+        }
     }
 
     @Test

@@ -423,13 +423,30 @@ public class RedisSinkTask extends SinkTask {
         @Override
         public List<RedisFuture<Object>> execute(RedisAsyncCommands<byte[], byte[]> commands,
                                                  Chunk<? extends SinkRecord> items) {
+            // Send consecutive runs of deletes and writes in record order so a tombstone
+            // following a write of the same key is applied after that write.
             List<RedisFuture<Object>> futures = new ArrayList<>();
-            List<SinkRecord> toRemove = items.getItems().stream().filter(delPredicate).collect(Collectors.toList());
-            futures.addAll(del.execute(commands, new Chunk<>(toRemove)));
-            List<SinkRecord> toWrite = items.getItems().stream().filter(delPredicate.negate())
-                    .collect(Collectors.toList());
-            futures.addAll(write.execute(commands, new Chunk<>(toWrite)));
+            List<SinkRecord> run = new ArrayList<>();
+            boolean runIsDelete = false;
+            for (SinkRecord record : items) {
+                boolean isDelete = delPredicate.test(record);
+                if (!run.isEmpty() && isDelete != runIsDelete) {
+                    futures.addAll(execute(commands, run, runIsDelete));
+                    run = new ArrayList<>();
+                }
+                run.add(record);
+                runIsDelete = isDelete;
+            }
+            if (!run.isEmpty()) {
+                futures.addAll(execute(commands, run, runIsDelete));
+            }
             return futures;
+        }
+
+        private List<RedisFuture<Object>> execute(RedisAsyncCommands<byte[], byte[]> commands, List<SinkRecord> run,
+                boolean isDelete) {
+            Operation<byte[], byte[], SinkRecord, Object> operation = isDelete ? del : write;
+            return operation.execute(commands, new Chunk<>(run));
         }
 
     }
