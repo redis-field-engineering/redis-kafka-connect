@@ -423,13 +423,43 @@ public class RedisSinkTask extends SinkTask {
         @Override
         public List<RedisFuture<Object>> execute(RedisAsyncCommands<byte[], byte[]> commands,
                                                  Chunk<? extends SinkRecord> items) {
+            // Records for a key arrive in Kafka order, and Redis must apply them in that order.
+            // Otherwise, a tombstone could run before an earlier write within the same batch, leaving
+            // a zombie record in Redis. To preserve order, split the batch into runs of
+            // consecutive records of the same type (write or delete) and send each run in turn.
+
+            // Futures for every queued Redis command; they are flushed and awaited by the caller.
             List<RedisFuture<Object>> futures = new ArrayList<>();
-            List<SinkRecord> toRemove = items.getItems().stream().filter(delPredicate).collect(Collectors.toList());
-            futures.addAll(del.execute(commands, new Chunk<>(toRemove)));
-            List<SinkRecord> toWrite = items.getItems().stream().filter(delPredicate.negate())
-                    .collect(Collectors.toList());
-            futures.addAll(write.execute(commands, new Chunk<>(toWrite)));
+            // The current run of consecutive records of the same type.
+            List<SinkRecord> run = new ArrayList<>();
+            // Marks whether the current sequential run contains deletes or writes.
+            boolean runIsDelete = false;
+
+            for (SinkRecord record : items) {
+                // 1. Determine whether this record is a write or a delete (tombstone).
+                boolean isDelete = delPredicate.test(record);
+                // 2. If its type differs from the current run, queue that run's commands
+                //    and start a new run.
+                if (!run.isEmpty() && isDelete != runIsDelete) {
+                    futures.addAll(executeRun(commands, run, runIsDelete));
+                    run = new ArrayList<>();
+                }
+                // 3. Add the record to the current run.
+                run.add(record);
+                runIsDelete = isDelete;
+            }
+            // Queue the commands for the final run.
+            if (!run.isEmpty()) {
+                futures.addAll(executeRun(commands, run, runIsDelete));
+            }
             return futures;
+        }
+
+        // Queue the commands for one run on the matching operation (del or write).
+        private List<RedisFuture<Object>> executeRun(RedisAsyncCommands<byte[], byte[]> commands, List<SinkRecord> run,
+                boolean isDelete) {
+            Operation<byte[], byte[], SinkRecord, Object> operation = isDelete ? del : write;
+            return operation.execute(commands, new Chunk<>(run));
         }
 
     }
