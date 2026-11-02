@@ -150,7 +150,7 @@ Key versions are managed in `gradle/libs.versions.toml`:
 - Connector bytecode and API compatibility: Java 17 (`--release 17`)
 - Lettuce: 7.9.0.RELEASE; Netty: 4.2.19.Final
 - Native Gradle BOM imports and catalog versions; no Spring Batch, Spring Boot, or LettuceMod
-- Testcontainers Redis: 3.0.0; Testcontainers: 2.0.5
+- Testcontainers Redis: 3.0.1; Testcontainers: 2.0.5
 - Integration images: `redislabs/redis:8.2.0-125.19` and `redis:8.2.10`
 - Override test runtime/images with `-PtestJavaVersion`, `-PredisEnterpriseImage`, and `-PredisImage`
 

@@ -17,7 +17,7 @@ import org.testcontainers.utility.DockerImageName;
 
 /**
  * Uses data-port readiness checks because Redis Enterprise 8.2 no longer accepts
- * PING through the management API used by testcontainers-redis 3.0.0.
+ * PING through the management API used by testcontainers-redis 3.0.0 (Enterprise admin 0.8.2).
  */
 class RedisEnterprise8Container extends AbstractRedisEnterpriseContainer<RedisEnterprise8Container> {
 
