@@ -12,7 +12,6 @@ import io.lettuce.core.api.async.RedisHashAsyncCommands;
 import io.lettuce.core.api.async.RedisJsonAsyncCommands;
 import io.lettuce.core.api.async.RedisKeyAsyncCommands;
 import io.lettuce.core.api.async.RedisListAsyncCommands;
-import io.lettuce.core.api.async.RedisServerAsyncCommands;
 import io.lettuce.core.api.async.RedisSetAsyncCommands;
 import io.lettuce.core.api.async.RedisSortedSetAsyncCommands;
 import io.lettuce.core.api.async.RedisStringAsyncCommands;
@@ -20,7 +19,6 @@ import io.lettuce.core.ScanArgs;
 import io.lettuce.core.ScanCursor;
 import io.lettuce.core.api.sync.RedisKeyCommands;
 import io.lettuce.core.cluster.RedisClusterClient;
-import io.lettuce.core.cluster.SlotHash;
 import io.lettuce.core.cluster.models.partitions.RedisClusterNode;
 import io.lettuce.core.cluster.pubsub.StatefulRedisClusterPubSubConnection;
 import io.lettuce.core.codec.StringCodec;
@@ -161,8 +159,8 @@ public final class RedisKeyReader implements AutoCloseable {
         return result;
     }
 
-    private record NativeRead(String type, RedisFuture<?> value, RedisFuture<Long> ttl,
-            RedisFuture<List<String>> time, RedisFuture<String> finalType) {}
+    private record NativeRead(String type, RedisFuture<?> value, RedisFuture<Long> expiry,
+            RedisFuture<String> finalType) {}
 
     private List<KeySnapshot> readBatch(List<PendingKey> pending) {
         if (pending.isEmpty() || closed) {
@@ -216,12 +214,10 @@ public final class RedisKeyReader implements AutoCloseable {
         List<NativeRead> reads = new ArrayList<>();
         for (int index = 0; index < pending.size(); index++) {
             String key = pending.get(index).key();
-            RedisServerAsyncCommands<String, String> server = data.nodeForSlot(SlotHash.getSlot(key))
-                    .async(RedisServerAsyncCommands.class);
             NativeRead read = new NativeRead(types.get(index), readValue(key, types.get(index)),
-                    keys.pttl(key), server.time(), keys.type(key));
+                    keys.pexpiretime(key), keys.type(key));
             reads.add(read);
-            futures.addAll(List.of(read.value(), read.ttl(), read.time(), read.finalType()));
+            futures.addAll(List.of(read.value(), read.expiry(), read.finalType()));
         }
         try {
             RedisConnection.awaitAll(config.uri().getTimeout(), futures);
@@ -254,8 +250,7 @@ public final class RedisKeyReader implements AutoCloseable {
     }
 
     private KeySnapshot decode(String key, NativeRead read) {
-        long ttl = read.ttl().toCompletableFuture().getNow(null);
-        List<String> time = read.time().toCompletableFuture().getNow(null);
+        long expiry = read.expiry().toCompletableFuture().getNow(null);
         String finalType = read.finalType().toCompletableFuture().getNow(null);
         Object value;
         try {
@@ -266,10 +261,10 @@ public final class RedisKeyReader implements AutoCloseable {
             }
             throw e;
         }
-        if ("none".equals(finalType) && ttl == -2) {
+        if ("none".equals(finalType) && expiry == -2) {
             return new KeySnapshot(key, -2L, "none", null);
         }
-        if ("none".equals(finalType) || !read.type().equals(finalType) || ttl == -2) {
+        if ("none".equals(finalType) || !read.type().equals(finalType) || expiry == -2) {
             return null;
         }
         switch (read.type()) {
@@ -297,8 +292,6 @@ public final class RedisKeyReader implements AutoCloseable {
             }
             default -> value = null;
         }
-        long expiry = ttl < 0 ? ttl : Long.parseLong(time.get(0)) * 1000
-                + Long.parseLong(time.get(1)) / 1000 + ttl;
         return new KeySnapshot(key, expiry, read.type(), value);
     }
 

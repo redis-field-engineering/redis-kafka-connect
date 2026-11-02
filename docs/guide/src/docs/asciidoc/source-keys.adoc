@@ -87,4 +87,5 @@ Key reads use pipelined native commands and do not require Lua, `EVAL`, `EVALSHA
 or `SCRIPT` permissions. Type changes and `WRONGTYPE` replies trigger up to three
 read attempts, after which the task fails explicitly. Reads are not atomic: values
 and expiry metadata may reflect different moments during concurrent updates, including
-same-type replacements. Expiry timestamps are estimated from server `TIME` and `PTTL`.
+same-type replacements. Expiry timestamps come from `PEXPIRETIME`, so the keys source
+requires Redis 7.0 or later.

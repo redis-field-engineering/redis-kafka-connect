@@ -39,8 +39,7 @@ class RedisKeyReaderTest {
         when(connection.async()).thenReturn(commands);
         when(client.connectPubSub(StringCodec.UTF8)).thenReturn(subscription);
         when(subscription.sync()).thenReturn(mock(RedisPubSubCommands.class));
-        doReturn(completed(-1L)).when(commands).pttl("key");
-        doReturn(completed(List.of("1700000000", "123000"))).when(commands).time();
+        doReturn(completed(-1L)).when(commands).pexpiretime("key");
         reader = new RedisKeyReader(client, new RedisKeysSourceConfig(Map.of("mode", "LIVEONLY")));
         reader.open();
         ArgumentCaptor<RedisPubSubListener<String, String>> listener = ArgumentCaptor.forClass(RedisPubSubListener.class);
@@ -77,7 +76,7 @@ class RedisKeyReaderTest {
     void deletionDuringReadProducesMissingKey() throws Exception {
         doReturn(completed("string"), completed("none")).when(commands).type("key");
         doReturn(completed(null)).when(commands).get("key");
-        doReturn(completed(-2L)).when(commands).pttl("key");
+        doReturn(completed(-2L)).when(commands).pexpiretime("key");
         assertEquals(List.of(new KeySnapshot("key", -2L, "none", null)), reader.poll());
     }
 
@@ -101,10 +100,10 @@ class RedisKeyReaderTest {
     }
 
     @Test
-    void expiryUsesServerClockAndMillisecondTtl() throws Exception {
+    void expiryIsTheAbsoluteMillisecondExpireTime() throws Exception {
         doReturn(completed("string")).when(commands).type("key");
         doReturn(completed("value")).when(commands).get("key");
-        doReturn(completed(1500L)).when(commands).pttl("key");
+        doReturn(completed(1700000001623L)).when(commands).pexpiretime("key");
         assertEquals(1700000001623L, reader.poll().get(0).ttl());
     }
 
