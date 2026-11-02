@@ -6,6 +6,7 @@ import com.redis.enterprise.testcontainers.AbstractRedisEnterpriseContainer;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.time.Duration;
+import org.awaitility.Awaitility;
 import org.testcontainers.containers.ContainerLaunchException;
 import org.testcontainers.utility.DockerImageName;
 
@@ -41,6 +42,12 @@ class RedisEnterprise8Container extends AbstractRedisEnterpriseContainer<RedisEn
             admin.withHost(getHost()).withDatabaseCreationTimeout(Duration.ofMinutes(2));
             admin.waitForBoostrap();
             super.createCluster();
+            // The REST API can reject the new admin credentials (401) briefly after cluster creation.
+            // Retry only that 401 so any other error fails startup with its own cause.
+            Awaitility.await().atMost(Duration.ofMinutes(1)).pollInterval(Duration.ofSeconds(1))
+                    .ignoreExceptionsMatching(e -> e instanceof IOException
+                            && String.valueOf(e.getMessage()).contains("status code: 401"))
+                    .until(() -> admin.getModules() != null);
             Database actual = admin.createDatabase(database);
             if (!actual.isSharding() || actual.getShardCount() != 3 || actual.isOssCluster() != database.isOssCluster()) {
                 throw new ContainerLaunchException("Enterprise fixture did not create the requested three-shard/API topology");
