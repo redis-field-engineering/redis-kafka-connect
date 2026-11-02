@@ -1,6 +1,8 @@
 package com.redis.kafka.connect.sink;
 
 import java.nio.charset.Charset;
+import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -73,6 +75,22 @@ public class RedisSinkConfigDef extends RedisConfigDef {
 
 	public static final String OFFSET_NAMESPACE_DOC = "Namespace for sink offset keys stored in Redis. If empty, the connector name is used.";
 
+	public static final String HASH_KEY_CONFIG = "redis.hash.key";
+
+	public static final String HASH_KEY_DEFAULT = "";
+
+	public static final String HASH_KEY_DOC = "Defines how the destination hash is extracted from the record key when "
+			+ TYPE_CONFIG + "=" + RedisType.HASH_FIELD + ". Use key.<field> to select a field of a struct or map key, "
+			+ "or key.<field>.<nested> for nested fields. The Redis key is the key space, the separator and this value.";
+
+	public static final String HASH_FIELD_CONFIG = "redis.hash.field";
+
+	public static final String HASH_FIELD_DEFAULT = "";
+
+	public static final String HASH_FIELD_DOC = "Defines how the hash field is extracted from the record key when "
+			+ TYPE_CONFIG + "=" + RedisType.HASH_FIELD + ". Use key.<field> to select a field of a struct or map key, "
+			+ "or key.<field>.<nested> for nested fields.";
+
 	protected static final Set<RedisType> MULTI_EXEC_COMMANDS = Stream
 			.of(RedisType.STREAM, RedisType.LIST, RedisType.SET, RedisType.ZSET).collect(Collectors.toSet());
 
@@ -95,6 +113,35 @@ public class RedisSinkConfigDef extends RedisConfigDef {
 		define(WAIT_TIMEOUT_CONFIG, Type.LONG, WAIT_TIMEOUT_DEFAULT, Importance.MEDIUM, WAIT_TIMEOUT_DOC);
 		define(KEY_TTL_CONFIG, Type.LONG, KEY_TTL_CONFIG_DEFAULT, Importance.MEDIUM, KEY_TTL_CONFIG_DOC);
 		define(OFFSET_NAMESPACE_CONFIG, Type.STRING, OFFSET_NAMESPACE_DEFAULT, Importance.MEDIUM, OFFSET_NAMESPACE_DOC);
+		define(HASH_KEY_CONFIG, Type.STRING, HASH_KEY_DEFAULT, Importance.MEDIUM, HASH_KEY_DOC);
+		define(HASH_FIELD_CONFIG, Type.STRING, HASH_FIELD_DEFAULT, Importance.MEDIUM, HASH_FIELD_DOC);
+	}
+
+	/**
+	 * Validates the HASH_FIELD key references.
+	 *
+	 * @return error message by property name, in property order
+	 */
+	static Map<String, String> hashFieldErrors(Map<String, String> props) {
+		boolean hashField = RedisType.HASH_FIELD.name().equals(props.getOrDefault(TYPE_CONFIG, TYPE_DEFAULT.name()).trim());
+		Map<String, String> errors = new LinkedHashMap<>();
+		for (String name : Arrays.asList(HASH_KEY_CONFIG, HASH_FIELD_CONFIG)) {
+			String reference = props.getOrDefault(name, "").trim();
+			if (!hashField) {
+				if (!reference.isEmpty()) {
+					errors.put(name, name + " is only supported when " + TYPE_CONFIG + "=" + RedisType.HASH_FIELD);
+				}
+			} else if (reference.isEmpty()) {
+				errors.put(name, name + " is required when " + TYPE_CONFIG + "=" + RedisType.HASH_FIELD);
+			} else {
+				try {
+					KeyPath.parse(reference);
+				} catch (IllegalArgumentException e) {
+					errors.put(name, e.getMessage());
+				}
+			}
+		}
+		return errors;
 	}
 
 	@Override
@@ -117,6 +164,7 @@ public class RedisSinkConfigDef extends RedisConfigDef {
 		} catch (Exception e) {
 			results.get(CHARSET_CONFIG).addErrorMessage(e.getMessage());
 		}
+		hashFieldErrors(props).forEach((name, message) -> results.get(name).addErrorMessage(message));
 		return results;
 	}
 

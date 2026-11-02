@@ -35,6 +35,7 @@ The {name} supports the following Redis data-structure types as targets:
 * <<_sink_string,string>>
 * <<_sink_json,JSON>>
 * <<_sink_hash,Hash>>
+* <<_sink_hash_field,Hash field>>
 * <<_sink_stream,stream>>
 * <<_sink_list,list>>
 * <<_sink_set,set>>
@@ -49,6 +50,8 @@ For `string`, `json`, and `hash` data structures, the Kafka message key will be 
 For example, with `redis.type = string`, `redis.keyspace = ${topic}`, a message coming from topic `orders` with a key of `123` will translate into a Redis key of `orders:123`.
 
 Leave the keyspace empty ( `redis.keyspace =` ) if you don't want any key prefix and just use the message key.
+
+For `hash_field`, the value of the record key field selected by `redis.hash.key` is appended to the keyspace instead of the whole key. See <<_sink_hash_field,Hash Field>>.
 
 For `stream`, `list`, `set`, `zset`, and `timeseries` the Redis key is just the keyspace.
 For example with `redis.keyspace = set:${topic}` and topic `orders` the Redis key is `set:orders`.
@@ -94,6 +97,100 @@ value.converter = <Avro or JSON> <2>
 <1> <<_sink_key_string,String>> or <<_sink_key_bytes,bytes>>
 <2> <<_sink_value_avro,Avro>> or <<_sink_value_json,JSON>>.
 If value is null the key is deleted.
+
+[[_sink_hash_field]]
+=== Hash Field
+Use the following properties to write each Kafka record as one field of a shared Redis hash.
+Records whose keys share a value (for example a parent ID) are grouped into the same hash, and each record is stored under its own field (for example a child ID):
+
+[source,properties]
+----
+redis.type       = HASH_FIELD
+redis.keyspace   = parent <1>
+redis.hash.key   = key.parentId <2>
+redis.hash.field = key.childId <3>
+key.converter    = <Avro or JSON> <4>
+value.converter  = <Avro, JSON, string, or bytes> <5>
+----
+<1> Optional key prefix. The Redis key is `redis.keyspace` (with `${topic}` replaced), `redis.separator`, then the value selected by `redis.hash.key`, for example `parent:P1`. Leave the keyspace empty to use the selected value alone.
+<2> Record key field whose value names the hash.
+<3> Record key field whose value names the field within the hash.
+<4> The record key must be a Struct (<<_sink_value_avro,Avro>>, or JSON with a schema) or a Map (schemaless JSON).
+<5> See <<_sink_hash_field_values,values>> below.
+
+With the configuration above, a record with key `{"parentId": "P1", "childId": "c1"}` is written as `HSET parent:P1 c1 <value>`.
+
+==== Key references
+`redis.hash.key` and `redis.hash.field` are both required with `redis.type = HASH_FIELD`, and are not allowed with any other type.
+Each one is a reference into the record key, written as `key.<field>`, or `key.<field>.<nested>` for a field inside a nested record.
+
+The referenced value must be a string, a number, a boolean, or bytes.
+Numbers and booleans are written as their decimal or `true`/`false` text, and bytes are used as is.
+String identifiers are recommended.
+Decimals, dates, timestamps, lists, and nested records are not supported as references.
+
+==== Writes, deletes, and ordering
+* A record with a value is written with `HSET` to its own field. Other fields in the hash are left unchanged.
+* A tombstone (null value) removes only its field with `HDEL`. When the last field of a hash is removed, Redis deletes the hash. A tombstone for a field or hash that does not exist is a no-op.
+* Records are applied in Kafka order, so a tombstone that follows a write for the same field in a batch removes it.
+
+[[_sink_hash_field_values]]
+==== Values
+Struct and Map values are stored as plain JSON (without a schema envelope), and nested records stay nested.
+String and bytes values are stored as is.
+
+Values converted to JSON follow the `JsonConverter` encodings: `Decimal` and `bytes` fields are written as base64 strings, `Timestamp` fields as epoch milliseconds, and `Date` fields as days since the epoch.
+Consider an {link_smt} if you need a different representation.
+
+[[_sink_hash_field_errors]]
+==== Records that cannot be written
+A record whose key does not contain the referenced fields cannot be written, for example a plain string key, a missing field, or a referenced field that is null.
+Such records are sent to the Kafka Connect errant record reporter instead of being retried, and the standard error handling properties decide what happens next:
+
+[options="header",cols="1,2"]
+|====
+|Configuration|Behavior
+|`errors.tolerance = none` (default)|The task fails. When a dead letter queue or error logging is configured, the record is also written there first.
+|`errors.tolerance = all` with `errors.deadletterqueue.topic.name` or `errors.log.enable = true`|The record is written to the dead letter queue or log, and the connector continues with the next record.
+|No dead letter queue and no error logging|The task fails.
+|====
+
+[WARNING]
+====
+With `errors.tolerance = all`, a configuration mistake such as the wrong key converter sends every record to the dead letter queue while Redis is left unchanged.
+For change data capture topics, where a skipped record leaves stale data in Redis, prefer `errors.tolerance = none`, or monitor the dead letter queue.
+Some managed Kafka Connect platforms default to `errors.tolerance = all`, so check the setting for your deployment.
+====
+
+==== Per-field TTL
+For `HASH_FIELD`, <<_sink_ttl,TTL>> applies to the record's field rather than the whole hash, using the Redis `HEXPIRE` command.
+The TTL comes from the record's `redis.key.ttl` header, or from the `redis.key.ttl` configuration property when the record has no header.
+Send the header value as decimal text, for example `"3600"`.
+
+* The TTL counts from when the record is written to Redis, not from the Kafka record timestamp, so replaying a topic restarts it.
+* Every write sets the field's TTL again. Overwriting a field clears its previous TTL, so a write without a TTL leaves the field without an expiration.
+* The hash itself never has a TTL.
+
+`HEXPIRE` requires Redis 7.4 or later, or Valkey 9.0 or later. Support on managed services varies by provider and engine version, so check yours.
+The connector checks for `HEXPIRE` support when it starts:
+
+* If `redis.key.ttl` is set and `HEXPIRE` is not supported, the connector fails to start.
+* If `HEXPIRE` is not supported, a record with a `redis.key.ttl` header cannot be written and is handled as described in <<_sink_hash_field_errors,Records that cannot be written>>.
+* Without any TTL, `HASH_FIELD` works on engines without `HEXPIRE`.
+
+==== Permissions
+The Redis user needs the `HSET` and `HDEL` commands (for example ACL `+hset +hdel`), plus `HEXPIRE` (`+hexpire`) when a TTL is used.
+If `HEXPIRE` is denied by the ACL, the startup check reports it as not supported. The connector logs the server's response at `INFO`.
+
+[WARNING]
+====
+Make sure hash keys produced by `HASH_FIELD` do not collide with Redis keys of another type, for example a string written by another connector with the same keyspace.
+Redis rejects `HSET` on a key of another type.
+====
+
+==== Reading the data
+Read all fields of a hash with `HGETALL`, or iterate large hashes with `HSCAN`.
+To read your own writes, read from the primary rather than a replica.
 
 [[_sink_stream]]
 === Stream
@@ -188,6 +285,7 @@ The {name} expects Kafka record keys in a specific format depending on the confi
 |Target|Record Key|Assigned To
 |Stream|Any|None
 |Hash|String|Key
+|Hash field|Struct or Map|Key and field, selected by <<_sink_hash_field,`redis.hash.key` and `redis.hash.field`>>
 |String|<<_sink_key_string,String>> or <<_sink_key_bytes,bytes>>|Key
 |List|<<_sink_key_string,String>> or <<_sink_key_bytes,bytes>>|Member
 |Set|<<_sink_key_string,String>> or <<_sink_key_bytes,bytes>>|Member
@@ -225,6 +323,7 @@ If your data in Kafka is not in the format expected for a given data structure, 
 |Target|Record Value|Assigned To
 |Stream|<<_sink_value_avro,Avro>> or <<_sink_value_json,JSON>>|Message body
 |Hash|<<_sink_value_avro,Avro>> or <<_sink_value_json,JSON>>|Fields
+|Hash field|<<_sink_value_avro,Avro>>, <<_sink_value_json,JSON>>, <<_sink_value_string,String>>, or <<_sink_value_bytes,bytes>>|Field value (JSON for Avro and JSON)
 |String|<<_sink_value_string,String>> or <<_sink_value_bytes,bytes>>|Value
 |List|Any|Removal if null
 |Set|Any|Removal if null
@@ -296,7 +395,7 @@ record.headers().add("redis.key.ttl", "1800".getBytes()); // 30 minutes
 
 * TTL is applied using the Redis `EXPIRE` command after data is written
 * Per-message TTL headers take precedence over global configuration
-* TTL applies to all Redis data types
+* TTL applies to all Redis data types. For `HASH_FIELD`, it applies to the record's field with `HEXPIRE` (see <<_sink_hash_field,Hash Field>>)
 * For collection types (STREAM, LIST, SET, ZSET, TIMESERIES), TTL is applied to the collection key
 * Invalid TTL values are logged and ignored
 * TTL value of -1 (default) means no expiration
@@ -309,7 +408,7 @@ record.headers().add("redis.key.ttl", "1800".getBytes()); // 30 minutes
 connector.class  = com.redis.kafka.connect.RedisSinkConnector
 topics           = <Kafka topic> <1>
 redis.uri        = <Redis URI> <2>
-redis.type       = <HASH|SET|JSON|STREAM|LIST|SET|ZSET|TIMESERIES> <3>
+redis.type       = <HASH|HASH_FIELD|SET|JSON|STREAM|LIST|SET|ZSET|TIMESERIES> <3>
 redis.key.ttl    = <TTL in seconds> <4>
 redis.offset.namespace = <Offset namespace> <5>
 key.converter    = <Key converter> <6>

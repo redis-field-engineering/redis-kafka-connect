@@ -4,15 +4,23 @@ import com.redis.enterprise.Database;
 import com.redis.enterprise.RedisModule;
 import com.redis.enterprise.testcontainers.RedisEnterpriseContainer;
 import com.redis.enterprise.testcontainers.RedisEnterpriseServer;
+import com.redis.testcontainers.RedisContainer;
 import com.redis.testcontainers.RedisStackContainer;
+import org.testcontainers.utility.DockerImageName;
 
 public interface RedisContainerFactory {
 
 	String ENTERPRISE_TAG = "7.4.6-102";
 	String STACK_TAG = "7.2.0-v13";
+	String VALKEY_IMAGE = "valkey/valkey:9.0";
 
 	static RedisStackContainer stack() {
 		return new RedisStackContainer(RedisStackContainer.DEFAULT_IMAGE_NAME.withTag(STACK_TAG));
+	}
+
+	static RedisContainer valkey() {
+		return new RedisContainer(
+				DockerImageName.parse(VALKEY_IMAGE).asCompatibleSubstituteFor(RedisContainer.DEFAULT_IMAGE_NAME));
 	}
 
 	@SuppressWarnings("resource")

@@ -20,6 +20,7 @@ import java.time.Duration;
 import java.util.Map;
 import java.util.Objects;
 
+import org.apache.kafka.common.config.ConfigException;
 import org.springframework.util.StringUtils;
 
 import com.redis.kafka.connect.common.RedisConfig;
@@ -27,7 +28,7 @@ import com.redis.kafka.connect.common.RedisConfig;
 public class RedisSinkConfig extends RedisConfig {
 
 	public enum RedisType {
-		HASH, JSON, TIMESERIES, STRING, STREAM, LIST, SET, ZSET
+		HASH, JSON, TIMESERIES, STRING, STREAM, LIST, SET, ZSET, HASH_FIELD
 	}
 
 	public static final RedisSinkConfigDef CONFIG = new RedisSinkConfigDef();
@@ -41,6 +42,8 @@ public class RedisSinkConfig extends RedisConfig {
 	private final Duration waitTimeout;
 	private final long keyTTL;
 	private final String offsetNamespace;
+	private final KeyPath hashKey;
+	private final KeyPath hashField;
 
 	public RedisSinkConfig(Map<?, ?> originals) {
 		super(new RedisSinkConfigDef(), originals);
@@ -54,6 +57,22 @@ public class RedisSinkConfig extends RedisConfig {
 		waitTimeout = Duration.ofMillis(getLong(RedisSinkConfigDef.WAIT_TIMEOUT_CONFIG));
 		keyTTL = getLong(RedisSinkConfigDef.KEY_TTL_CONFIG);
 		offsetNamespace = offsetNamespace(originals);
+		validateHashField();
+		hashKey = keyPath(RedisSinkConfigDef.HASH_KEY_CONFIG);
+		hashField = keyPath(RedisSinkConfigDef.HASH_FIELD_CONFIG);
+	}
+
+	private void validateHashField() {
+		Map<String, String> props = Map.of(RedisSinkConfigDef.TYPE_CONFIG, type.name(),
+				RedisSinkConfigDef.HASH_KEY_CONFIG, getString(RedisSinkConfigDef.HASH_KEY_CONFIG),
+				RedisSinkConfigDef.HASH_FIELD_CONFIG, getString(RedisSinkConfigDef.HASH_FIELD_CONFIG));
+		RedisSinkConfigDef.hashFieldErrors(props).entrySet().stream().findFirst().ifPresent(e -> {
+			throw new ConfigException(e.getKey(), props.get(e.getKey()), e.getValue());
+		});
+	}
+
+	private KeyPath keyPath(String name) {
+		return type == RedisType.HASH_FIELD ? KeyPath.parse(getString(name).trim()) : null;
 	}
 
 	private String offsetNamespace(Map<?, ?> originals) {
@@ -104,13 +123,31 @@ public class RedisSinkConfig extends RedisConfig {
 		return offsetNamespace;
 	}
 
+	/**
+	 * @return the record key reference naming the hash, or null unless the type is HASH_FIELD
+	 */
+	public KeyPath getHashKey() {
+		return hashKey;
+	}
+
+	/**
+	 * @return the record key reference naming the hash field, or null unless the type is HASH_FIELD
+	 */
+	public KeyPath getHashField() {
+		return hashField;
+	}
+
+	private static String reference(KeyPath path) {
+		return path == null ? null : path.toString();
+	}
+
 	@Override
 	public int hashCode() {
 		final int prime = 31;
 		int result = super.hashCode();
 		result = prime * result
 				+ Objects.hash(charset, keyspace, separator, multiExec, type, waitReplicas, waitTimeout, keyTTL,
-						offsetNamespace);
+						offsetNamespace, reference(hashKey), reference(hashField));
 		return result;
 	}
 
@@ -126,7 +163,9 @@ public class RedisSinkConfig extends RedisConfig {
 		return Objects.equals(charset, other.charset) && Objects.equals(keyspace, other.keyspace)
 				&& Objects.equals(separator, other.separator) && multiExec == other.multiExec && type == other.type
 				&& waitReplicas == other.waitReplicas && waitTimeout == other.waitTimeout && keyTTL == other.keyTTL
-				&& Objects.equals(offsetNamespace, other.offsetNamespace);
+				&& Objects.equals(offsetNamespace, other.offsetNamespace)
+				&& Objects.equals(reference(hashKey), reference(other.hashKey))
+				&& Objects.equals(reference(hashField), reference(other.hashField));
 	}
 
 }
