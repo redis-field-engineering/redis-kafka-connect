@@ -69,8 +69,14 @@ class RedisClusterIntegrationTests {
                 "127.0.0.1:17000", "--cluster-slave", "--cluster-master-id", primary).getExitCode());
         await().atMost(Duration.ofSeconds(20)).until(() -> {
             client.reloadPartitions();
+            // add-node joins 17003 as an empty primary first. Wait for the client's own
+            // topology too, or masters() can still target 17003 after it becomes a replica.
             return primaries.stream().allMatch(node -> connection.getConnection(node).sync().clusterNodes().lines()
-                    .anyMatch(line -> line.contains(":17003@") && line.split(" ")[2].contains("slave")));
+                    .anyMatch(line -> line.contains(":17003@") && line.split(" ")[2].contains("slave")))
+                    && client.getPartitions().stream().filter(node -> node.is(RedisClusterNode.NodeFlag.UPSTREAM))
+                            .map(RedisClusterNode::getNodeId).collect(Collectors.toSet()).equals(Set.copyOf(primaries))
+                    && client.getPartitions().stream().anyMatch(node -> node.getUri().getPort() == 17003
+                            && node.is(RedisClusterNode.NodeFlag.REPLICA));
         });
     }
 
