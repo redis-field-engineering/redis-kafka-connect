@@ -1,14 +1,8 @@
 package com.redis.kafka.connect;
 
-import com.fasterxml.jackson.databind.node.BooleanNode;
 import com.redis.enterprise.Admin;
-import com.redis.enterprise.Command;
 import com.redis.enterprise.Database;
-import com.redis.enterprise.rest.CommandResponse;
 import com.redis.enterprise.testcontainers.AbstractRedisEnterpriseContainer;
-import io.lettuce.core.RedisClient;
-import io.lettuce.core.RedisURI;
-import io.lettuce.core.api.StatefulRedisConnection;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.time.Duration;
@@ -16,8 +10,8 @@ import org.testcontainers.containers.ContainerLaunchException;
 import org.testcontainers.utility.DockerImageName;
 
 /**
- * Uses data-port readiness checks because Redis Enterprise 8.2 no longer accepts
- * PING through the management API used by testcontainers-redis 3.0.0 (Enterprise admin 0.8.2).
+ * Three-shard Redis Enterprise 8.2 fixture on fixed ports, verifying the created
+ * database topology before tests run.
  */
 class RedisEnterprise8Container extends AbstractRedisEnterpriseContainer<RedisEnterprise8Container> {
 
@@ -43,23 +37,7 @@ class RedisEnterprise8Container extends AbstractRedisEnterpriseContainer<RedisEn
 
     @Override
     protected void createCluster() {
-        try (Admin admin = new Admin() {
-            @Override
-            public CommandResponse executeCommand(long uid, Command command)
-                    throws IOException, GeneralSecurityException {
-                if (!"PING".equals(command.getCommand())) {
-                    return super.executeCommand(uid, command);
-                }
-                RedisURI uri = RedisURI.Builder.redis(getRedisHost(), getRedisPort())
-                        .withTimeout(Duration.ofSeconds(2)).build();
-                try (RedisClient client = RedisClient.create(uri);
-                        StatefulRedisConnection<String, String> connection = client.connect()) {
-                    CommandResponse response = new CommandResponse();
-                    response.setResponse(BooleanNode.valueOf("PONG".equals(connection.sync().ping())));
-                    return response;
-                }
-            }
-        }) {
+        try (Admin admin = new Admin()) {
             admin.withHost(getHost()).withDatabaseCreationTimeout(Duration.ofMinutes(2));
             admin.waitForBoostrap();
             super.createCluster();
