@@ -106,6 +106,10 @@ subprojects {
         systemProperty 'redis.enterprise.image', providers.gradleProperty('redisEnterpriseImage')
                 .orElse('redislabs/redis:8.2.0-125.19').get()
         systemProperty 'redis.image', providers.gradleProperty('redisImage').orElse('redis:8.2.10').get()
+        systemProperty 'redis.stack.image', providers.gradleProperty('redisStackImage').orElse('redis/redis-stack-server:7.2.0-v13').get()
+        systemProperty 'redis.legacy.image', providers.gradleProperty('redisLegacyImage').orElse('redis:6.0.20').get()
+        systemProperty 'redis.enterprise.legacy.image', providers.gradleProperty('redisEnterpriseLegacyImage')
+                .orElse('redislabs/redis:7.4.6-102').get()
     }
 
     tasks.named('check') {

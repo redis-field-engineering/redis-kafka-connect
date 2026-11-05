@@ -10,6 +10,7 @@ import io.lettuce.core.api.async.RedisKeyAsyncCommands;
 import io.lettuce.core.api.async.RedisTransactionalAsyncCommands;
 import io.lettuce.core.api.sync.BaseRedisCommands;
 import io.lettuce.core.api.sync.RedisTransactionalCommands;
+import io.lettuce.core.cluster.RedisClusterClient;
 import io.lettuce.core.cluster.SlotHash;
 import io.lettuce.core.codec.ByteArrayCodec;
 import java.time.Duration;
@@ -27,10 +28,13 @@ final class RedisSinkWriter implements AutoCloseable {
     private final GenericObjectPool<RedisConnection<byte[], byte[]>> pool;
     private final RedisSinkConfig config;
     private final Duration timeout;
+    private final boolean slotTransactions;
 
     RedisSinkWriter(AbstractRedisClient client, RedisSinkConfig config) {
         this.config = config;
         this.timeout = config.uri().getTimeout();
+        this.slotTransactions = client instanceof RedisClusterClient
+                || config.getBoolean(RedisSinkConfigDef.MULTIEXEC_KEYSLOT_CONFIG);
         GenericObjectPoolConfig<RedisConnection<byte[], byte[]>> poolConfig = new GenericObjectPoolConfig<>();
         poolConfig.setMaxTotal(config.getPoolSize());
         poolConfig.setMaxWait(timeout);
@@ -59,13 +63,12 @@ final class RedisSinkWriter implements AutoCloseable {
         RedisConnection<byte[], byte[]> connection = pool.borrowObject();
         boolean success = false;
         try {
-            // Pipeline by primary, or by slot when using transactions. Keep WAIT on the connection that wrote.
-            // Transactions are split by slot for every client: a sharded Enterprise proxy also rejects
-            // MULTI blocks whose keys hash to different slots.
+            // Preserve standalone batch isolation. Sharded clients/proxies require per-slot transactions.
+            // Keep WAIT on the physical connection that performed the writes.
             Map<String, List<RedisWrite>> groups = new LinkedHashMap<>();
             for (RedisWrite write : writes) {
                 int slot = SlotHash.getSlot(write.key());
-                String group = config.isMultiExec() ? "slot:" + slot : connection.nodeIdForSlot(slot);
+                String group = config.isMultiExec() && slotTransactions ? "slot:" + slot : connection.nodeIdForSlot(slot);
                 groups.computeIfAbsent(group, ignored -> new ArrayList<>()).add(write);
             }
             for (List<RedisWrite> group : groups.values()) {

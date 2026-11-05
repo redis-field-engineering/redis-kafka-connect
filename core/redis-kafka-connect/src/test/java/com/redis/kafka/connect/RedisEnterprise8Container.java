@@ -11,7 +11,7 @@ import org.testcontainers.containers.ContainerLaunchException;
 import org.testcontainers.utility.DockerImageName;
 
 /**
- * Three-shard Redis Enterprise 8.2 fixture on fixed ports, verifying the created
+ * Three-shard Redis Enterprise fixture on fixed ports, verifying the created
  * database topology before tests run.
  */
 class RedisEnterprise8Container extends AbstractRedisEnterpriseContainer<RedisEnterprise8Container> {

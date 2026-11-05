@@ -69,8 +69,10 @@ Kafka Connect continues polling; this option does not complete or stop the task.
 
 In `LIVE` mode, the task confirms its subscriptions before scanning the database.
 Snapshot records and notifications can overlap, so duplicate key snapshots are possible.
-Each poll reads queued notifications first and fills the rest of the batch (`batch.size`)
-from the snapshot, so the snapshot pauses while notifications fill every batch.
+The reader alternates between queued notifications and snapshot keys, including across
+polls when `batch.size=1`. Both make progress under sustained updates. Repeated notifications
+for a key already in the queue are coalesced into one current-state read; queue capacity
+therefore counts distinct queued keys rather than every mutation.
 A record contains the key's current type, value, and expiry when read; it is not a durable
 history of every mutation. Deleted or expired keys have type `none`, TTL `-2`, and no value field.
 The `ttl` field contains an absolute expiry timestamp in milliseconds, or the Redis
@@ -89,5 +91,7 @@ Key reads use pipelined native commands and do not require Lua, `EVAL`, `EVALSHA
 or `SCRIPT` permissions. Type changes and `WRONGTYPE` replies trigger up to three
 read attempts, after which the task fails explicitly. Reads are not atomic: values
 and expiry metadata may reflect different moments during concurrent updates, including
-same-type replacements. Expiry timestamps come from `PEXPIRETIME`, so the keys source
-requires Redis 7.0 or later.
+same-type replacements. Redis 7.0 and later supplies exact expiry timestamps through
+`PEXPIRETIME`. If an older server reports that command as unknown, the reader uses
+`PTTL` and the owning primary's `TIME` to estimate the absolute expiry instead.
+Permission failures and other command errors still fail explicitly.

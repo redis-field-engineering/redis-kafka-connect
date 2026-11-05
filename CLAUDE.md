@@ -165,10 +165,13 @@ The project uses JReleaser for release management:
 
 Each task owns its Lettuce client and connections. The sink validates commands before
 sending a batch, awaits all pipeline results, and uses a physical primary connection
-for each cluster slot's transaction and WAIT. Transactions do not span slots.
+for each cluster slot's transaction and WAIT. Standalone Redis retains one transaction per
+batch; cluster clients split by slot. Sharded Enterprise proxies use the explicit
+`redis.multiexec.keyslot=true` option to split transactions without changing standalone defaults.
 
 Stream checkpoints use stream/group/consumer source partitions with the existing
 `offset` field. Legacy empty-partition checkpoints are read for group initialization;
 all pending entries replay conservatively, including claimed IDs below a saved checkpoint. Keys subscriptions are established before
-SCAN, use a bounded queue, and fail explicitly on overflow, disconnect, or topology
+SCAN, alternate snapshot and notification reads, coalesce repeated queued keys, use a
+bounded queue, and fail explicitly on overflow, disconnect, or topology
 change. Keep Redis callbacks free of blocking I/O. The keys source emits one task only.

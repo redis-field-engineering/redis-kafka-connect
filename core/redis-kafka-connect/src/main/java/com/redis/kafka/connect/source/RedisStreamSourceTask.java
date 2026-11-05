@@ -5,6 +5,7 @@ import com.redis.kafka.connect.common.RedisConnection;
 import io.lettuce.core.AbstractRedisClient;
 import io.lettuce.core.Consumer;
 import io.lettuce.core.RedisBusyException;
+import io.lettuce.core.RedisCommandExecutionException;
 import io.lettuce.core.RedisCommandTimeoutException;
 import io.lettuce.core.StreamMessage;
 import io.lettuce.core.XAutoClaimArgs;
@@ -19,6 +20,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import org.apache.kafka.clients.producer.RecordMetadata;
@@ -26,8 +28,11 @@ import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.errors.RetriableException;
 import org.apache.kafka.connect.source.SourceRecord;
 import org.apache.kafka.connect.source.SourceTask;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class RedisStreamSourceTask extends SourceTask {
+    private static final Logger log = LoggerFactory.getLogger(RedisStreamSourceTask.class);
     public static final String TASK_ID = "task.id";
     public static final String OFFSET_FIELD = "offset";
 
@@ -44,6 +49,7 @@ public class RedisStreamSourceTask extends SourceTask {
     private String pendingCursor = "0-0";
     private String claimCursor = "0-0";
     private boolean recovering = true;
+    private boolean claimingSupported = true;
     private volatile boolean stopped;
 
     public RedisStreamSourceTask() {
@@ -84,6 +90,7 @@ public class RedisStreamSourceTask extends SourceTask {
             }
         }
         recovering = true;
+        claimingSupported = true;
         stopped = false;
         pendingCursor = "0-0";
         claimCursor = "0-0";
@@ -218,18 +225,29 @@ public class RedisStreamSourceTask extends SourceTask {
             return List.of();
         }
         long idle = config.getLong(RedisStreamSourceConfigDef.STREAM_CLAIM_IDLE_CONFIG);
-        if (idle > 0) {
-            // XAUTOCLAIM includes our own PEL. Keep records already handed to Connect out
-            // of replay until XACK succeeds, even when offset commits take longer than idle.
-            synchronized (inFlight) {
-                ClaimedMessages<String, String> claimed = commands.xautoclaim(config.getStreamName(),
-                        XAutoClaimArgs.Builder.xautoclaim(consumer, idle, claimCursor).count(config.getBatchSize()));
-                claimCursor = claimed.getId();
-                List<StreamMessage<String, String>> replay = claimed.getMessages().stream()
-                        .filter(message -> !inFlight.contains(message.getId())).toList();
-                if (!replay.isEmpty()) {
-                    return replay;
+        if (idle > 0 && claimingSupported) {
+            try {
+                // XAUTOCLAIM includes our own PEL. Keep records already handed to Connect out
+                // of replay until XACK succeeds, even when offset commits take longer than idle.
+                synchronized (inFlight) {
+                    ClaimedMessages<String, String> claimed = commands.xautoclaim(config.getStreamName(),
+                            XAutoClaimArgs.Builder.xautoclaim(consumer, idle, claimCursor).count(config.getBatchSize()));
+                    claimCursor = claimed.getId();
+                    // Redis 7+ removes missing entries from the PEL during XAUTOCLAIM.
+                    // Its separate deleted-ID reply reports completed cleanup, not IDs to XACK.
+                    List<StreamMessage<String, String>> replay = claimed.getMessages().stream()
+                            .filter(message -> !inFlight.contains(message.getId())).toList();
+                    if (!replay.isEmpty()) {
+                        return replay;
+                    }
                 }
+            } catch (RedisCommandExecutionException e) {
+                String message = e.getMessage() == null ? "" : e.getMessage().toLowerCase(Locale.ROOT);
+                if (!message.startsWith("err unknown command") || !message.contains("xautoclaim")) {
+                    throw e;
+                }
+                claimingSupported = false;
+                log.info("Redis does not support XAUTOCLAIM; recovering this consumer's pending messages only. Abandoned-consumer claiming requires Redis 6.2 or later.");
             }
         }
         XReadArgs args = XReadArgs.Builder.count(config.getBatchSize());

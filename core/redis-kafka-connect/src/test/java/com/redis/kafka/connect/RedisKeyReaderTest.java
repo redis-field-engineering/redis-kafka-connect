@@ -17,6 +17,8 @@ import io.lettuce.core.pubsub.RedisPubSubListener;
 import io.lettuce.core.pubsub.StatefulRedisPubSubConnection;
 import io.lettuce.core.pubsub.api.sync.RedisPubSubCommands;
 import java.util.List;
+import java.util.Set;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import org.apache.kafka.connect.errors.ConnectException;
@@ -122,7 +124,7 @@ class RedisKeyReaderTest {
     }
 
     @Test
-    void liveNotificationsTakePriorityOverSnapshot() throws Exception {
+    void notificationsAndSnapshotSharePollingCapacity() throws Exception {
         reader.close();
         reader = open(Map.of("mode", "LIVE", "batch.size", "1"));
         KeyScanCursor<String> page = new KeyScanCursor<>();
@@ -136,9 +138,70 @@ class RedisKeyReaderTest {
         listener.message("*", "__keyspace@0__:live1", "set");
         listener.message("*", "__keyspace@0__:live2", "set");
         assertEquals(List.of("live1"), keys(reader.poll()));
-        assertEquals(List.of("live2"), keys(reader.poll()));
         assertEquals(List.of("snap1"), keys(reader.poll()));
+        assertEquals(List.of("live2"), keys(reader.poll()));
         assertEquals(List.of("snap2"), keys(reader.poll()));
+    }
+
+    @Test
+    void sustainedUpdatesCannotStarveSnapshotAtBatchSizeOne() throws Exception {
+        reader.close();
+        reader = open(Map.of("batch.size", "1", "redis.keys.queue.capacity", "1"));
+        KeyScanCursor<String> page = new KeyScanCursor<>();
+        page.getKeys().addAll(List.of("cold1", "cold2"));
+        page.setCursor("0");
+        page.setFinished(true);
+        when(syncCommands.scan(any(ScanCursor.class), any(ScanArgs.class))).thenReturn(page);
+        doReturn(completed("string")).when(commands).type(anyString());
+        doReturn(completed("value")).when(commands).get(anyString());
+        doReturn(completed(-1L)).when(commands).pexpiretime(anyString());
+        Set<String> seen = new HashSet<>();
+        for (int index = 0; index < 6; index++) {
+            listener.message("*", "__keyspace@0__:hot", "set");
+            List<KeySnapshot> batch = reader.poll();
+            assertEquals(1, batch.size());
+            seen.addAll(keys(batch));
+        }
+        assertEquals(Set.of("hot", "cold1", "cold2"), seen);
+    }
+
+    @Test
+    void olderServersUsePttlAndTheirOwnClock() throws Exception {
+        doReturn(completed("string")).when(commands).type("key");
+        doReturn(completed("value")).when(commands).get("key");
+        doReturn(failed(new RedisCommandExecutionException("ERR unknown command 'PEXPIRETIME'")))
+                .when(commands).pexpiretime("key");
+        doReturn(completed(1500L)).when(commands).pttl("key");
+        doReturn(completed(List.of("1700000000", "123000"))).when(commands).time();
+        assertEquals(1700000001623L, reader.poll().get(0).ttl());
+        listener.message("*", "__keyspace@0__:key", "set");
+        assertEquals(1700000001623L, reader.poll().get(0).ttl());
+        verify(commands, times(1)).pexpiretime("key");
+    }
+
+    @Test
+    void olderServersRetryTypeChangesWhenExpiryIsUnsupported() throws Exception {
+        doReturn(completed("string"), completed("hash"), completed("hash"), completed("hash"),
+                completed("hash")).when(commands).type("key");
+        doReturn(failed(new RedisCommandExecutionException("WRONGTYPE key changed"))).when(commands).get("key");
+        doReturn(completed(Map.of("field", "current"))).when(commands).hgetall("key");
+        doReturn(failed(new RedisCommandExecutionException("ERR unknown command 'PEXPIRETIME'")))
+                .when(commands).pexpiretime("key");
+        doReturn(completed(-1L)).when(commands).pttl("key");
+        doReturn(completed(List.of("1700000000", "123000"))).when(commands).time();
+        assertEquals(List.of(new KeySnapshot("key", -1L, "hash", Map.of("field", "current"))), reader.poll());
+        verify(commands, times(1)).pexpiretime("key");
+    }
+
+    @Test
+    void expiryPermissionErrorsDoNotActivateCompatibilityFallback() {
+        doReturn(completed("string")).when(commands).type("key");
+        doReturn(completed("value")).when(commands).get("key");
+        RedisCommandExecutionException denied = new RedisCommandExecutionException("NOPERM PEXPIRETIME denied");
+        doReturn(failed(denied)).when(commands).pexpiretime("key");
+        assertSame(denied, assertThrows(RedisCommandExecutionException.class, () -> reader.poll()));
+        verify(commands, never()).pttl(anyString());
+        verify(commands, never()).time();
     }
 
     private List<String> keys(List<KeySnapshot> snapshots) {

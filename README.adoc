@@ -60,7 +60,13 @@ and verify nontransactional/transactional pipelines, a successful `WAIT` on a no
 primary, and keys-source operation with that replica offline. These fixtures do not
 qualify multi-host failover or Enterprise replication.
 
-Redis 8 includes JSON, Search, and TimeSeries, replacing the older Redis Stack fixture.
+Redis 8 includes JSON, Search, and TimeSeries. The same source and sink contracts also run
+against the Redis Stack 7.2.0-v13 and Enterprise 7.4.6-102 fixtures used by version 1.1.0.
+Additional Redis 6.0.20 tests cover keys snapshots, TTL fallback, notifications, stream
+pending recovery, and sink transactions.
+TLS fixtures exercise all three tasks with password authentication, server trust and hostname
+verification, mutual TLS, and encrypted client keys. Their public test credentials are under
+`src/test/resources/tls` in the connector module and must never be used outside tests.
 Enterprise tests run on every supported Docker host, including Docker Desktop on macOS.
 Test containers use fixed Enterprise ports 8443, 9443, and 12000; these ports must be free.
 
@@ -71,6 +77,9 @@ Select another installed test JDK or server image with Gradle properties:
 ./gradlew integrationTest -PtestJavaVersion=21
 ./gradlew integrationTest -PredisEnterpriseImage=redislabs/redis:8.0.20-127.28
 ./gradlew integrationTest -PredisImage=redis:8.8.3
+./gradlew integrationTest -PredisStackImage=redis/redis-stack-server:7.2.0-v13
+./gradlew integrationTest -PredisLegacyImage=redis:6.0.20
+./gradlew integrationTest -PredisEnterpriseLegacyImage=redislabs/redis:7.4.6-102
 ----
 
 Dependency versions are maintained in `gradle/libs.versions.toml` using native Gradle

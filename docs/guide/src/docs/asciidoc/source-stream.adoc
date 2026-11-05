@@ -106,6 +106,9 @@ claim abandoned pending messages, including messages owned by a removed task (de
 `60000`; `0` disables claiming). Set it above normal end-to-end processing time. A slow
 active consumer may otherwise have its messages reclaimed and delivered again.
 At-least-once delivery permits these duplicates.
+Abandoned-consumer claiming uses `XAUTOCLAIM` and requires Redis 6.2 or later. On older
+servers, the task logs that claiming is unavailable and continues reading new messages
+and recovering its own pending messages, preserving the previous connector behavior.
 
 Checkpoints use source partitions containing `stream`, `group`, and `consumer`, with the
 existing `offset` field holding the stream ID. See the migration section for legacy

@@ -43,10 +43,10 @@ public abstract class RedisConfig extends AbstractConfig {
         Boolean ssl = getBoolean(RedisConfigDef.TLS_CONFIG);
         if (Boolean.TRUE.equals(ssl)) {
             builder.withSsl(ssl);
-            Boolean insecure = getBoolean(RedisConfigDef.INSECURE_CONFIG);
-            if (Boolean.TRUE.equals(insecure)) {
-                builder.withVerifyPeer(false);
-            }
+        }
+        // This also applies when TLS is enabled by a rediss:// URI.
+        if (Boolean.TRUE.equals(getBoolean(RedisConfigDef.INSECURE_CONFIG))) {
+            builder.withVerifyPeer(false);
         }
         Password password = getPassword(RedisConfigDef.PASSWORD_CONFIG);
         if (password != null) {

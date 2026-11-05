@@ -170,6 +170,7 @@ redis.keyspace = <key name> <1>
 <1> Timeseries key
 
 The Kafka record key must be an integer (e.g. `int64`) as it is used for the sample time in milliseconds.
+A key of `0` requests the Redis server's current timestamp, preserving the previous LettuceMod behavior.
 
 The Kafka record value must be a number (e.g. `float64`) as it is used as the sample value.
 
@@ -331,9 +332,11 @@ fails before any commands in that batch are sent. Server errors and partial fail
 still occur after some commands have executed; replay can duplicate list entries, stream
 messages, or other non-idempotent operations. Delivery remains at least once.
 
-`redis.multiexec` applies transactions on a physical primary connection. Commands are
-grouped into one transaction per hash slot for every deployment, including a sharded Redis
-Enterprise proxy; a batch is not an atomic transaction across slots.
+`redis.multiexec=true` keeps one transaction per batch on standalone Redis, preserving
+atomic execution across its keys. Cluster clients group commands by hash slot on physical
+primary connections; those batches are not atomic across slots. For a sharded Enterprise
+proxy with `redis.cluster=false`, set `redis.multiexec.keyslot=true` to use per-slot transactions.
+The new option defaults to `false`; it has no effect when `redis.multiexec=false`.
 `redis.wait.replicas` waits on each primary connection after its writes and fails the batch
 if the configured acknowledgment target is not reached. WAIT is not a guarantee against
 all failover data loss. Offset keys are persisted after successful writes and keep their

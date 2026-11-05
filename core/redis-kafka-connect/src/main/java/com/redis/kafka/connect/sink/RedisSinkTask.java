@@ -222,7 +222,7 @@ public class RedisSinkTask extends SinkTask {
             case LIST -> write(CommandType.RPUSH, key, List.of(member(record)), RedisWrite.Reply.INTEGER, ttl);
             case SET -> write(CommandType.SADD, key, List.of(member(record)), RedisWrite.Reply.INTEGER, ttl);
             case ZSET -> write(CommandType.ZADD, key, List.of(number(doubleValue(record)), member(record)), RedisWrite.Reply.INTEGER, ttl);
-            case TIMESERIES -> write(ModuleCommand.TS_ADD, key, List.of(number(longMember(record)), number(doubleValue(record))), RedisWrite.Reply.INTEGER, ttl);
+            case TIMESERIES -> write(ModuleCommand.TS_ADD, key, List.of(timestamp(record), number(doubleValue(record))), RedisWrite.Reply.INTEGER, ttl);
         };
     }
 
@@ -270,6 +270,12 @@ public class RedisSinkTask extends SinkTask {
         return config.getKeyTTL();
     }
 
+    private byte[] timestamp(SinkRecord record) {
+        long timestamp = longMember(record);
+        // LettuceMod used zero as its automatic server-time sentinel.
+        return number(timestamp == 0 ? "*" : timestamp);
+    }
+
     private Long longMember(SinkRecord record) {
         if (record.key() instanceof Number number) {
             return number.longValue();
@@ -278,10 +284,13 @@ public class RedisSinkTask extends SinkTask {
     }
 
     private Double doubleValue(SinkRecord record) {
-        if (record.value() instanceof Number number && Double.isFinite(number.doubleValue())) {
-            return number.doubleValue();
+        if (record.value() instanceof Number number) {
+            double value = number.doubleValue();
+            if (!Double.isNaN(value) && (config.getType() == RedisSinkConfig.RedisType.ZSET || Double.isFinite(value))) {
+                return value;
+            }
         }
-        throw new DataException("Redis score/sample value must be a finite number");
+        throw new DataException("Redis sorted-set scores must not be NaN; TimeSeries samples must be finite numbers");
     }
 
     private byte[] value(SinkRecord sinkRecord) {

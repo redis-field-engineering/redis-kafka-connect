@@ -24,7 +24,15 @@ public interface RedisContainerFactory {
     }
 
     private static RedisEnterprise8Container enterprise(boolean ossCluster) {
-        return new RedisEnterprise8Container(DockerImageName.parse(ENTERPRISE_IMAGE),
+        return enterprise(ossCluster, ENTERPRISE_IMAGE);
+    }
+
+    static RedisEnterprise8Container enterprise74() {
+        return enterprise(true, System.getProperty("redis.enterprise.legacy.image", "redislabs/redis:7.4.6-102"));
+    }
+
+    private static RedisEnterprise8Container enterprise(boolean ossCluster, String image) {
+        return new RedisEnterprise8Container(DockerImageName.parse(image),
                 Database.builder().name("ConnectorTests").port(12000).memoryMB(100).shardCount(3).ossCluster(ossCluster)
 						.modules(RedisModule.TIMESERIES, RedisModule.JSON, RedisModule.SEARCH).build());
 	}

@@ -431,6 +431,55 @@ abstract class AbstractSinkIntegrationTests extends AbstractRedisIntegrationTest
     }
 
     @Test
+    void zeroTimeSeriesTimestampUsesServerTime() {
+        String topic = "automatic-timestamps";
+        long before = Long.parseLong(redisConnection.sync().time().get(0)) * 1000;
+        put(topic, RedisType.TIMESERIES, List.of(write(topic,
+                new SchemaAndValue(Schema.INT64_SCHEMA, 0L), new SchemaAndValue(Schema.FLOAT64_SCHEMA, 1.0))));
+        List<?> first = (List<?>) timeSeries(topic).get(0);
+        long timestamp = ((Number) first.get(0)).longValue();
+        Assertions.assertTrue(timestamp >= before, "zero must select server time, not Unix epoch");
+        awaitUntil(() -> {
+            List<String> time = redisConnection.sync().time();
+            return Long.parseLong(time.get(0)) * 1000 + Long.parseLong(time.get(1)) / 1000 > timestamp;
+        });
+        task.put(List.of(write(topic, new SchemaAndValue(Schema.INT64_SCHEMA, 0L),
+                new SchemaAndValue(Schema.FLOAT64_SCHEMA, 2.0))));
+        Assertions.assertEquals(2, timeSeries(topic).size());
+    }
+
+    @Test
+    void sortedSetsAcceptBothInfiniteScores() {
+        String topic = "infinite-scores";
+        put(topic, RedisType.ZSET, List.of(
+                write(topic, new SchemaAndValue(Schema.STRING_SCHEMA, "positive"),
+                        new SchemaAndValue(Schema.FLOAT64_SCHEMA, Double.POSITIVE_INFINITY)),
+                write(topic, new SchemaAndValue(Schema.STRING_SCHEMA, "negative"),
+                        new SchemaAndValue(Schema.FLOAT64_SCHEMA, Double.NEGATIVE_INFINITY))));
+        assertEquals(List.of(ScoredValue.just(Double.NEGATIVE_INFINITY, "negative"),
+                ScoredValue.just(Double.POSITIVE_INFINITY, "positive")),
+                redisConnection.sync().zrangeWithScores(topic, 0, -1));
+    }
+
+    @Test
+    void nanScoresAndNonfiniteSamplesRejectTheWholeBatch() {
+        for (RedisType type : List.of(RedisType.ZSET, RedisType.TIMESERIES)) {
+            startSinkTask(Map.of("redis.type", type.name()));
+            List<Double> invalid = type == RedisType.ZSET ? List.of(Double.NaN)
+                    : List.of(Double.NaN, Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY);
+            for (double value : invalid) {
+                SchemaAndValue key = type == RedisType.ZSET ? new SchemaAndValue(Schema.STRING_SCHEMA, "member")
+                        : new SchemaAndValue(Schema.INT64_SCHEMA, 1234L);
+                Assertions.assertThrows(DataException.class, () -> task.put(List.of(
+                        write("invalid-score", key, new SchemaAndValue(Schema.FLOAT64_SCHEMA, 1.0)),
+                        write("invalid-score", key, new SchemaAndValue(Schema.FLOAT64_SCHEMA, value)))));
+                Assertions.assertEquals(0, redisConnection.sync().exists("invalid-score"));
+            }
+            task.stop();
+        }
+    }
+
+    @Test
     void putList() {
         String topic = "putList";
         int count = 50;

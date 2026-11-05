@@ -13,12 +13,14 @@ import io.lettuce.core.api.async.RedisJsonAsyncCommands;
 import io.lettuce.core.api.async.RedisKeyAsyncCommands;
 import io.lettuce.core.api.async.RedisListAsyncCommands;
 import io.lettuce.core.api.async.RedisSetAsyncCommands;
+import io.lettuce.core.api.async.RedisServerAsyncCommands;
 import io.lettuce.core.api.async.RedisSortedSetAsyncCommands;
 import io.lettuce.core.api.async.RedisStringAsyncCommands;
 import io.lettuce.core.ScanArgs;
 import io.lettuce.core.ScanCursor;
 import io.lettuce.core.api.sync.RedisKeyCommands;
 import io.lettuce.core.cluster.RedisClusterClient;
+import io.lettuce.core.cluster.SlotHash;
 import io.lettuce.core.cluster.models.partitions.RedisClusterNode;
 import io.lettuce.core.cluster.pubsub.StatefulRedisClusterPubSubConnection;
 import io.lettuce.core.codec.StringCodec;
@@ -28,11 +30,13 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Collection;
 import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.IntStream;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -43,6 +47,9 @@ public final class RedisKeyReader implements AutoCloseable {
     private final AbstractRedisClient client;
     private final RedisKeysSourceConfig config;
     private final ArrayBlockingQueue<String> changes;
+    private final Set<String> queuedKeys = ConcurrentHashMap.newKeySet();
+    private boolean snapshotTurn;
+    private boolean absoluteExpirySupported = true;
     private final RedisConnectionStateAdapter connectionListener;
     private final RedisPubSubAdapter<String, String> notificationListener;
     private RedisConnection<String, String> data;
@@ -64,9 +71,13 @@ public final class RedisKeyReader implements AutoCloseable {
         notificationListener = new RedisPubSubAdapter<>() {
             @Override
             public void message(String pattern, String channel, String message) {
-                if (!closed && channel.startsWith(channelPrefix)
-                        && !changes.offer(channel.substring(channelPrefix.length()))) {
-                    failure = new ConnectException("Redis key notification queue overflowed; updates may have been missed. Restart the task to take a new LIVE snapshot, or increase redis.keys.queue.capacity.");
+                if (!closed && channel.startsWith(channelPrefix)) {
+                    String key = channel.substring(channelPrefix.length());
+                    // Notifications describe current state, so one queued read covers repeated changes.
+                    if (queuedKeys.add(key) && !changes.offer(key)) {
+                        queuedKeys.remove(key);
+                        failure = new ConnectException("Redis key notification queue overflowed; updates may have been missed. Restart the task to take a new LIVE snapshot, or increase redis.keys.queue.capacity.");
+                    }
                 }
             }
         };
@@ -126,23 +137,24 @@ public final class RedisKeyReader implements AutoCloseable {
         checkFailure();
         int max = Math.toIntExact(config.getBatchSize());
         List<PendingKey> pending = new ArrayList<>();
-        // Drain notifications first so the bounded queue cannot overflow behind the snapshot.
-        // The snapshot uses the remaining capacity and pauses while notifications fill every batch.
+        // Alternate across polls as well as within a batch, including batch.size=1.
         while (pending.size() < max && !closed) {
-            String key = changes.poll();
-            if (key == null) {
-                break;
-            }
-            pending.add(new PendingKey(key, false));
-        }
-        while (!snapshotComplete && pending.size() < max && !closed) {
-            if (!snapshotKeys.hasNext()) {
-                scan();
-                if (!snapshotKeys.hasNext()) {
-                    break;
+            PendingKey next = snapshotTurn ? snapshotKey() : null;
+            if (next == null) {
+                String key = changes.poll();
+                if (key != null) {
+                    queuedKeys.remove(key);
+                    next = new PendingKey(key, false);
                 }
             }
-            pending.add(new PendingKey(snapshotKeys.next(), true));
+            if (next == null && !snapshotTurn) {
+                next = snapshotKey();
+            }
+            if (next == null) {
+                break;
+            }
+            pending.add(next);
+            snapshotTurn = !next.snapshot();
         }
         if (pending.isEmpty() && snapshotComplete && !closed) {
             long waitMillis = config.getIdleTimeout().isZero() ? 100 : config.getIdleTimeout().toMillis();
@@ -151,6 +163,7 @@ public final class RedisKeyReader implements AutoCloseable {
                 return List.of();
             }
             if (key != null) {
+                queuedKeys.remove(key);
                 pending.add(new PendingKey(key, false));
             }
         }
@@ -159,8 +172,18 @@ public final class RedisKeyReader implements AutoCloseable {
         return result;
     }
 
+    private PendingKey snapshotKey() {
+        if (snapshotComplete) {
+            return null;
+        }
+        if (!snapshotKeys.hasNext()) {
+            scan();
+        }
+        return snapshotKeys.hasNext() ? new PendingKey(snapshotKeys.next(), true) : null;
+    }
+
     private record NativeRead(String type, RedisFuture<?> value, RedisFuture<Long> expiry,
-            RedisFuture<String> finalType) {}
+            RedisFuture<String> finalType, RedisFuture<List<String>> serverTime) {}
 
     private List<KeySnapshot> readBatch(List<PendingKey> pending) {
         if (pending.isEmpty() || closed) {
@@ -214,14 +237,26 @@ public final class RedisKeyReader implements AutoCloseable {
         List<NativeRead> reads = new ArrayList<>();
         for (int index = 0; index < pending.size(); index++) {
             String key = pending.get(index).key();
-            NativeRead read = new NativeRead(types.get(index), readValue(key, types.get(index)),
-                    keys.pexpiretime(key), keys.type(key));
+            RedisFuture<?> value = readValue(key, types.get(index));
+            RedisFuture<Long> expiry = absoluteExpirySupported ? keys.pexpiretime(key) : keys.pttl(key);
+            // Older servers lack PEXPIRETIME. Use the clock of the primary that owns the key.
+            RedisFuture<List<String>> serverTime = absoluteExpirySupported ? null
+                    : data.nodeForSlot(SlotHash.getSlot(key)).async(RedisServerAsyncCommands.class).time();
+            NativeRead read = new NativeRead(types.get(index), value, expiry, keys.type(key), serverTime);
             reads.add(read);
             futures.addAll(List.of(read.value(), read.expiry(), read.finalType()));
+            if (serverTime != null) {
+                futures.add(serverTime);
+            }
         }
         try {
             RedisConnection.awaitAll(config.uri().getTimeout(), futures);
         } catch (RedisCommandExecutionException e) {
+            if (absoluteExpirySupported && (unknownCommand(e, "pexpiretime")
+                    || wrongType(e) && reads.stream().anyMatch(this::unsupportedAbsoluteExpiry))) {
+                absoluteExpirySupported = false;
+                return readValues(pending, types);
+            }
             if (!wrongType(e)) {
                 throw e;
             }
@@ -244,6 +279,22 @@ public final class RedisKeyReader implements AutoCloseable {
         };
     }
 
+    private boolean unknownCommand(RedisCommandExecutionException error, String command) {
+        String message = error.getMessage();
+        return message != null && message.toLowerCase(Locale.ROOT).startsWith("err unknown command")
+                && message.toLowerCase(Locale.ROOT).contains(command);
+    }
+
+    private boolean unsupportedAbsoluteExpiry(NativeRead read) {
+        try {
+            read.expiry().toCompletableFuture().getNow(null);
+            return false;
+        } catch (CompletionException e) {
+            return e.getCause() instanceof RedisCommandExecutionException error
+                    && unknownCommand(error, "pexpiretime");
+        }
+    }
+
     private boolean wrongType(Throwable error) {
         return error instanceof RedisCommandExecutionException && error.getMessage() != null
                 && error.getMessage().startsWith("WRONGTYPE");
@@ -251,6 +302,18 @@ public final class RedisKeyReader implements AutoCloseable {
 
     private KeySnapshot decode(String key, NativeRead read) {
         long expiry = read.expiry().toCompletableFuture().getNow(null);
+        if (read.serverTime() != null && expiry >= 0) {
+            List<String> time = read.serverTime().toCompletableFuture().getNow(null);
+            if (time == null || time.size() != 2) {
+                throw new ConnectException("Redis TIME must contain seconds and microseconds");
+            }
+            long seconds = Long.parseLong(time.get(0));
+            long micros = Long.parseLong(time.get(1));
+            if (seconds < 0 || micros < 0 || micros >= 1000000) {
+                throw new ConnectException("Redis TIME contains an invalid timestamp");
+            }
+            expiry = Math.addExact(Math.addExact(Math.multiplyExact(seconds, 1000), micros / 1000), expiry);
+        }
         String finalType = read.finalType().toCompletableFuture().getNow(null);
         Object value;
         try {
@@ -333,6 +396,7 @@ public final class RedisKeyReader implements AutoCloseable {
                 data = null;
             }
             changes.clear();
+            queuedKeys.clear();
             changes.offer(""); // Wake a blocked poll; closed is checked before decoding the key.
         }
     }

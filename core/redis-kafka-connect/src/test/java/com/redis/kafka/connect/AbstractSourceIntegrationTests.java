@@ -45,6 +45,8 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import static org.mockito.ArgumentMatchers.anyMap;
@@ -538,6 +540,50 @@ abstract class AbstractSourceIntegrationTests extends AbstractRedisIntegrationTe
                 "redis.stream.consumer.name", "in-flight-owner",
                 RedisStreamSourceConfigDef.STREAM_CLAIM_IDLE_CONFIG, "1");
         Assertions.assertEquals(List.of(next), streamSourceTask.poll().stream().map(SourceRecord::key).toList());
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    void reclaimClearsDeletedPendingEntries(boolean trim) throws Exception {
+        String stream = "deleted-pending";
+        String group = "kafka-consumer-group";
+        startStreamSourceTask("redis.stream.name", stream, "redis.stream.consumer.name", "removed",
+                "redis.stream.block", "0");
+        List<String> deleted = new ArrayList<>();
+        // More than COUNT * 10 deleted entries exercises continuation of the claim scan.
+        for (int index = 0; index < 12; index++) {
+            deleted.add(redisConnection.sync().xadd(stream, Map.of("value", "deleted")));
+        }
+        String survivor = redisConnection.sync().xadd(stream, Map.of("value", "survivor"));
+        Assertions.assertEquals(13, streamSourceTask.poll().size());
+        streamSourceTask.stop();
+        List<String> pending = new ArrayList<>(deleted);
+        pending.add(survivor);
+        redisConnection.sync().xclaim(stream, Consumer.from(group, "removed"),
+                XClaimArgs.Builder.minIdleTime(0).idle(60000), pending.toArray(String[]::new));
+        if (trim) {
+            Assertions.assertEquals(12, redisConnection.sync().xtrim(stream, 1));
+        } else {
+            Assertions.assertEquals(12, redisConnection.sync().xdel(stream, deleted.toArray(String[]::new)));
+        }
+        // KEEPREF deletion leaves the entries pending until the replacement's claim scan.
+        Assertions.assertEquals(13, redisConnection.sync().xpending(stream, group).getCount());
+        setupTasks();
+        startStreamSourceTask("redis.stream.name", stream, "redis.stream.consumer.name", "replacement",
+                "redis.stream.block", "0", "batch.size", "1",
+                RedisStreamSourceConfigDef.STREAM_CLAIM_IDLE_CONFIG, "1");
+        List<SourceRecord> recovered = new ArrayList<>();
+        awaitUntil(() -> {
+            List<SourceRecord> batch = streamSourceTask.poll();
+            Assertions.assertTrue(batch.size() <= 1);
+            recovered.addAll(batch);
+            return !recovered.isEmpty() && redisConnection.sync().xpending(stream, group).getCount() == 1;
+        });
+        Assertions.assertEquals(List.of(survivor), recovered.stream().map(SourceRecord::key).toList());
+        Assertions.assertEquals(Map.of("value", "survivor"), ((Struct) recovered.get(0).value()).getMap("body"));
+        streamSourceTask.commitRecord(recovered.get(0), null);
+        streamSourceTask.commit();
+        Assertions.assertEquals(0, redisConnection.sync().xpending(stream, group).getCount());
     }
 
     @Test
