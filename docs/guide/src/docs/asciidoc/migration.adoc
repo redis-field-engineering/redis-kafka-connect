@@ -16,6 +16,10 @@ Malformed or mismatched state fails explicitly. Partition checkpoints are writte
 across cluster slots; transient failures are reported as retriable so Connect can
 retry the complete, idempotent flush.
 A partially completed flush can therefore replay records for partitions with older checkpoints.
+With `redis.multiexec=true`, the sink now opens one transaction per hash slot on every
+deployment, including standalone and sharded Enterprise proxy databases, because a sharded
+proxy rejects transactions whose keys hash to different slots. A batch that wrote several
+keys in one `MULTI` block is no longer atomic across those keys.
 
 Stream checkpoint source partitions now include stream, group, and consumer. The old
 empty partition is read when a scoped checkpoint is absent, so existing starting

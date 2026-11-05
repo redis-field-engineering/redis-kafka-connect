@@ -10,7 +10,6 @@ import io.lettuce.core.api.async.RedisKeyAsyncCommands;
 import io.lettuce.core.api.async.RedisTransactionalAsyncCommands;
 import io.lettuce.core.api.sync.BaseRedisCommands;
 import io.lettuce.core.api.sync.RedisTransactionalCommands;
-import io.lettuce.core.cluster.RedisClusterClient;
 import io.lettuce.core.cluster.SlotHash;
 import io.lettuce.core.codec.ByteArrayCodec;
 import java.time.Duration;
@@ -28,12 +27,10 @@ final class RedisSinkWriter implements AutoCloseable {
     private final GenericObjectPool<RedisConnection<byte[], byte[]>> pool;
     private final RedisSinkConfig config;
     private final Duration timeout;
-    private final boolean cluster;
 
     RedisSinkWriter(AbstractRedisClient client, RedisSinkConfig config) {
         this.config = config;
         this.timeout = config.uri().getTimeout();
-        this.cluster = client instanceof RedisClusterClient;
         GenericObjectPoolConfig<RedisConnection<byte[], byte[]>> poolConfig = new GenericObjectPoolConfig<>();
         poolConfig.setMaxTotal(config.getPoolSize());
         poolConfig.setMaxWait(timeout);
@@ -63,15 +60,16 @@ final class RedisSinkWriter implements AutoCloseable {
         boolean success = false;
         try {
             // Pipeline by primary, or by slot when using transactions. Keep WAIT on the connection that wrote.
+            // Transactions are split by slot for every client: a sharded Enterprise proxy also rejects
+            // MULTI blocks whose keys hash to different slots.
             Map<String, List<RedisWrite>> groups = new LinkedHashMap<>();
             for (RedisWrite write : writes) {
-                int slot = cluster ? SlotHash.getSlot(write.key()) : 0;
-                String group = cluster && config.isMultiExec() ? "slot:" + slot : connection.nodeIdForSlot(slot);
+                int slot = SlotHash.getSlot(write.key());
+                String group = config.isMultiExec() ? "slot:" + slot : connection.nodeIdForSlot(slot);
                 groups.computeIfAbsent(group, ignored -> new ArrayList<>()).add(write);
             }
             for (List<RedisWrite> group : groups.values()) {
-                int slot = cluster ? SlotHash.getSlot(group.get(0).key()) : 0;
-                pipeline(connection.nodeForSlot(slot), group);
+                pipeline(connection.nodeForSlot(SlotHash.getSlot(group.get(0).key())), group);
             }
             success = true;
         } finally {

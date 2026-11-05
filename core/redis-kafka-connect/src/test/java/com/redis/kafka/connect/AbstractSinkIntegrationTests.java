@@ -688,6 +688,20 @@ abstract class AbstractSinkIntegrationTests extends AbstractRedisIntegrationTest
     }
 
     @Test
+    void transactionalBatchSpansKeysOnDifferentShards() {
+        List<String> topics = List.of("txtopic1", "txtopic2", "txtopic3", "txtopic4", "txtopic5", "txtopic6");
+        List<SinkRecord> records = new ArrayList<>();
+        for (String topic : topics) {
+            records.add(write(topic, new SchemaAndValue(Schema.STRING_SCHEMA, "member"),
+                    new SchemaAndValue(Schema.STRING_SCHEMA, "member")));
+        }
+        put(topics.get(0), RedisType.LIST, records, RedisSinkConfigDef.MULTIEXEC_CONFIG, "true");
+        for (String topic : topics) {
+            assertEquals(List.of("member"), redisConnection.sync().lrange(topic, 0, -1));
+        }
+    }
+
+    @Test
     void replicationTargetMustBeAcknowledged() {
         startSinkTask(Map.of(RedisSinkConfigDef.URI_CONFIG, getRedisServer().getRedisURI(),
                 RedisSinkConfigDef.TYPE_CONFIG, "STRING", RedisSinkConfigDef.KEYSPACE_CONFIG, "",

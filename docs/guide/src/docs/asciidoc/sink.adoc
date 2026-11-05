@@ -331,8 +331,9 @@ fails before any commands in that batch are sent. Server errors and partial fail
 still occur after some commands have executed; replay can duplicate list entries, stream
 messages, or other non-idempotent operations. Delivery remains at least once.
 
-`redis.multiexec` applies transactions on a physical primary connection. In cluster mode,
-commands are grouped by hash slot; a batch is not an atomic transaction across slots.
+`redis.multiexec` applies transactions on a physical primary connection. Commands are
+grouped into one transaction per hash slot for every deployment, including a sharded Redis
+Enterprise proxy; a batch is not an atomic transaction across slots.
 `redis.wait.replicas` waits on each primary connection after its writes and fails the batch
 if the configured acknowledgment target is not reached. WAIT is not a guarantee against
 all failover data loss. Offset keys are persisted after successful writes and keep their
