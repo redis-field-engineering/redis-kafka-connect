@@ -5,35 +5,47 @@ plugins {
 
 description = 'Redis Kafka Connect'
 
+tasks.withType(Jar).configureEach {
+    manifest.attributes(
+            'Implementation-Title': project.name,
+            'Implementation-Version': project.version.toString())
+}
+
 dependencies {
-    implementation libs.lettucemod
-    implementation libs.spring.batch.redis.core
-    implementation 'org.apache.commons:commons-pool2'
-    implementation 'org.slf4j:slf4j-api'
-    compileOnly 'org.apache.kafka:connect-api'
-    compileOnly 'org.apache.kafka:connect-json'
-    testImplementation 'org.apache.kafka:connect-api'
-    testImplementation 'org.apache.kafka:connect-json'
-    testImplementation 'org.awaitility:awaitility'
-    testImplementation 'org.mockito:mockito-core'
+    implementation(libs.lettuce) {
+        // Kafka Connect supplies SLF4J. AuthX otherwise brings a private, unbound SLF4J 1.7 copy.
+        exclude group: 'org.slf4j', module: 'slf4j-api'
+    }
+    implementation libs.jackson
+    implementation libs.commons.pool
+    compileOnly libs.slf4j
+    compileOnly libs.kafka.api
+    compileOnly libs.kafka.json
+    testImplementation libs.kafka.api
+    testImplementation libs.kafka.json
+    testImplementation libs.awaitility
+    testImplementation libs.mockito
     testImplementation 'org.junit.jupiter:junit-jupiter-api'
     testImplementation 'org.junit.jupiter:junit-jupiter-params'
     testImplementation 'org.junit.jupiter:junit-jupiter-engine'
     testImplementation 'org.junit.platform:junit-platform-launcher'
-    testImplementation 'org.slf4j:slf4j-simple'
-    testImplementation libs.spring.batch.redis.test
-    testImplementation 'org.testcontainers:junit-jupiter'
+    testImplementation libs.slf4j.simple
+    testImplementation libs.testcontainers.kafka
+    testImplementation libs.testcontainers.junit
     testImplementation libs.testcontainers.redis
     testImplementation libs.testcontainers.redis.enterprise
-    integrationTestImplementation libs.spring.batch.redis.test
-    integrationTestImplementation 'org.mockito:mockito-core'
-    integrationTestImplementation 'org.apache.kafka:connect-api'
-    integrationTestImplementation 'org.apache.kafka:connect-json'
-    integrationTestImplementation 'org.testcontainers:junit-jupiter'
+    integrationTestImplementation libs.lettuce
+    integrationTestImplementation libs.jackson
+    integrationTestImplementation libs.slf4j
+    integrationTestImplementation libs.mockito
+    integrationTestImplementation libs.kafka.api
+    integrationTestImplementation libs.kafka.json
+    integrationTestImplementation libs.testcontainers.kafka
+    integrationTestImplementation libs.testcontainers.junit
     integrationTestImplementation libs.testcontainers.redis
     integrationTestImplementation libs.testcontainers.redis.enterprise
-    integrationTestImplementation 'org.awaitility:awaitility'
-    integrationTestRuntimeOnly 'org.slf4j:slf4j-simple'
+    integrationTestImplementation libs.awaitility
+    integrationTestRuntimeOnly libs.slf4j.simple
 }
 
 testing {
@@ -59,21 +71,22 @@ tasks.named('test') {
 
 tasks.named('integrationTest') {
     include '**/*IntegrationTests.class'
+    exclude '**/ConfluentWorkerIntegrationTests.class'
 }
-
-jar.finalizedBy shadowJar
 
 tasks.named('shadowJar') {
     enableAutoRelocation.set(true)
     relocationPrefix.set('com.redis.kafka.connect.shaded')
-    relocate 'org.springframework.batch.core', 'org.springframework.batch.core'
     mergeServiceFiles()
+    filesMatching(['META-INF/services/**', 'META-INF/*.kotlin_module']) {
+        duplicatesStrategy = DuplicatesStrategy.INCLUDE
+    }
 }
 
 String archiveFilename = 'redis-redis-kafka-connect'
 String releaseDate = java.time.format.DateTimeFormatter.ISO_LOCAL_DATE.format(java.time.LocalDateTime.now())
 
-tasks.register('prepareConfluentArchive', Copy) {
+tasks.register('prepareConfluentArchive', Sync) {
     group = "Confluent"
     description = "Prepares the Confluent archive file for Confluent Hub"
     dependsOn tasks.shadowJar
@@ -94,6 +107,10 @@ tasks.register('prepareConfluentArchive', Copy) {
         include 'LICENSE'
         into 'doc'
     }
+    from('../../docs/guide/src/docs/asciidoc/migration.adoc') {
+        into 'doc'
+        rename { 'MIGRATION.adoc' }
+    }
     into layout.buildDirectory.dir("confluentArchive/${baseDir}")
 }
 
@@ -101,7 +118,9 @@ tasks.register('createConfluentArchive', Zip) {
     group = "Confluent"
     description = "Creates the Confluent archive file to be released to Confluent Hub"
     dependsOn tasks.prepareConfluentArchive
-    from(layout.buildDirectory.dir('confluentArchive'))
+    from(layout.buildDirectory.dir("confluentArchive/${archiveFilename}-${project.version}")) {
+        into "${archiveFilename}-${project.version}"
+    }
     archiveBaseName = ""
     archiveAppendix = archiveFilename
     archiveVersion.set(project.version.toString())
@@ -110,4 +129,22 @@ tasks.register('createConfluentArchive', Zip) {
 
 tasks.named('build') {
     finalizedBy createConfluentArchive
+}
+
+// A separate task keeps the packaged Java 21 worker qualification out of each task-runtime matrix cell.
+tasks.register('workerTest', Test) {
+    description = 'Runs the packaged connector in Confluent Platform 8.3 on Java 21 against Redis Enterprise 8.'
+    group = 'verification'
+    testClassesDirs = sourceSets.integrationTest.output.classesDirs
+    classpath = sourceSets.integrationTest.runtimeClasspath
+    include '**/ConfluentWorkerIntegrationTests.class'
+    dependsOn tasks.named('shadowJar')
+    shouldRunAfter tasks.named('integrationTest')
+    systemProperty 'connector.plugin.jar', tasks.named('shadowJar').flatMap { it.archiveFile }.get().asFile.absolutePath
+    systemProperty 'connector.worker.dockerfile', rootProject.file('config/testing/worker.Dockerfile').absolutePath
+    systemProperty 'confluent.version', providers.gradleProperty('confluentVersion').orElse('8.3.2').get()
+}
+
+tasks.named('check') {
+    dependsOn tasks.named('workerTest')
 }

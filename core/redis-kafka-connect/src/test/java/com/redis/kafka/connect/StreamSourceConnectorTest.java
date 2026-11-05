@@ -1,24 +1,23 @@
 package com.redis.kafka.connect;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.Test;
-
 import com.redis.kafka.connect.common.ManifestVersionProvider;
 import com.redis.kafka.connect.common.RedisConfigDef;
 import com.redis.kafka.connect.source.RedisStreamSourceConfig;
 import com.redis.kafka.connect.source.RedisStreamSourceConfigDef;
 import com.redis.kafka.connect.source.RedisStreamSourceTask;
-import com.redis.lettucemod.cluster.RedisModulesClusterClient;
-
 import io.lettuce.core.AbstractRedisClient;
 import io.lettuce.core.RedisCredentials;
 import io.lettuce.core.RedisURI;
+import io.lettuce.core.cluster.RedisClusterClient;
+import java.util.HashMap;
+import java.nio.charset.StandardCharsets;
+import org.apache.kafka.connect.json.JsonConverter;
+import java.util.List;
+import java.util.Map;
+import org.apache.kafka.common.config.ConfigException;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class StreamSourceConnectorTest {
 
@@ -93,8 +92,30 @@ class StreamSourceConnectorTest {
 		Assertions.assertTrue(redisURI.isSsl());
 		props.put(RedisConfigDef.CLUSTER_CONFIG, "true");
 		AbstractRedisClient client = new RedisStreamSourceConfig(props).client();
-		Assertions.assertInstanceOf(RedisModulesClusterClient.class, client);
+		Assertions.assertInstanceOf(RedisClusterClient.class, client);
+        client.shutdown();
 
 	}
 
+
+    @Test
+    void consumerCheckpointsAreScopedAndConsumerNamesMustBeUnique() {
+        Map<String, String> first = new RedisStreamSourceConfig(Map.of("redis.stream.name", "stream", "task.id", "0")).sourcePartition();
+        Map<String, String> second = new RedisStreamSourceConfig(Map.of("redis.stream.name", "stream", "task.id", "1")).sourcePartition();
+        Assertions.assertNotEquals(first, second);
+        RedisStreamSourceConnector connector = new RedisStreamSourceConnector();
+        connector.start(Map.of("redis.stream.name", "stream", "redis.stream.consumer.name", "shared"));
+        Assertions.assertThrows(ConfigException.class, () -> connector.taskConfigs(2));
+    }
+
+    @Test
+    void checkpointPartitionHasStableSerializedKeyOrder() throws Exception {
+        RedisStreamSourceConfig config = new RedisStreamSourceConfig(Map.of("redis.stream.name", "stream"));
+        try (JsonConverter converter = new JsonConverter()) {
+            converter.configure(Map.of("schemas.enable", false), true);
+            byte[] key = converter.fromConnectData("offsets", null, config.sourcePartition());
+            assertEquals("{\"stream\":\"stream\",\"group\":\"kafka-consumer-group\",\"consumer\":\"consumer-0\"}",
+                    new String(key, StandardCharsets.UTF_8));
+        }
+    }
 }

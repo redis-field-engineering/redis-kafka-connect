@@ -30,6 +30,7 @@ jobs:
   release:
     uses: redis/github-workflows/.github/workflows/release.yml@main
     with:
+      java-version: '27'
       version: ${{ inputs.version }}
       version-increment: ${{ inputs.version-increment }}
       gradle-build-tasks: 'build publish'

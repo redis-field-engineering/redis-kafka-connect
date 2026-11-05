@@ -1,12 +1,17 @@
 package com.redis.kafka.connect;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.ArgumentMatchers.anyMap;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.redis.kafka.connect.sink.RedisSinkConfig.RedisType;
+import com.redis.kafka.connect.sink.RedisSinkConfigDef;
+import com.redis.kafka.connect.sink.RedisSinkTask;
+import com.redis.kafka.connect.common.RedisConnection;
+import io.lettuce.core.api.sync.RedisStringCommands;
+import io.lettuce.core.KeyValue;
+import io.lettuce.core.Range;
+import io.lettuce.core.ScoredValue;
+import io.lettuce.core.StreamMessage;
+import io.lettuce.core.codec.ByteArrayCodec;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -18,41 +23,31 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
-
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.record.TimestampType;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.SchemaAndValue;
 import org.apache.kafka.connect.data.SchemaBuilder;
+import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.errors.DataException;
+import org.apache.kafka.connect.errors.RetriableException;
 import org.apache.kafka.connect.sink.SinkRecord;
 import org.apache.kafka.connect.sink.SinkTaskContext;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.platform.commons.util.Preconditions;
-import org.springframework.util.Assert;
-import org.testcontainers.shaded.com.google.common.collect.ImmutableList;
-import org.testcontainers.shaded.com.google.common.collect.ImmutableMap;
-import org.testcontainers.shaded.com.google.common.collect.ImmutableSet;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentMatchers.anyMap;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.redis.kafka.connect.sink.RedisSinkConfig.RedisType;
-import com.redis.kafka.connect.sink.RedisSinkConfigDef;
-import com.redis.kafka.connect.sink.RedisSinkTask;
-import com.redis.lettucemod.timeseries.Sample;
-import com.redis.lettucemod.timeseries.TimeRange;
-import com.redis.spring.batch.test.AbstractTestBase;
-
-import io.lettuce.core.KeyValue;
-import io.lettuce.core.Range;
-import io.lettuce.core.ScoredValue;
-import io.lettuce.core.StreamMessage;
-
-abstract class AbstractSinkIntegrationTests extends AbstractTestBase {
+abstract class AbstractSinkIntegrationTests extends AbstractRedisIntegrationTests {
 
     public static final int PARTITION = 1;
 
@@ -65,19 +60,19 @@ abstract class AbstractSinkIntegrationTests extends AbstractTestBase {
     private static final String LEGACY_OFFSET_KEY_FORMAT = "com.redis.kafka.connect.sink.offset.%s.%s";
 
     public static SinkRecord write(String topic, SchemaAndValue key, SchemaAndValue value) {
-        Preconditions.notNull(topic, "topic cannot be null");
-        Preconditions.notNull(key, "key cannot be null.");
-        Preconditions.notNull(key.value(), "key cannot be null.");
-        Preconditions.notNull(value, "value cannot be null.");
-        Preconditions.notNull(value.value(), "value cannot be null.");
+        Objects.requireNonNull(topic, "topic cannot be null");
+        Objects.requireNonNull(key, "key cannot be null.");
+        Objects.requireNonNull(key.value(), "key cannot be null.");
+        Objects.requireNonNull(value, "value cannot be null.");
+        Objects.requireNonNull(value.value(), "value cannot be null.");
 
         return new SinkRecord(topic, PARTITION, key.schema(), key.value(), value.schema(), value.value(), OFFSET, TIMESTAMP,
                 TimestampType.CREATE_TIME);
     }
 
     protected Map<String, String> map(String... args) {
-        Assert.notNull(args, "Args cannot be null");
-        Assert.isTrue(args.length % 2 == 0, "Args length is not a multiple of 2");
+        Objects.requireNonNull(args, "Args cannot be null");
+        if (args.length % 2 != 0) { throw new IllegalArgumentException("Args length is not a multiple of 2"); }
         Map<String, String> body = new LinkedHashMap<>();
         for (int index = 0; index < args.length / 2; index++) {
             body.put(args[index * 2], args[index * 2 + 1]);
@@ -86,7 +81,7 @@ abstract class AbstractSinkIntegrationTests extends AbstractTestBase {
     }
 
     private Map<String, String> sinkProps(String connectorName) {
-        return ImmutableMap.of("name", connectorName, RedisSinkConfigDef.URI_CONFIG, getRedisServer().getRedisURI());
+        return Map.of("name", connectorName, RedisSinkConfigDef.URI_CONFIG, getRedisServer().getRedisURI());
     }
 
     private static String offsetKey(String namespace, TopicPartition topicPartition) {
@@ -103,6 +98,10 @@ abstract class AbstractSinkIntegrationTests extends AbstractTestBase {
 
     private RedisSinkTask task;
 
+    private void startSinkTask(Map<String, String> props) {
+        task.start(deploymentProps(props));
+    }
+
     @BeforeEach
     public void createTask() {
         task = new RedisSinkTask();
@@ -118,9 +117,9 @@ abstract class AbstractSinkIntegrationTests extends AbstractTestBase {
     @Test
     void emptyAssignment() {
         SinkTaskContext taskContext = mock(SinkTaskContext.class);
-        when(taskContext.assignment()).thenReturn(ImmutableSet.of());
+        when(taskContext.assignment()).thenReturn(Set.of());
         this.task.initialize(taskContext);
-        this.task.start(ImmutableMap.of(RedisSinkConfigDef.URI_CONFIG, getRedisServer().getRedisURI()));
+        this.startSinkTask(Map.of(RedisSinkConfigDef.URI_CONFIG, getRedisServer().getRedisURI()));
     }
 
     @Test
@@ -128,8 +127,8 @@ abstract class AbstractSinkIntegrationTests extends AbstractTestBase {
         String topic = "putWrite";
         SinkTaskContext context = mock(SinkTaskContext.class);
         this.task.initialize(context);
-        this.task.start(ImmutableMap.of(RedisSinkConfigDef.URI_CONFIG, getRedisServer().getRedisURI()));
-        this.task.put(ImmutableList.of());
+        this.startSinkTask(Map.of(RedisSinkConfigDef.URI_CONFIG, getRedisServer().getRedisURI()));
+        this.task.put(List.of());
     }
 
     @Test
@@ -138,9 +137,9 @@ abstract class AbstractSinkIntegrationTests extends AbstractTestBase {
         TopicPartition topicPartition = new TopicPartition(topic, PARTITION);
         SinkTaskContext context = mock(SinkTaskContext.class);
         this.task.initialize(context);
-        this.task.start(sinkProps("connector-a"));
+        this.startSinkTask(sinkProps("connector-a"));
 
-        this.task.flush(ImmutableMap.of(topicPartition, new OffsetAndMetadata(123L)));
+        this.task.flush(Map.of(topicPartition, new OffsetAndMetadata(123L)));
 
         String value = redisConnection.sync().get(offsetKey("connector-a", topicPartition));
         @SuppressWarnings("unchecked")
@@ -157,11 +156,11 @@ abstract class AbstractSinkIntegrationTests extends AbstractTestBase {
         redisConnection.sync().set(offsetKey("connector-a", topicPartition), offsetValue(topic, PARTITION, 456L));
         SinkTaskContext context = mock(SinkTaskContext.class);
         this.task.initialize(context);
-        this.task.start(sinkProps("connector-a"));
+        this.startSinkTask(sinkProps("connector-a"));
 
-        this.task.open(ImmutableList.of(topicPartition));
+        this.task.open(List.of(topicPartition));
 
-        verify(context).offset(ImmutableMap.of(topicPartition, 456L));
+        verify(context).offset(Map.of(topicPartition, 456L));
     }
 
     @Test
@@ -169,9 +168,9 @@ abstract class AbstractSinkIntegrationTests extends AbstractTestBase {
         TopicPartition topicPartition = new TopicPartition("openDoesNotSeekPartitionsWithoutStoredOffsets", PARTITION);
         SinkTaskContext context = mock(SinkTaskContext.class);
         this.task.initialize(context);
-        this.task.start(sinkProps("connector-a"));
+        this.startSinkTask(sinkProps("connector-a"));
 
-        this.task.open(ImmutableList.of(topicPartition));
+        this.task.open(List.of(topicPartition));
 
         verify(context, never()).offset(anyMap());
     }
@@ -183,11 +182,11 @@ abstract class AbstractSinkIntegrationTests extends AbstractTestBase {
         redisConnection.sync().set(legacyOffsetKey(topicPartition), offsetValue(topic, PARTITION, 789L));
         SinkTaskContext context = mock(SinkTaskContext.class);
         this.task.initialize(context);
-        this.task.start(sinkProps("connector-a"));
+        this.startSinkTask(sinkProps("connector-a"));
 
-        this.task.open(ImmutableList.of(topicPartition));
+        this.task.open(List.of(topicPartition));
 
-        verify(context).offset(ImmutableMap.of(topicPartition, 789L));
+        verify(context).offset(Map.of(topicPartition, 789L));
     }
 
     @Test
@@ -196,14 +195,14 @@ abstract class AbstractSinkIntegrationTests extends AbstractTestBase {
         TopicPartition topicPartition = new TopicPartition(topic, PARTITION);
         SinkTaskContext context = mock(SinkTaskContext.class);
         this.task.initialize(context);
-        this.task.start(sinkProps("connector-a"));
+        this.startSinkTask(sinkProps("connector-a"));
 
-        this.task.flush(ImmutableMap.of(topicPartition, new OffsetAndMetadata(11L)));
+        this.task.flush(Map.of(topicPartition, new OffsetAndMetadata(11L)));
         this.task.stop();
         this.task = new RedisSinkTask();
         this.task.initialize(context);
-        this.task.start(sinkProps("connector-b"));
-        this.task.flush(ImmutableMap.of(topicPartition, new OffsetAndMetadata(22L)));
+        this.startSinkTask(sinkProps("connector-b"));
+        this.task.flush(Map.of(topicPartition, new OffsetAndMetadata(22L)));
 
         Assertions.assertNotNull(redisConnection.sync().get(offsetKey("connector-a", topicPartition)));
         Assertions.assertNotNull(redisConnection.sync().get(offsetKey("connector-b", topicPartition)));
@@ -401,7 +400,7 @@ abstract class AbstractSinkIntegrationTests extends AbstractTestBase {
         }
         put(topic, RedisType.JSON, records);
         for (Person person : persons) {
-            String json = redisConnection.sync().jsonGet(topic + ":" + person.getId()).get(0).toString();
+            String json = redisConnection.sync().jsonGetRaw(topic + ":" + person.getId()).get(0);
             assertEquals(person, mapper.readValue(json, Person.class));
         }
     }
@@ -411,23 +410,72 @@ abstract class AbstractSinkIntegrationTests extends AbstractTestBase {
         String topic = "putTimeSeries";
         int count = 50;
         long startTime = System.currentTimeMillis() - count;
-        List<Sample> expectedSamples = new ArrayList<>();
+        List<Map.Entry<Long, Double>> expectedSamples = new ArrayList<>();
         List<SinkRecord> records = new ArrayList<>();
         for (int index = 1; index <= count; index++) {
             long timestamp = startTime + index;
             double value = index;
-            expectedSamples.add(Sample.of(timestamp, value));
+            expectedSamples.add(Map.entry(timestamp, value));
             records.add(write(topic, new SchemaAndValue(Schema.INT64_SCHEMA, timestamp),
                     new SchemaAndValue(Schema.FLOAT64_SCHEMA, value)));
         }
         put(topic, RedisType.TIMESERIES, records);
-        List<Sample> actualSamples = redisConnection.sync().tsRange(topic, TimeRange.unbounded());
+        List<Object> actualSamples = timeSeries(topic);
         assertEquals(expectedSamples.size(), actualSamples.size());
         for (int index = 0; index < expectedSamples.size(); index++) {
-            Sample expectedSample = expectedSamples.get(index);
-            Sample actualSample = actualSamples.get(index);
-            assertEquals(expectedSample.getTimestamp(), actualSample.getTimestamp());
-            assertEquals(expectedSample.getValue(), actualSample.getValue());
+            Map.Entry<Long, Double> expectedSample = expectedSamples.get(index);
+            List<?> actualSample = (List<?>) actualSamples.get(index);
+            assertEquals(expectedSample.getKey().longValue(), ((Number) actualSample.get(0)).longValue());
+            assertEquals(expectedSample.getValue().doubleValue(), Double.parseDouble(actualSample.get(1).toString()));
+        }
+    }
+
+    @Test
+    void zeroTimeSeriesTimestampUsesServerTime() {
+        String topic = "automatic-timestamps";
+        long before = Long.parseLong(redisConnection.sync().time().get(0)) * 1000;
+        put(topic, RedisType.TIMESERIES, List.of(write(topic,
+                new SchemaAndValue(Schema.INT64_SCHEMA, 0L), new SchemaAndValue(Schema.FLOAT64_SCHEMA, 1.0))));
+        List<?> first = (List<?>) timeSeries(topic).get(0);
+        long timestamp = ((Number) first.get(0)).longValue();
+        Assertions.assertTrue(timestamp >= before, "zero must select server time, not Unix epoch");
+        awaitUntil(() -> {
+            List<String> time = redisConnection.sync().time();
+            return Long.parseLong(time.get(0)) * 1000 + Long.parseLong(time.get(1)) / 1000 > timestamp;
+        });
+        task.put(List.of(write(topic, new SchemaAndValue(Schema.INT64_SCHEMA, 0L),
+                new SchemaAndValue(Schema.FLOAT64_SCHEMA, 2.0))));
+        Assertions.assertEquals(2, timeSeries(topic).size());
+    }
+
+    @Test
+    void sortedSetsAcceptBothInfiniteScores() {
+        String topic = "infinite-scores";
+        put(topic, RedisType.ZSET, List.of(
+                write(topic, new SchemaAndValue(Schema.STRING_SCHEMA, "positive"),
+                        new SchemaAndValue(Schema.FLOAT64_SCHEMA, Double.POSITIVE_INFINITY)),
+                write(topic, new SchemaAndValue(Schema.STRING_SCHEMA, "negative"),
+                        new SchemaAndValue(Schema.FLOAT64_SCHEMA, Double.NEGATIVE_INFINITY))));
+        assertEquals(List.of(ScoredValue.just(Double.NEGATIVE_INFINITY, "negative"),
+                ScoredValue.just(Double.POSITIVE_INFINITY, "positive")),
+                redisConnection.sync().zrangeWithScores(topic, 0, -1));
+    }
+
+    @Test
+    void nanScoresAndNonfiniteSamplesRejectTheWholeBatch() {
+        for (RedisType type : List.of(RedisType.ZSET, RedisType.TIMESERIES)) {
+            startSinkTask(Map.of("redis.type", type.name()));
+            List<Double> invalid = type == RedisType.ZSET ? List.of(Double.NaN)
+                    : List.of(Double.NaN, Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY);
+            for (double value : invalid) {
+                SchemaAndValue key = type == RedisType.ZSET ? new SchemaAndValue(Schema.STRING_SCHEMA, "member")
+                        : new SchemaAndValue(Schema.INT64_SCHEMA, 1234L);
+                Assertions.assertThrows(DataException.class, () -> task.put(List.of(
+                        write("invalid-score", key, new SchemaAndValue(Schema.FLOAT64_SCHEMA, 1.0)),
+                        write("invalid-score", key, new SchemaAndValue(Schema.FLOAT64_SCHEMA, value)))));
+                Assertions.assertEquals(0, redisConnection.sync().exists("invalid-score"));
+            }
+            task.stop();
         }
     }
 
@@ -501,7 +549,7 @@ abstract class AbstractSinkIntegrationTests extends AbstractTestBase {
         }
         put(topic, RedisType.STRING, records);
         String[] keys = expected.keySet().toArray(new String[0]);
-        List<KeyValue<String, String>> actual = redisConnection.sync().mget(keys);
+        List<KeyValue<String, String>> actual = Arrays.stream(keys).map(key -> KeyValue.fromNullable(key, redisConnection.sync().get(key))).toList();
         assertEquals(records.size(), actual.size());
         for (KeyValue<String, String> keyValue : actual) {
             assertEquals(expected.get(keyValue.getKey()), keyValue.getValue(),
@@ -524,7 +572,7 @@ abstract class AbstractSinkIntegrationTests extends AbstractTestBase {
         }
         put(topic, RedisType.STRING, records, RedisSinkConfigDef.KEYSPACE_CONFIG, "");
         String[] keys = expected.keySet().toArray(new String[0]);
-        List<KeyValue<String, String>> actual = redisConnection.sync().mget(keys);
+        List<KeyValue<String, String>> actual = Arrays.stream(keys).map(key -> KeyValue.fromNullable(key, redisConnection.sync().get(key))).toList();
         assertEquals(records.size(), actual.size());
         for (KeyValue<String, String> keyValue : actual) {
             assertEquals(expected.get(keyValue.getKey()), keyValue.getValue(),
@@ -552,17 +600,17 @@ abstract class AbstractSinkIntegrationTests extends AbstractTestBase {
 
     public void put(String topic, RedisType type, List<SinkRecord> records, String... props) {
         SinkTaskContext taskContext = mock(SinkTaskContext.class);
-        when(taskContext.assignment()).thenReturn(ImmutableSet.of(new TopicPartition(topic, 1)));
+        when(taskContext.assignment()).thenReturn(Set.of(new TopicPartition(topic, 1)));
         task.initialize(taskContext);
         Map<String, String> propsMap = map(RedisSinkConfigDef.URI_CONFIG, getRedisServer().getRedisURI(),
                 RedisSinkConfigDef.TYPE_CONFIG, type.name());
         propsMap.putAll(map(props));
-        task.start(propsMap);
+        startSinkTask(propsMap);
         task.put(records);
     }
 
     public static SinkRecord sinkRecord(String topic, SchemaAndValue key, SchemaAndValue value) {
-        Preconditions.notNull(topic, "topic cannot be null");
+        Objects.requireNonNull(topic, "topic cannot be null");
         if (key == null) {
             throw new DataException("key cannot be null.");
         }
@@ -592,10 +640,10 @@ abstract class AbstractSinkIntegrationTests extends AbstractTestBase {
     void putDelete() {
         String topic = "putDelete";
         SinkTaskContext taskContext = mock(SinkTaskContext.class);
-        when(taskContext.assignment()).thenReturn(ImmutableSet.of(new TopicPartition(topic, 1)));
+        when(taskContext.assignment()).thenReturn(Set.of(new TopicPartition(topic, 1)));
         this.task.initialize(taskContext);
-        this.task.start(
-                ImmutableMap.of(RedisSinkConfigDef.URI_CONFIG, getRedisServer().getRedisURI(), RedisSinkConfigDef.TYPE_CONFIG,
+        this.startSinkTask(
+                Map.of(RedisSinkConfigDef.URI_CONFIG, getRedisServer().getRedisURI(), RedisSinkConfigDef.TYPE_CONFIG,
                         RedisType.HASH.name()));
         int count = 50;
         Map<String, String> expected = new LinkedHashMap<>(count);
@@ -607,10 +655,10 @@ abstract class AbstractSinkIntegrationTests extends AbstractTestBase {
         }
         Map<String, String> values = expected.entrySet().stream()
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
-        redisConnection.sync().mset(values);
+        values.forEach((key, value) -> redisConnection.sync().set(key, value));
         task.put(records);
         String[] keys = expected.keySet().toArray(new String[0]);
-        long actual = redisConnection.sync().exists(keys);
+        long actual = Arrays.stream(keys).mapToLong(key -> redisConnection.sync().exists(key)).sum();
         assertEquals(0L, actual, "All of the keys should be removed from Redis.");
     }
 
@@ -618,10 +666,10 @@ abstract class AbstractSinkIntegrationTests extends AbstractTestBase {
     void putExpire() {
         String topic = "putExpire";
         SinkTaskContext taskContext = mock(SinkTaskContext.class);
-        when(taskContext.assignment()).thenReturn(ImmutableSet.of(new TopicPartition(topic, 1)));
+        when(taskContext.assignment()).thenReturn(Set.of(new TopicPartition(topic, 1)));
         this.task.initialize(taskContext);
-        this.task.start(
-                ImmutableMap.of(RedisSinkConfigDef.URI_CONFIG, getRedisServer().getRedisURI(), RedisSinkConfigDef.TYPE_CONFIG,
+        this.startSinkTask(
+                Map.of(RedisSinkConfigDef.URI_CONFIG, getRedisServer().getRedisURI(), RedisSinkConfigDef.TYPE_CONFIG,
                         RedisType.STRING.name(), RedisSinkConfigDef.KEY_TTL_CONFIG, "3600"));
         int count = 50;
         Map<String, String> expected = new LinkedHashMap<>(count);
@@ -634,7 +682,7 @@ abstract class AbstractSinkIntegrationTests extends AbstractTestBase {
         }
         Map<String, String> values = expected.entrySet().stream()
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
-        redisConnection.sync().mset(values);
+        values.forEach((key, value) -> redisConnection.sync().set(key, value));
         task.put(records);
         String[] keys = expected.keySet().toArray(new String[0]);
         for (String key : keys) {
@@ -642,4 +690,132 @@ abstract class AbstractSinkIntegrationTests extends AbstractTestBase {
         }
     }
 
+
+    @Test
+    void writesAndTombstonesKeepInputOrder() {
+        startSinkTask(Map.of(RedisSinkConfigDef.URI_CONFIG, getRedisServer().getRedisURI(),
+                RedisSinkConfigDef.TYPE_CONFIG, "STRING", RedisSinkConfigDef.KEYSPACE_CONFIG, ""));
+        SinkRecord first = new SinkRecord("order", 0, Schema.STRING_SCHEMA, "key", Schema.STRING_SCHEMA, "first", 0);
+        SinkRecord deleted = new SinkRecord("order", 0, Schema.STRING_SCHEMA, "key", Schema.STRING_SCHEMA, null, 1);
+        SinkRecord last = new SinkRecord("order", 0, Schema.STRING_SCHEMA, "key", Schema.STRING_SCHEMA, "last", 2);
+        task.put(List.of(first, deleted, last));
+        assertEquals("last", redisConnection.sync().get("key"));
+        task.put(List.of(last, deleted));
+        Assertions.assertNull(redisConnection.sync().get("key"));
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = RedisType.class, names = {"LIST", "SET", "ZSET"})
+    void collectionTombstonesRemoveMembers(RedisType type) {
+        startSinkTask(Map.of(RedisSinkConfigDef.URI_CONFIG, getRedisServer().getRedisURI(),
+                RedisSinkConfigDef.TYPE_CONFIG, type.name(), RedisSinkConfigDef.KEYSPACE_CONFIG, "collection"));
+        SinkRecord add = new SinkRecord("topic", 0, Schema.STRING_SCHEMA, "member", Schema.FLOAT64_SCHEMA, 3.0, 0);
+        SinkRecord remove = new SinkRecord("topic", 0, Schema.STRING_SCHEMA, "member", Schema.FLOAT64_SCHEMA, null, 1);
+        task.put(List.of(add, remove));
+        assertEquals(0, redisConnection.sync().exists("collection"));
+    }
+
+    @Test
+    void invalidBatchIsRejectedBeforeAnyCommands() {
+        startSinkTask(Map.of(RedisSinkConfigDef.URI_CONFIG, getRedisServer().getRedisURI(),
+                RedisSinkConfigDef.TYPE_CONFIG, "STRING", RedisSinkConfigDef.KEYSPACE_CONFIG, ""));
+        SinkRecord valid = new SinkRecord("topic", 0, Schema.STRING_SCHEMA, "valid", Schema.STRING_SCHEMA, "value", 0);
+        SinkRecord invalid = new SinkRecord("topic", 0, Schema.STRING_SCHEMA, "invalid", Schema.INT32_SCHEMA, 42, 1);
+        Assertions.assertThrows(DataException.class, () -> task.put(List.of(valid, invalid)));
+        assertEquals(0, redisConnection.sync().exists("valid"));
+    }
+
+    @Test
+    void transactionCommandErrorsArePropagated() {
+        startSinkTask(Map.of(RedisSinkConfigDef.URI_CONFIG, getRedisServer().getRedisURI(),
+                RedisSinkConfigDef.TYPE_CONFIG, "LIST", RedisSinkConfigDef.KEYSPACE_CONFIG, "wrongtype",
+                RedisSinkConfigDef.MULTIEXEC_CONFIG, "true"));
+        redisConnection.sync().set("wrongtype", "string");
+        SinkRecord record = new SinkRecord("topic", 0, Schema.STRING_SCHEMA, "member", Schema.STRING_SCHEMA, "value", 0);
+        Assertions.assertThrows(ConnectException.class, () -> task.put(List.of(record)));
+        assertEquals("string", redisConnection.sync().get("wrongtype"));
+    }
+
+    @Test
+    void transactionalBatchSpansKeysOnDifferentShards() {
+        List<String> topics = List.of("txtopic1", "txtopic2", "txtopic3", "txtopic4", "txtopic5", "txtopic6");
+        List<SinkRecord> records = new ArrayList<>();
+        for (String topic : topics) {
+            records.add(write(topic, new SchemaAndValue(Schema.STRING_SCHEMA, "member"),
+                    new SchemaAndValue(Schema.STRING_SCHEMA, "member")));
+        }
+        put(topics.get(0), RedisType.LIST, records, RedisSinkConfigDef.MULTIEXEC_CONFIG, "true");
+        for (String topic : topics) {
+            assertEquals(List.of("member"), redisConnection.sync().lrange(topic, 0, -1));
+        }
+    }
+
+    @Test
+    void replicationTargetMustBeAcknowledged() {
+        startSinkTask(Map.of(RedisSinkConfigDef.URI_CONFIG, getRedisServer().getRedisURI(),
+                RedisSinkConfigDef.TYPE_CONFIG, "STRING", RedisSinkConfigDef.KEYSPACE_CONFIG, "",
+                RedisSinkConfigDef.WAIT_REPLICAS_CONFIG, "1", RedisSinkConfigDef.WAIT_TIMEOUT_CONFIG, "10"));
+        SinkRecord record = new SinkRecord("topic", 0, Schema.STRING_SCHEMA, "key", Schema.STRING_SCHEMA, "value", 0);
+        Assertions.assertThrows(RetriableException.class, () -> task.put(List.of(record)));
+        Assertions.assertNull(redisConnection.sync().get(offsetKey("default", new TopicPartition("topic", 0))));
+    }
+
+    @Test
+    void recordTtlAndWritesStayOrdered() {
+        startSinkTask(Map.of(RedisSinkConfigDef.URI_CONFIG, getRedisServer().getRedisURI(),
+                RedisSinkConfigDef.TYPE_CONFIG, "STRING", RedisSinkConfigDef.KEYSPACE_CONFIG, ""));
+        SinkRecord expiring = new SinkRecord("topic", 0, Schema.STRING_SCHEMA, "key", Schema.STRING_SCHEMA, "first", 0);
+        expiring.headers().addLong(RedisSinkConfigDef.KEY_TTL_CONFIG, 3600);
+        SinkRecord persistent = new SinkRecord("topic", 0, Schema.STRING_SCHEMA, "key", Schema.STRING_SCHEMA, "last", 1);
+        task.put(List.of(expiring, persistent));
+        assertEquals(-1, redisConnection.sync().ttl("key"));
+        task.put(List.of(persistent, expiring));
+        Assertions.assertTrue(redisConnection.sync().ttl("key") > 3500);
+    }
+
+    @Test
+    void malformedOffsetStateFailsInsteadOfSeeking() {
+        startSinkTask(sinkProps("bad-state"));
+        TopicPartition partition = new TopicPartition("topic", 0);
+        redisConnection.sync().set(offsetKey("bad-state", partition), "{\"topic\":\"topic\",\"partition\":0}");
+        Assertions.assertThrows(DataException.class, () -> task.open(List.of(partition)));
+    }
+
+    @Test
+    void namespacedBinaryKeysKeepOriginalBytes() {
+        startSinkTask(Map.of("redis.uri", getRedisServer().getRedisURI(), "redis.type", "STRING", "redis.keyspace", "prefix"));
+        byte[] suffix = new byte[] {0, 1, (byte) 255};
+        task.put(List.of(new SinkRecord("topic", 0, Schema.BYTES_SCHEMA, suffix, Schema.STRING_SCHEMA, "value", 0)));
+        byte[] prefix = "prefix:".getBytes(StandardCharsets.UTF_8);
+        byte[] key = Arrays.copyOf(prefix, prefix.length + suffix.length);
+        System.arraycopy(suffix, 0, key, prefix.length, suffix.length);
+        try (RedisConnection<byte[], byte[]> binary =
+                RedisConnection.open(redisClient, ByteArrayCodec.INSTANCE)) {
+            RedisStringCommands<byte[], byte[]> strings = binary.sync(RedisStringCommands.class);
+            Assertions.assertArrayEquals("value".getBytes(StandardCharsets.UTF_8), strings.get(key));
+        }
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = RedisType.class, names = {"HASH", "STREAM"})
+    void nullMapFieldsRejectWholeBatchBeforeWrites(RedisType type) {
+        startSinkTask(Map.of("redis.uri", getRedisServer().getRedisURI(), "redis.type", type.name(), "redis.keyspace", ""));
+        Map<String, Object> invalidBody = new LinkedHashMap<>();
+        invalidBody.put("valid", "value");
+        invalidBody.put("invalid", null);
+        SinkRecord valid = new SinkRecord("topic", 0, Schema.STRING_SCHEMA, "valid", null, Map.of("field", "value"), 0);
+        SinkRecord invalid = new SinkRecord("topic", 0, Schema.STRING_SCHEMA, "bad", null, invalidBody, 1);
+        Assertions.assertThrows(DataException.class, () -> task.put(List.of(valid, invalid)));
+        assertEquals(0, redisConnection.sync().exists("valid"));
+        assertEquals(0, redisConnection.sync().exists("bad"));
+    }
+
+    @Test
+    void malformedJsonBatchIsRejectedBeforeWrites() {
+        startSinkTask(Map.of("redis.uri", getRedisServer().getRedisURI(), "redis.type", "JSON", "redis.keyspace", ""));
+        SinkRecord valid = new SinkRecord("topic", 0, Schema.STRING_SCHEMA, "valid", Schema.STRING_SCHEMA, "{\"id\":1}", 0);
+        SinkRecord invalid = new SinkRecord("topic", 0, Schema.STRING_SCHEMA, "bad", Schema.STRING_SCHEMA, "{oops", 1);
+        Assertions.assertThrows(DataException.class, () -> task.put(List.of(valid, invalid)));
+        assertEquals(0, redisConnection.sync().exists("valid"));
+    }
 }

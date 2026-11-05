@@ -42,6 +42,11 @@ public class RedisSinkConfigDef extends RedisConfigDef {
 
 	public static final String MULTIEXEC_DOC = "Whether to execute Redis commands in multi/exec transactions.";
 
+	public static final String MULTIEXEC_KEYSLOT_CONFIG = "redis.multiexec.keyslot";
+
+	private static final String MULTIEXEC_KEYSLOT_DOC = "Split transactions by hash slot for a sharded Redis Enterprise proxy. "
+			+ "Cluster clients always split by slot; standalone clients otherwise keep one transaction per batch.";
+
 	public static final String WAIT_REPLICAS_CONFIG = "redis.wait.replicas";
 
 	public static final String WAIT_REPLICAS_DEFAULT = "0";
@@ -87,13 +92,14 @@ public class RedisSinkConfigDef extends RedisConfigDef {
 
 	private void define() {
 		define(CHARSET_CONFIG, Type.STRING, CHARSET_DEFAULT, Importance.HIGH, CHARSET_DOC);
-		define(TYPE_CONFIG, Type.STRING, TYPE_DEFAULT.name(), Importance.HIGH, TYPE_DOC);
+		define(TYPE_CONFIG, Type.STRING, TYPE_DEFAULT.name(), ValidString.in(Stream.of(RedisType.values()).map(Enum::name).toArray(String[]::new)), Importance.HIGH, TYPE_DOC);
 		define(KEYSPACE_CONFIG, Type.STRING, KEYSPACE_DEFAULT, Importance.MEDIUM, KEYSPACE_DOC);
 		define(SEPARATOR_CONFIG, Type.STRING, SEPARATOR_DEFAULT, Importance.MEDIUM, SEPARATOR_DOC);
 		define(MULTIEXEC_CONFIG, Type.BOOLEAN, MULTIEXEC_DEFAULT, Importance.MEDIUM, MULTIEXEC_DOC);
-		define(WAIT_REPLICAS_CONFIG, Type.INT, WAIT_REPLICAS_DEFAULT, Importance.MEDIUM, WAIT_REPLICAS_DOC);
-		define(WAIT_TIMEOUT_CONFIG, Type.LONG, WAIT_TIMEOUT_DEFAULT, Importance.MEDIUM, WAIT_TIMEOUT_DOC);
-		define(KEY_TTL_CONFIG, Type.LONG, KEY_TTL_CONFIG_DEFAULT, Importance.MEDIUM, KEY_TTL_CONFIG_DOC);
+		define(MULTIEXEC_KEYSLOT_CONFIG, Type.BOOLEAN, false, Importance.MEDIUM, MULTIEXEC_KEYSLOT_DOC);
+		define(WAIT_REPLICAS_CONFIG, Type.INT, WAIT_REPLICAS_DEFAULT, Range.atLeast(0), Importance.MEDIUM, WAIT_REPLICAS_DOC);
+		define(WAIT_TIMEOUT_CONFIG, Type.LONG, WAIT_TIMEOUT_DEFAULT, Range.atLeast(0), Importance.MEDIUM, WAIT_TIMEOUT_DOC);
+		define(KEY_TTL_CONFIG, Type.LONG, KEY_TTL_CONFIG_DEFAULT, Range.atLeast(-1), Importance.MEDIUM, KEY_TTL_CONFIG_DOC);
 		define(OFFSET_NAMESPACE_CONFIG, Type.STRING, OFFSET_NAMESPACE_DEFAULT, Importance.MEDIUM, OFFSET_NAMESPACE_DOC);
 	}
 

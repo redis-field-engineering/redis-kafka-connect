@@ -1,21 +1,17 @@
 package com.redis.kafka.connect.source;
 
+import io.lettuce.core.ScoredValue;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.SchemaBuilder;
 import org.apache.kafka.connect.data.Struct;
+import org.apache.kafka.connect.errors.DataException;
 
-import com.redis.lettucemod.timeseries.Sample;
-import com.redis.spring.batch.item.redis.common.KeyValue;
-
-import io.lettuce.core.ScoredValue;
-
-public class ToStructFunction implements Function<KeyValue<String>, Struct> {
+public class ToStructFunction implements Function<KeySnapshot, Struct> {
 
 	public static final String FIELD_KEY = "key";
 
@@ -59,29 +55,29 @@ public class ToStructFunction implements Function<KeyValue<String>, Struct> {
 			.field(FIELD_SET, SET_SCHEMA).field(FIELD_ZSET, ZSET_SCHEMA).name(VALUE_SCHEMA_NAME).build();
 
 	@Override
-	public Struct apply(KeyValue<String> input) {
+	public Struct apply(KeySnapshot input) {
 		Struct struct = new Struct(VALUE_SCHEMA);
-		struct.put(FIELD_KEY, input.getKey());
-		struct.put(FIELD_TTL, input.getTtl());
-		struct.put(FIELD_TYPE, input.getType());
-		if (input.getType() != null) {
-			switch (input.getType()) {
-			case KeyValue.TYPE_HASH:
-				struct.put(FIELD_HASH, input.getValue());
+		struct.put(FIELD_KEY, input.key());
+		struct.put(FIELD_TTL, input.ttl());
+		struct.put(FIELD_TYPE, input.type());
+		if (input.type() != null) {
+			switch (input.type()) {
+			case KeySnapshot.TYPE_HASH:
+				struct.put(FIELD_HASH, input.value());
 				break;
-			case KeyValue.TYPE_JSON:
-				struct.put(FIELD_JSON, input.getValue());
+			case KeySnapshot.TYPE_JSON:
+				struct.put(FIELD_JSON, input.value());
 				break;
-			case KeyValue.TYPE_LIST:
-				struct.put(FIELD_LIST, input.getValue());
+			case KeySnapshot.TYPE_LIST:
+				struct.put(FIELD_LIST, input.value());
 				break;
-			case KeyValue.TYPE_SET:
+			case KeySnapshot.TYPE_SET:
 				struct.put(FIELD_SET, list(input));
 				break;
-			case KeyValue.TYPE_STRING:
-				struct.put(FIELD_STRING, input.getValue());
+			case KeySnapshot.TYPE_STRING:
+				struct.put(FIELD_STRING, input.value());
 				break;
-			case KeyValue.TYPE_ZSET:
+			case KeySnapshot.TYPE_ZSET:
 				struct.put(FIELD_ZSET, zsetMap(input));
 				break;
 			default:
@@ -92,22 +88,20 @@ public class ToStructFunction implements Function<KeyValue<String>, Struct> {
 	}
 
 	@SuppressWarnings("unchecked")
-	private Object list(KeyValue<String> input) {
-		return new ArrayList<>((Collection<String>) input.getValue());
+	private Object list(KeySnapshot input) {
+		return new ArrayList<>((Collection<String>) input.value());
 	}
 
 	@SuppressWarnings("unchecked")
-	public static Map<Double, String> zsetMap(KeyValue<String> input) {
-		Collection<ScoredValue<String>> value = (Collection<ScoredValue<String>>) input.getValue();
+	public static Map<Double, String> zsetMap(KeySnapshot input) {
+		Collection<ScoredValue<String>> value = (Collection<ScoredValue<String>>) input.value();
 		return zsetMap(value);
 	}
 
 	public static Map<Double, String> zsetMap(Collection<ScoredValue<String>> value) {
-		return value.stream().collect(Collectors.toMap(ScoredValue::getScore, ScoredValue::getValue));
-	}
-
-	public static Map<Long, Double> timeseriesMap(Collection<Sample> samples) {
-		return samples.stream().collect(Collectors.toMap(Sample::getTimestamp, Sample::getValue));
+		return value.stream().collect(Collectors.toMap(ScoredValue::getScore, ScoredValue::getValue, (first, second) -> {
+            throw new DataException("The published zset source schema cannot represent multiple members with the same score");
+        }));
 	}
 
 }

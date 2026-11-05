@@ -1,15 +1,14 @@
 package com.redis.kafka.connect;
 
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.hamcrest.MatcherAssert.assertThat;
-
+import com.redis.kafka.connect.source.RedisStreamSourceConfig;
+import com.redis.kafka.connect.source.StreamMessageConverter;
+import io.lettuce.core.StreamMessage;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Stream;
-
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.SchemaBuilder;
 import org.apache.kafka.connect.data.Struct;
@@ -19,11 +18,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.ArgumentsProvider;
 import org.junit.jupiter.params.provider.ArgumentsSource;
-
-import com.redis.kafka.connect.source.RedisStreamSourceConfig;
-import com.redis.kafka.connect.source.StreamMessageConverter;
-
-import io.lettuce.core.StreamMessage;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class StreamMessageConverterTest {
 
@@ -46,7 +41,7 @@ class StreamMessageConverterTest {
 		RedisStreamSourceConfig config = new RedisStreamSourceConfig(args.props);
 		StreamMessageConverter r = new StreamMessageConverter(CLOCK, config);
 		SourceRecord got = r.apply(args.message);
-		assertThat(got, equalTo(args.want));
+		assertEquals(args.want, got);
 	}
 
 	static class ConvertArgs implements ArgumentsProvider, Arguments {
@@ -55,7 +50,7 @@ class StreamMessageConverterTest {
 			return Stream.of(
 					new ConvertArgs(mapOf("redis.stream.name", "stream1"),
 							new StreamMessage<>("stream1", "1-0", mapOf()),
-							new SourceRecord(mapOf(), mapOf("offset", "1-0"), "stream1", null, Schema.STRING_SCHEMA,
+							new SourceRecord(mapOf("stream", "stream1", "group", "kafka-consumer-group", "consumer", "consumer-0"), mapOf("offset", "1-0"), "stream1", null, Schema.STRING_SCHEMA,
 									"1-0", PUBLISHED_SCHEMA,
 									new Struct(PUBLISHED_SCHEMA).put(FIELD_ID, "1-0").put(FIELD_STREAM, "stream1")
 											.put(FIELD_BODY, mapOf()),
@@ -63,7 +58,7 @@ class StreamMessageConverterTest {
 
 					new ConvertArgs(mapOf("redis.stream.name", "stream2"),
 							new StreamMessage<>("stream2", "2-0", mapOf("key2", "value2")),
-							new SourceRecord(mapOf(), mapOf("offset", "2-0"), "stream2", null, Schema.STRING_SCHEMA,
+							new SourceRecord(mapOf("stream", "stream2", "group", "kafka-consumer-group", "consumer", "consumer-0"), mapOf("offset", "2-0"), "stream2", null, Schema.STRING_SCHEMA,
 									"2-0", PUBLISHED_SCHEMA,
 									new Struct(PUBLISHED_SCHEMA).put(FIELD_ID, "2-0").put(FIELD_STREAM, "stream2")
 											.put(FIELD_BODY, mapOf("key2", "value2")),
@@ -71,7 +66,7 @@ class StreamMessageConverterTest {
 
 					new ConvertArgs(mapOf("redis.stream.name", "stream3", "topic", "topic3"),
 							new StreamMessage<>("stream3", "3-0", mapOf("key3", "value3")),
-							new SourceRecord(mapOf(), mapOf("offset", "3-0"), "topic3", null, Schema.STRING_SCHEMA,
+							new SourceRecord(mapOf("stream", "stream3", "group", "kafka-consumer-group", "consumer", "consumer-0"), mapOf("offset", "3-0"), "topic3", null, Schema.STRING_SCHEMA,
 									"3-0", PUBLISHED_SCHEMA, new Struct(PUBLISHED_SCHEMA).put(FIELD_ID, "3-0")
 											.put(FIELD_STREAM, "stream3").put(FIELD_BODY, mapOf("key3", "value3")),
 									NOW)));
