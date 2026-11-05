@@ -29,7 +29,7 @@ The connector is published on https://www.confluent.io/hub/redis/redis-kafka-con
 
 Build with JDK 27 and the Gradle wrapper. The connector is compiled with `--release 17`;
 tests run on JDK 27 by default. Docker must be running for integration tests.
-CI runs the unit and integration suites on Java 21, 25, and 27.
+CI runs the unit and integration suites on Java 17, 21, and 25, the versions Confluent Platform supports.
 
 [source,console]
 ----
