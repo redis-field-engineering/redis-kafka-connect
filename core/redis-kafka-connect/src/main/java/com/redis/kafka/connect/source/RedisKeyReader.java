@@ -126,9 +126,16 @@ public final class RedisKeyReader implements AutoCloseable {
         checkFailure();
         int max = Math.toIntExact(config.getBatchSize());
         List<PendingKey> pending = new ArrayList<>();
-        // Share each poll between snapshot and live traffic to keep the notification queue moving.
-        int snapshotLimit = Math.max(1, max / 2);
-        while (!snapshotComplete && pending.size() < snapshotLimit && !closed) {
+        // Drain notifications first so the bounded queue cannot overflow behind the snapshot.
+        // The snapshot uses the remaining capacity and pauses while notifications fill every batch.
+        while (pending.size() < max && !closed) {
+            String key = changes.poll();
+            if (key == null) {
+                break;
+            }
+            pending.add(new PendingKey(key, false));
+        }
+        while (!snapshotComplete && pending.size() < max && !closed) {
             if (!snapshotKeys.hasNext()) {
                 scan();
                 if (!snapshotKeys.hasNext()) {
@@ -136,13 +143,6 @@ public final class RedisKeyReader implements AutoCloseable {
                 }
             }
             pending.add(new PendingKey(snapshotKeys.next(), true));
-        }
-        while (pending.size() < max && !closed) {
-            String key = changes.poll();
-            if (key == null) {
-                break;
-            }
-            pending.add(new PendingKey(key, false));
         }
         if (pending.isEmpty() && snapshotComplete && !closed) {
             long waitMillis = config.getIdleTimeout().isZero() ? 100 : config.getIdleTimeout().toMillis();
