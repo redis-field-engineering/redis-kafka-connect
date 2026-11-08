@@ -1,3 +1,6 @@
+import groovy.json.JsonOutput
+import java.security.MessageDigest
+
 plugins {
     id 'java-library'
     alias(libs.plugins.shadow)
@@ -111,6 +114,10 @@ tasks.register('prepareConfluentArchive', Sync) {
         into 'doc'
         rename { 'MIGRATION.adoc' }
     }
+    from('../../docs/guide/src/docs/asciidoc/release.adoc') {
+        into 'doc'
+        rename { 'RELEASE.adoc' }
+    }
     into layout.buildDirectory.dir("confluentArchive/${baseDir}")
 }
 
@@ -141,8 +148,12 @@ tasks.named('build') {
         testClassesDirs = sourceSets.integrationTest.output.classesDirs
         classpath = sourceSets.integrationTest.runtimeClasspath
         include '**/ConfluentWorkerIntegrationTests.class'
-        dependsOn tasks.named('shadowJar')
+        dependsOn tasks.named('createConfluentArchive')
         shouldRunAfter tasks.named('integrationTest')
+        systemProperty 'connector.plugin.archive', tasks.named('createConfluentArchive').flatMap { it.archiveFile }.get().asFile.absolutePath
+        if (providers.gradleProperty('previousConnectorArchive').isPresent()) {
+            systemProperty 'connector.previous.archive', providers.gradleProperty('previousConnectorArchive').get()
+        }
         systemProperty 'connector.plugin.jar', tasks.named('shadowJar').flatMap { it.archiveFile }.get().asFile.absolutePath
         systemProperty 'connector.worker.dockerfile', rootProject.file('config/testing/worker.Dockerfile').absolutePath
         systemProperty 'connector.worker.native', Boolean.toString(taskName == 'workerImageTest')
@@ -156,4 +167,27 @@ tasks.named('workerImageTest') {
 
 tasks.named('check') {
     dependsOn tasks.named('workerTest'), tasks.named('workerImageTest')
+}
+
+// Preserve dependency identities even when shading removes Maven metadata from JARs.
+tasks.register('writeRuntimeInventory') {
+    group = 'verification'
+    def inventory = rootProject.layout.buildDirectory.file('release-audit/runtime-inventory.json')
+    dependsOn tasks.named('shadowJar')
+    def shadedJar = tasks.named('shadowJar').flatMap { it.archiveFile }
+    inputs.files(configurations.runtimeClasspath)
+    inputs.file(shadedJar)
+    inputs.property('releaseVersion', project.version.toString())
+    outputs.file(inventory)
+    doLast {
+        def dependencies = configurations.runtimeClasspath.resolvedConfiguration.resolvedArtifacts.collect { artifact ->
+            [group: artifact.moduleVersion.id.group, name: artifact.name,
+             version: artifact.moduleVersion.id.version, file: artifact.file.absolutePath]
+        }
+        inventory.get().asFile.parentFile.mkdirs()
+        inventory.get().asFile.text = JsonOutput.prettyPrint(JsonOutput.toJson(
+                [version: project.version.toString(),
+                 jarSha256: MessageDigest.getInstance('SHA-256').digest(shadedJar.get().asFile.bytes).encodeHex().toString(),
+                 dependencies: dependencies]))
+    }
 }

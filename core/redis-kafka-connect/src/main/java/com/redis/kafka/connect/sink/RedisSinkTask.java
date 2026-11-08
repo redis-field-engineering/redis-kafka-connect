@@ -27,6 +27,7 @@ import io.lettuce.core.RedisCommandExecutionException;
 import io.lettuce.core.RedisCommandTimeoutException;
 import io.lettuce.core.RedisConnectionException;
 import io.lettuce.core.RedisException;
+import io.lettuce.core.RedisClient;
 import io.lettuce.core.api.sync.RedisStringCommands;
 import io.lettuce.core.codec.StringCodec;
 import io.lettuce.core.protocol.CommandType;
@@ -75,6 +76,7 @@ public class RedisSinkTask extends SinkTask {
     private RedisConnection<String, String> connection;
     private Converter jsonConverter;
     private RedisSinkWriter writer;
+    private RedisClient statefulWriterClient;
 
     private static ObjectMapper objectMapper() {
         ObjectMapper mapper = new ObjectMapper();
@@ -105,7 +107,13 @@ public class RedisSinkTask extends SinkTask {
         client = config.client();
         try {
             connection = RedisConnection.open(client, StringCodec.UTF8);
-            writer = new RedisSinkWriter(client, config);
+            if (config.isMultiExec() || config.getWaitReplicas() > 0) {
+                // MULTI and WAIT are scoped to one physical connection. A reconnect must
+                // fail the batch rather than replay part of it on a different connection.
+                statefulWriterClient = (RedisClient) config.client();
+                statefulWriterClient.setOptions(statefulWriterClient.getOptions().mutate().autoReconnect(false).build());
+            }
+            writer = new RedisSinkWriter(statefulWriterClient == null ? client : statefulWriterClient, config);
         } catch (Exception e) {
             stop();
             throw new ConnectException("Could not start Redis sink", e);
@@ -390,10 +398,7 @@ public class RedisSinkTask extends SinkTask {
     @Override
     public void stop() {
         try {
-            if (writer != null) {
-                writer.close();
-                writer = null;
-            }
+            stopWriter();
         } finally {
             try {
                 if (connection != null) {
@@ -417,6 +422,22 @@ public class RedisSinkTask extends SinkTask {
                         }
                     }
                 }
+            }
+        }
+    }
+
+    private void stopWriter() {
+        RedisSinkWriter current = writer;
+        writer = null;
+        try {
+            if (current != null) {
+                current.close();
+            }
+        } finally {
+            RedisClient currentClient = statefulWriterClient;
+            statefulWriterClient = null;
+            if (currentClient != null) {
+                currentClient.shutdown();
             }
         }
     }

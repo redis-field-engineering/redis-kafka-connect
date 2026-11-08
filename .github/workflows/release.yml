@@ -4,18 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Release version (e.g., 1.1.1). Leave empty to auto-increment patch version.'
-        required: false
+        description: 'Explicit stable release version without a v prefix (e.g., 1.2.0).'
+        required: true
         type: string
-      version-increment:
-        description: 'Version increment type (used if version is not specified)'
-        default: 'patch'
-        required: false
-        type: choice
-        options:
-          - patch
-          - minor
-          - major
 
 permissions:
   contents: write
@@ -27,13 +18,34 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate release branch and version
+        env:
+          RELEASE_REF: ${{ github.ref }}
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: |
+          python3 - <<'PYTHON'
+          import os
+          import re
+          if os.environ["RELEASE_REF"] != "refs/heads/master":
+              raise SystemExit("Run stable releases from master after merging and validating the release changes.")
+          if not re.fullmatch(r"(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)", os.environ["RELEASE_VERSION"]):
+              raise SystemExit("Provide an explicit stable version such as 1.2.0, without a v prefix.")
+          PYTHON
+      - uses: redis/github-workflows/.github/actions/checkout@main
+      - name: Test release audit validation
+        run: python3 -m unittest discover -s config/testing -p test_audit_release.py
+
   release:
+    needs: validate
     uses: redis/github-workflows/.github/workflows/release.yml@main
     with:
       java-version: '27'
       version: ${{ inputs.version }}
-      version-increment: ${{ inputs.version-increment }}
       gradle-build-tasks: 'build publish'
+      pre-release-script: 'bash config/testing/audit-release.sh'
       clone-to-dist-repo: false
     secrets:
       git-access-token: ${{ secrets.GIT_ACCESS_TOKEN }}

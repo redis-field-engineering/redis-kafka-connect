@@ -21,6 +21,8 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
+import java.util.zip.ZipFile;
+import java.util.zip.ZipEntry;
 import org.apache.kafka.clients.admin.Admin;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
@@ -35,6 +37,8 @@ import org.awaitility.Awaitility;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
+import static org.junit.jupiter.api.Assumptions.assumeFalse;
 import org.testcontainers.Testcontainers;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.Network;
@@ -70,36 +74,8 @@ class ConfluentWorkerIntegrationTests extends AbstractRedisIntegrationTests {
                 .withStartupTimeout(Duration.ofMinutes(3));
         kafka.setPortBindings(List.of("19093:9092"));
         kafka.start();
-        ImageFromDockerfile image = new ImageFromDockerfile()
-                .withFileFromPath("Dockerfile", Path.of(System.getProperty("connector.worker.dockerfile")))
-                .withBuildArg("CONFLUENT_VERSION", version);
         boolean nativeRuntime = Boolean.getBoolean("connector.worker.native");
-        worker = nativeRuntime
-                ? new GenericContainer<>(DockerImageName.parse("confluentinc/cp-kafka-connect:" + version))
-                : new GenericContainer<>(image);
-        worker.withNetwork(network).withExposedPorts(8083)
-                .withEnv("CONNECT_BOOTSTRAP_SERVERS", "broker:19092")
-                .withEnv("CONNECT_REST_ADVERTISED_HOST_NAME", "worker")
-                .withEnv("CONNECT_GROUP_ID", "redis-connector-tests")
-                .withEnv("CONNECT_CONFIG_STORAGE_TOPIC", "connect-configs")
-                .withEnv("CONNECT_OFFSET_STORAGE_TOPIC", "connect-offsets")
-                .withEnv("CONNECT_STATUS_STORAGE_TOPIC", "connect-status")
-                .withEnv("CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR", "1")
-                .withEnv("CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR", "1")
-                .withEnv("CONNECT_STATUS_STORAGE_REPLICATION_FACTOR", "1")
-                .withEnv("CONNECT_OFFSET_FLUSH_INTERVAL_MS", "1000")
-                .withEnv("CONNECT_CONSUMER_SESSION_TIMEOUT_MS", "6000")
-                .withEnv("CONNECT_CONSUMER_HEARTBEAT_INTERVAL_MS", "1000")
-                .withEnv("CONNECT_KEY_CONVERTER", "org.apache.kafka.connect.storage.StringConverter")
-                .withEnv("CONNECT_VALUE_CONVERTER", "org.apache.kafka.connect.json.JsonConverter")
-                .withEnv("CONNECT_VALUE_CONVERTER_SCHEMAS_ENABLE", "false")
-                .withEnv("CONNECT_PLUGIN_PATH", "/usr/share/java,/opt/redis")
-                .withEnv("CONNECT_PLUGIN_DISCOVERY", "service_load")
-                .withEnv("KAFKA_HEAP_OPTS", "-Xms256m -Xmx512m")
-                .withCopyFileToContainer(MountableFile.forHostPath(System.getProperty("connector.plugin.jar")),
-                        "/opt/redis/redis-kafka-connect.jar")
-                .waitingFor(Wait.forHttp("/connector-plugins").forPort(8083))
-                .withStartupTimeout(Duration.ofMinutes(3));
+        worker = createWorker(Path.of(System.getProperty("connector.plugin.archive")), "service_load");
         worker.start();
         // Check the executable of ConnectDistributed itself, rather than the shell's PATH.
         ExecResult runtime = worker.execInContainer("sh", "-ec", """
@@ -122,15 +98,65 @@ class ConfluentWorkerIntegrationTests extends AbstractRedisIntegrationTests {
             assertEquals(21, javaFeature, java);
         }
         System.out.println("Confluent " + version + " Connect process runtime: " + java);
+        String expectedVersion;
+        try (JarFile jar = new JarFile(System.getProperty("connector.plugin.jar"))) {
+            expectedVersion = jar.getManifest().getMainAttributes().getValue("Implementation-Version");
+        }
+        assertNotNull(expectedVersion);
+        assertPluginVersion(expectedVersion);
+    }
+
+    private void assertPluginVersion(String expectedVersion) throws Exception {
         JsonNode plugins = request("GET", "/connector-plugins", null);
         for (String connector : List.of("RedisSinkConnector", "RedisStreamSourceConnector", "RedisKeysSourceConnector")) {
             assertTrue(plugins.toString().contains("com.redis.kafka.connect." + connector), plugins.toString());
             for (JsonNode plugin : plugins) {
                 if (plugin.get("class").asText().equals("com.redis.kafka.connect." + connector)) {
-                    assertNotEquals("N/A", plugin.get("version").asText());
+                    assertEquals(expectedVersion, plugin.get("version").asText());
                 }
             }
         }
+    }
+
+    private GenericContainer<?> createWorker(Path archive, String discovery) {
+        String version = System.getProperty("confluent.version", "8.3.2");
+        ImageFromDockerfile image = new ImageFromDockerfile()
+                .withFileFromPath("Dockerfile", Path.of(System.getProperty("connector.worker.dockerfile")))
+                .withBuildArg("CONFLUENT_VERSION", version);
+        boolean nativeRuntime = Boolean.getBoolean("connector.worker.native");
+        GenericContainer<?> created = nativeRuntime
+                ? new GenericContainer<>(DockerImageName.parse("confluentinc/cp-kafka-connect:" + version))
+                : new GenericContainer<>(image);
+        created.withNetwork(network).withExposedPorts(8083)
+                .withEnv("CONNECT_BOOTSTRAP_SERVERS", "broker:19092")
+                .withEnv("CONNECT_REST_ADVERTISED_HOST_NAME", "worker")
+                .withEnv("CONNECT_GROUP_ID", "redis-connector-tests")
+                .withEnv("CONNECT_CONFIG_STORAGE_TOPIC", "connect-configs")
+                .withEnv("CONNECT_OFFSET_STORAGE_TOPIC", "connect-offsets")
+                .withEnv("CONNECT_STATUS_STORAGE_TOPIC", "connect-status")
+                .withEnv("CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR", "1")
+                .withEnv("CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR", "1")
+                .withEnv("CONNECT_STATUS_STORAGE_REPLICATION_FACTOR", "1")
+                .withEnv("CONNECT_OFFSET_FLUSH_INTERVAL_MS", "1000")
+                .withEnv("CONNECT_CONSUMER_SESSION_TIMEOUT_MS", "6000")
+                .withEnv("CONNECT_CONSUMER_HEARTBEAT_INTERVAL_MS", "1000")
+                .withEnv("CONNECT_KEY_CONVERTER", "org.apache.kafka.connect.storage.StringConverter")
+                .withEnv("CONNECT_VALUE_CONVERTER", "org.apache.kafka.connect.json.JsonConverter")
+                .withEnv("CONNECT_VALUE_CONVERTER_SCHEMAS_ENABLE", "false")
+                .withEnv("CONNECT_PLUGIN_PATH", "/usr/share/java,/tmp/hub-components")
+                .withEnv("CONNECT_PLUGIN_DISCOVERY", discovery)
+                .withEnv("KAFKA_HEAP_OPTS", "-Xms256m -Xmx512m")
+                .withCopyFileToContainer(MountableFile.forHostPath(archive), "/tmp/redis-connector.zip")
+                .withCommand("sh", "-ec", """
+                        mkdir -p /tmp/hub-components
+                        echo 'plugin.path=/tmp/hub-components' > /tmp/hub-worker.properties
+                        confluent-hub install --no-prompt --component-dir /tmp/hub-components \
+                            --worker-configs /tmp/hub-worker.properties /tmp/redis-connector.zip
+                        exec /etc/confluent/docker/run
+                        """)
+                .waitingFor(Wait.forHttp("/connector-plugins").forPort(8083))
+                .withStartupTimeout(Duration.ofMinutes(3));
+        return created;
     }
 
     @AfterAll
@@ -167,6 +193,131 @@ class ConfluentWorkerIntegrationTests extends AbstractRedisIntegrationTests {
                 }
             }
         }
+    }
+
+    @Test
+    @EnabledIfSystemProperty(named = "connector.previous.archive", matches = ".+")
+    void releasedArchiveUpgradeAndRollbackPreservesConnectorState() throws Exception {
+        assumeFalse(Boolean.getBoolean("connector.worker.native"), "legacy upgrade is qualified on the customer's Java 21 runtime");
+        String sinkName = "worker-upgrade-sink";
+        String streamName = "worker-upgrade-stream";
+        String keysName = "worker-upgrade-keys";
+        for (String topic : List.of(sinkName, streamName, keysName)) {
+            createTopic(topic);
+        }
+        enableKeyspaceNotifications();
+        redisConnection.sync().set("upgrade:watched", "seed");
+        Map<String, String> sinkConfig = base("RedisSinkConnector");
+        sinkConfig.put("topics", sinkName);
+        sinkConfig.put("redis.type", "LIST");
+        sinkConfig.put("redis.keyspace", sinkName);
+        sinkConfig.put("value.converter", "org.apache.kafka.connect.storage.StringConverter");
+        Map<String, String> streamConfig = base("RedisStreamSourceConnector");
+        streamConfig.put("topic", streamName);
+        streamConfig.put("redis.stream.name", streamName);
+        Map<String, String> keysConfig = base("RedisKeysSourceConnector");
+        keysConfig.put("topic", keysName);
+        keysConfig.put("redis.keys.pattern", "upgrade:*");
+        // The legacy reader waits for a full batch when idle timeout is disabled.
+        keysConfig.put("batch.size", "1");
+        Path candidateArchive = Path.of(System.getProperty("connector.plugin.archive"));
+        Path previousArchive = Path.of(System.getProperty("connector.previous.archive"));
+        String previousVersion = archiveVersion(previousArchive);
+        String candidateVersion = archiveVersion(candidateArchive);
+        assertNotEquals(previousVersion, candidateVersion, "upgrade must use two distinct connector versions");
+        Throwable primaryFailure = null;
+        try (KafkaProducer<String, String> producer = producer();
+                KafkaConsumer<String, String> streamConsumer = consumer(streamName);
+                KafkaConsumer<String, String> keysConsumer = consumer(keysName)) {
+            switchWorker(previousArchive, "hybrid_warn");
+            assertPluginVersion(previousVersion);
+            putConnector(sinkName, sinkConfig, 1);
+            putConnector(streamName, streamConfig, 1);
+            putConnector(keysName, keysConfig, 1);
+            migrationPhase(producer, streamConsumer, keysConsumer, "before", List.of("before"), true);
+            switchWorker(candidateArchive, "service_load");
+            assertPluginVersion(candidateVersion);
+            for (String name : List.of(sinkName, streamName, keysName)) {
+                running(name, 1);
+            }
+            migrationPhase(producer, streamConsumer, keysConsumer, "after", List.of("before", "after"), false);
+            // Drain acknowledged source work before rollback, as required by the migration guide.
+            switchWorker(previousArchive, "hybrid_warn");
+            assertPluginVersion(previousVersion);
+            for (String name : List.of(sinkName, streamName, keysName)) {
+                running(name, 1);
+            }
+            migrationPhase(producer, streamConsumer, keysConsumer, "rollback", List.of("before", "after", "rollback"), true);
+        } catch (Exception | AssertionError failure) {
+            primaryFailure = failure;
+            if (worker.isRunning()) {
+                System.err.println(worker.getLogs());
+            }
+            throw failure;
+        } finally {
+            try {
+                switchWorker(candidateArchive, "service_load");
+                JsonNode connectors = request("GET", "/connectors", null);
+                for (JsonNode name : connectors) {
+                    if (List.of(sinkName, streamName, keysName).contains(name.asText())) {
+                        request("DELETE", "/connectors/" + name.asText(), null);
+                    }
+                }
+            } catch (Exception | AssertionError cleanupFailure) {
+                if (primaryFailure == null) {
+                    throw cleanupFailure;
+                }
+                primaryFailure.addSuppressed(cleanupFailure);
+            }
+        }
+    }
+
+    private void switchWorker(Path archive, String discovery) {
+        worker.stop();
+        // Use a fresh fixture so Docker allocates new host ports for the next process.
+        worker = createWorker(archive, discovery);
+        worker.start();
+    }
+
+    private String archiveVersion(Path archive) throws Exception {
+        try (ZipFile zip = new ZipFile(archive.toFile())) {
+            ZipEntry manifest = zip.stream().filter(entry -> entry.getName().endsWith("/manifest.json")).findFirst().orElseThrow();
+            try (DataInputStream input = new DataInputStream(zip.getInputStream(manifest))) {
+                return json.readTree(input).get("version").asText();
+            }
+        }
+    }
+
+    private void migrationPhase(KafkaProducer<String, String> producer, KafkaConsumer<String, String> streamConsumer,
+            KafkaConsumer<String, String> keysConsumer, String phase, List<String> expected, boolean legacy) throws Exception {
+        send(producer, "worker-upgrade-sink", phase);
+        awaitList("worker-upgrade-sink", expected);
+        String offsetKey = legacy ? "com.redis.kafka.connect.sink.offset.worker-upgrade-sink.0"
+                : "com.redis.kafka.connect.sink.offset.worker-upgrade-sink.worker-upgrade-sink.0";
+        awaitUntil(() -> {
+            String offset = redisConnection.sync().get(offsetKey);
+            return offset != null && json.readTree(offset).get("offset").asLong() == expected.size();
+        });
+        String id = redisConnection.sync().xadd("worker-upgrade-stream", Map.of("value", phase));
+        awaitMigrationRecord(streamConsumer, id, phase, true);
+        awaitUntil(() -> redisConnection.sync().xpending("worker-upgrade-stream", "kafka-consumer-group").getCount() == 0);
+        redisConnection.sync().set("upgrade:watched", phase);
+        awaitMigrationRecord(keysConsumer, "upgrade:watched", phase, false);
+    }
+
+    private void awaitMigrationRecord(KafkaConsumer<String, String> consumer, String key, String phase, boolean stream) {
+        Awaitility.await().atMost(Duration.ofSeconds(40)).until(() -> {
+            for (ConsumerRecord<String, String> record : consumer.poll(Duration.ofMillis(200))) {
+                if (key.equals(record.key())) {
+                    JsonNode value = json.readTree(record.value());
+                    String actual = stream ? value.get("body").get("value").asText() : value.get("string").asText();
+                    if (phase.equals(actual)) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        });
     }
 
     @Test

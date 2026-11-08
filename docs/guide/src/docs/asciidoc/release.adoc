@@ -1,0 +1,78 @@
+[[_release]]
+= Release Qualification and Publication
+
+== Tested combinations
+
+The connector targets Java 17 bytecode. Unit and task integration suites run in CI on
+Java 17, 21, and 25. The Redis fixtures cover standalone Redis 8.2.10, a three-primary
+OSS cluster, and Redis Software 8.2.0-125.19 with three shards in both sharded-proxy
+and OSS Cluster API modes. Legacy fixtures cover Redis Stack 7.2.0-v13,
+Redis Software 7.4.6-102 with OSS Cluster API, and selected Redis 6.0.20 contracts.
+
+Packaged-worker tests install the actual Hub ZIP using `confluent-hub install`, then
+exercise all three connectors in Confluent Platform 8.3.2 against Redis Software 8.2.
+`workerTest` uses an explicit Java 21 runtime. `workerImageTest` uses the stock image's
+bundled runtime and records the running Connect process's Java version.
+Both verify plugin discovery and candidate version, Java 17 base-class bytecode,
+records, acknowledgments, task scale-down, and broker/Redis/task restarts.
+
+These are tested combinations, not a claim that every Redis 8.x or Confluent 8.x
+release is qualified. Enterprise fixtures use one host and do not qualify multi-host
+HA/failover. Redis TLS/mTLS is tested at task level; customer Kafka security,
+Schema Registry/converters/SMTs, FIPS settings, and production load need a matching canary.
+Support terms remain those stated in the project's README and Redis support policy.
+
+== Before dispatching a stable release
+
+. Merge the intended changes and wait for CI on the release commit to pass.
+. Review the migration guide, especially the rejection of cluster transactions and WAIT,
+  single-task keys notifications, and conservative stream pending replay.
+. Run `workerTest` with `-PtestJavaVersion=21` and
+  `-PpreviousConnectorArchive=/absolute/path/to/redis-redis-kafka-connect-1.1.0.zip`
+  to qualify a released-archive upgrade and rollback. Verify the published ZIP checksum
+  before using it. The test retains connector names, offsets/groups, and Redis state;
+  the legacy keys reader uses `batch.size=1`, and stream pending work is drained before rollback.
+  This does not qualify an in-flight rollback or every historical connector version.
+. Confirm the release Git token, GPG signing keys/passphrase, Maven Central credentials,
+  and announcement webhook are available to the workflow. Availability of secret names
+  does not prove that credentials remain valid.
+. Select the `Release` workflow on `master` and explicitly enter `1.2.0` for this release.
+  The workflow rejects an empty/snapshot/prefixed version and any other branch.
+
+== Artifact security gate
+
+After building and before JReleaser publishes artifacts, the workflow runs
+`config/testing/audit-release.sh`. It downloads pinned Syft/Grype versions, verifies
+upstream SHA-256 checksums, and updates the vulnerability database.
+
+The audit reads the exact release ZIP and its canonical manifest identity, then
+requires the ZIP's shaded JAR SHA-256 to match the build inventory, and
+cross-checks the artifact catalog against Gradle's resolved runtime JARs. Shading
+can remove Maven metadata: runtime components missing from the catalog are added
+only after their classes are verified in the bundled JAR. A version mismatch,
+empty artifact catalog, missing bundled dependency, scanner/database error, or
+High/Critical vulnerability match fails the gate before publication.
+
+The published `.cdx.json` SBOM includes the ZIP's SHA-256. The
+`.vulnerabilities.json` report records the scanner and database used. Review any
+lower-severity matches as well; scanner success is evidence at that database date,
+not a guarantee that future advisories or every security issue are covered.
+
+A local audit needs Python 3.11+, curl, and tar. On an exact stable Git tag after
+building, run `bash config/testing/audit-release.sh`. The script creates reports
+beside the Confluent ZIP and does not publish artifacts. A failed gate may leave
+the release tag created by the workflow; inspect the failed run before retrying.
+
+== Confluent Hub publication
+
+The canonical component is
+https://www.confluent.io/hub/redis/redis-kafka-connect[redis/redis-kafka-connect].
+The `redis/redis-enterprise-kafka` listing is a deprecated predecessor pointing to it.
+The archive manifest must keep owner `redis` and name `redis-kafka-connect`.
+
+The release workflow publishes GitHub/Maven artifacts and announces the GitHub release;
+it does not submit the ZIP to Confluent Hub. The release owner must coordinate that
+submission separately, provide the exact released ZIP/checksum and compatibility notes,
+and verify the public canonical listing shows 1.2.0 after publication. Do not promise
+Hub availability until Confluent confirms it. Update any external collateral that
+still links to the deprecated listing.
