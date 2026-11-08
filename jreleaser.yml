@@ -79,3 +79,10 @@ distributions:
     artifacts:
       - path: core/redis-kafka-connect/build/confluent/{{distributionName}}-{{projectVersion}}.zip
         transform: '{{distributionName}}-{{projectEffectiveVersion}}.zip'
+
+files:
+  artifacts:
+    - path: core/redis-kafka-connect/build/confluent/redis-redis-kafka-connect-{{projectVersion}}.cdx.json
+      transform: 'redis-redis-kafka-connect-{{projectEffectiveVersion}}.cdx.json'
+    - path: core/redis-kafka-connect/build/confluent/redis-redis-kafka-connect-{{projectVersion}}.vulnerabilities.json
+      transform: 'redis-redis-kafka-connect-{{projectEffectiveVersion}}.vulnerabilities.json'

@@ -104,6 +104,13 @@ class RedisTlsIntegrationTests {
             awaitValue(keys, "snapshot");
             sink.put(List.of(record("tls:key", "updated")));
             awaitValue(keys, "updated");
+            sink.stop();
+            sinkConfig.put("redis.type", "LIST");
+            sinkConfig.put("redis.keyspace", "tls:transaction");
+            sinkConfig.put("redis.multiexec", "true");
+            sink.start(sinkConfig);
+            sink.put(List.of(record("member", "value")));
+            assertEquals(List.of("member"), commands.lrange("tls:transaction", 0, -1));
 
             Map<String, String> streamConfig = new HashMap<>(config);
             streamConfig.put("redis.stream.name", "tls:stream");

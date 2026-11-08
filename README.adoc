@@ -3,7 +3,7 @@
 :project-owner:   redis-field-engineering
 :project-name:    redis-kafka-connect
 :project-group:   com.redis
-:project-version: 1.1.0
+:project-version: 1.2.0
 :project-url:     https://github.com/{project-owner}/{project-name}
 :doc-url:         https://{project-owner}.github.io/{project-name}
 
@@ -86,20 +86,36 @@ Dependency versions are maintained in `gradle/libs.versions.toml` using native G
 platform dependencies. Runtime code uses Lettuce directly; Spring Batch, Spring Batch
 Redis, Spring Boot dependency management, and LettuceMod are no longer required.
 
-Run the packaged connector in Confluent Platform 8.3.2 on Java 21 against Redis
+Qualify the packaged connector in Confluent Platform 8.3.2 against Redis
 Enterprise 8.2 with:
 
 [source,console]
 ----
-./gradlew workerTest
+./gradlew workerTest workerImageTest
 ----
 
-This task builds a test-only worker image with an explicit Java 21 runtime, checks
-ServiceLoader-only plugin discovery, and exercises all three connectors through Kafka Connect REST and
+`workerTest` builds a test-only worker image with an explicit Java 21 runtime;
+`workerImageTest` uses the unmodified Confluent image and its bundled Java runtime.
+Both install the generated Confluent Hub ZIP with `confluent-hub install`, verify the
+running Connect process's Java executable, check that base classes in the
+shaded connector and its dependencies target Java 17 or earlier, check ServiceLoader-only
+plugin discovery, and exercise all three connectors through Kafka Connect REST and
 Kafka producers/consumers. It covers task restart, broker and Redis server restarts, stream task scale-down,
 and keys-source recovery after a notification gap. It requires broker port 19093;
 the cluster integration fixture also requires ports 17000–17003. Image overrides use
-`-PconfluentVersion` and the Redis properties above. `check` and `build` include this task.
+`-PconfluentVersion` and the Redis properties above. `check` and `build` include both tasks. CI runs both worker profiles in addition to the
+Java 17, 21, and 25 task-runtime matrix.
+
+A released-archive upgrade and rollback check is available on Java 21:
+
+[source,console]
+----
+./gradlew workerTest -PtestJavaVersion=21 -PpreviousConnectorArchive=/absolute/path/to/redis-redis-kafka-connect-1.1.0.zip
+----
+
+It retains connector names, Kafka configuration/offset topics, and Redis state across
+1.1.0 -> candidate -> 1.1.0. The legacy keys reader uses `batch.size=1` to return sparse
+live updates, and stream pending work is drained before rollback.
 
 See the guide's migration section before replacing an existing installation.
 Schemas and sink offset JSON remain unchanged. Stream checkpoints now use a partition
@@ -116,3 +132,11 @@ git clone {project-url}
 cd {project-name}
 ./run.sh
 ----
+
+== Releasing
+
+See {project-url}/blob/master/docs/guide/src/docs/asciidoc/release.adoc[Release qualification and publication]
+for the tested matrix, artifact security gate, canonical Hub identity, and publication steps.
+It is also included as `doc/RELEASE.adoc` in the Hub ZIP.
+The stable release workflow requires an explicit version such as `1.2.0` and the `master` branch.
+It scans the exact ZIP before publication and includes an SBOM and vulnerability report in the release.

@@ -24,3 +24,6 @@ dump.rdb
 .DS_Store
 /out/
 *.dylib
+
+# Local release-audit Python cache
+/config/testing/__pycache__/

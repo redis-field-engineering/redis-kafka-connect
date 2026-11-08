@@ -22,6 +22,12 @@ require `redis.cluster=false`; cluster configurations requesting either fail val
 startup. Cluster writes use Lettuce routing and redirect handling directly. The connector does
 not split transactions by slot or issue replication waits per primary. A sharded Enterprise
 proxy must support any requested transaction itself.
+Standalone transaction and replication-wait writes use a dedicated client with automatic
+reconnect disabled. A lost connection fails the batch instead of replaying part of a
+transaction or issuing WAIT on a different physical connection. The failed pooled
+connection is discarded; Connect retries the complete batch with a new connection.
+A lost EXEC reply can still leave an uncertain outcome, so replay can duplicate
+non-idempotent operations. Checkpoint connections retain automatic reconnect.
 
 Stream checkpoint source partitions now include stream, group, and consumer. The old
 empty partition is read when a scoped checkpoint is absent, so existing starting
@@ -70,8 +76,11 @@ and the original Enterprise 7.4 OSS Cluster API fixture
 on Java 17, 21, and 25. Additional OSS cases cover nontransactional pipelines, ASK redirects during slot migration,
 and an offline replica. Standalone cases cover transaction isolation and replication-wait failures. Enterprise
 replication and multi-host failover are outside this fixture matrix. The build targets Java 17 bytecode. `workerTest`
-qualifies the shaded distribution in Confluent Platform 8.3.2 on Java 21 against
-Redis Enterprise 8.2. These are tested combinations, not a separate support-policy promise.
+installs the Confluent Hub ZIP with the real Hub CLI and qualifies it in Confluent Platform 8.3.2 on Java 21 against
+Redis Enterprise 8.2. `workerImageTest` repeats qualification using the unmodified
+Confluent image and its bundled Java runtime. Both check the running Connect process's
+Java executable and verify that base classes in the shaded artifact target Java 17 or earlier.
+These are tested combinations, not a separate support-policy promise.
 
 Validate a canary connector with representative data and failure/restart scenarios
 before replacing the wider deployment. Keep its connector name, sink namespace, stream

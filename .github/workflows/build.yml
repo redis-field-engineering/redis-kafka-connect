@@ -61,7 +61,7 @@ jobs:
       package-gradle-tasks: ${{ matrix.test-java == '21' && (inputs.package-gradle-tasks || '--parallel assemble') || '' }}
 
   worker:
-    name: Confluent 8.3 / Java 21
+    name: Confluent 8.3 / Java 21 and bundled runtime
     uses: redis/github-workflows/.github/workflows/build.yml@main
     with:
       split-jobs: true
@@ -70,5 +70,5 @@ jobs:
         27
       lint-gradle-tasks: ''
       test-gradle-tasks: ''
-      integration-gradle-tasks: 'workerTest -PtestJavaVersion=21'
+      integration-gradle-tasks: 'workerTest workerImageTest -PtestJavaVersion=21'
       package-gradle-tasks: ''

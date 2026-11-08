@@ -783,6 +783,9 @@ abstract class AbstractSinkIntegrationTests extends AbstractRedisIntegrationTest
         Assertions.assertThrows(DataException.class, () -> task.put(List.of(valid, invalid)));
         assertEquals(0, redisConnection.sync().exists("valid"));
         assertEquals(0, redisConnection.sync().exists("bad"));
+        if (type == RedisType.STREAM) {
+            assertEquals(0, redisConnection.sync().exists(""), "STREAM writes target the collection keyspace");
+        }
     }
 
     @Test
