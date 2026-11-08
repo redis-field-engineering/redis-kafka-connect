@@ -35,7 +35,7 @@ public class ToStructFunction implements Function<KeySnapshot, Struct> {
 
 	public static final Schema TTL_SCHEMA = Schema.OPTIONAL_INT64_SCHEMA;
 
-	public static final Schema TYPE_SCHEMA = Schema.STRING_SCHEMA;
+	public static final Schema TYPE_SCHEMA = Schema.OPTIONAL_STRING_SCHEMA;
 
 	public static final String VALUE_SCHEMA_NAME = "com.redis.kafka.connect.keys.Value";
 
