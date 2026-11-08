@@ -332,12 +332,12 @@ fails before any commands in that batch are sent. Server errors and partial fail
 still occur after some commands have executed; replay can duplicate list entries, stream
 messages, or other non-idempotent operations. Delivery remains at least once.
 
-`redis.multiexec=true` keeps one transaction per batch on standalone Redis, preserving
-atomic execution across its keys. Cluster clients group commands by hash slot on physical
-primary connections; those batches are not atomic across slots. For a sharded Enterprise
-proxy with `redis.cluster=false`, set `redis.multiexec.keyslot=true` to use per-slot transactions.
-The new option defaults to `false`; it has no effect when `redis.multiexec=false`.
-`redis.wait.replicas` waits on each primary connection after its writes and fails the batch
-if the configured acknowledgment target is not reached. WAIT is not a guarantee against
-all failover data loss. Offset keys are persisted after successful writes and keep their
-existing namespace and JSON format.
+`redis.multiexec=true` keeps one transaction per batch with `redis.cluster=false`, preserving
+atomic execution across its keys on standalone Redis. `redis.wait.replicas` waits for
+replication on that connection after its writes and fails the batch if the configured
+acknowledgment target is not reached. WAIT is not a guarantee against all failover data loss.
+Both transactions and WAIT are rejected when `redis.cluster=true`. Cluster writes use
+Lettuce's asynchronous routing, pipelining, and redirect handling without per-slot transactions
+or per-primary replication waits. Sharded Enterprise proxies must support the requested
+transaction themselves; the connector does not split transactions across shards.
+Offset keys are persisted after successful writes and keep their existing namespace and JSON format.

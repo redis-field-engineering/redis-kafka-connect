@@ -726,38 +726,13 @@ abstract class AbstractSinkIntegrationTests extends AbstractRedisIntegrationTest
     }
 
     @Test
-    void transactionCommandErrorsArePropagated() {
+    void commandErrorsArePropagated() {
         startSinkTask(Map.of(RedisSinkConfigDef.URI_CONFIG, getRedisServer().getRedisURI(),
-                RedisSinkConfigDef.TYPE_CONFIG, "LIST", RedisSinkConfigDef.KEYSPACE_CONFIG, "wrongtype",
-                RedisSinkConfigDef.MULTIEXEC_CONFIG, "true"));
+                RedisSinkConfigDef.TYPE_CONFIG, "LIST", RedisSinkConfigDef.KEYSPACE_CONFIG, "wrongtype"));
         redisConnection.sync().set("wrongtype", "string");
         SinkRecord record = new SinkRecord("topic", 0, Schema.STRING_SCHEMA, "member", Schema.STRING_SCHEMA, "value", 0);
         Assertions.assertThrows(ConnectException.class, () -> task.put(List.of(record)));
         assertEquals("string", redisConnection.sync().get("wrongtype"));
-    }
-
-    @Test
-    void transactionalBatchSpansKeysOnDifferentShards() {
-        List<String> topics = List.of("txtopic1", "txtopic2", "txtopic3", "txtopic4", "txtopic5", "txtopic6");
-        List<SinkRecord> records = new ArrayList<>();
-        for (String topic : topics) {
-            records.add(write(topic, new SchemaAndValue(Schema.STRING_SCHEMA, "member"),
-                    new SchemaAndValue(Schema.STRING_SCHEMA, "member")));
-        }
-        put(topics.get(0), RedisType.LIST, records, RedisSinkConfigDef.MULTIEXEC_CONFIG, "true");
-        for (String topic : topics) {
-            assertEquals(List.of("member"), redisConnection.sync().lrange(topic, 0, -1));
-        }
-    }
-
-    @Test
-    void replicationTargetMustBeAcknowledged() {
-        startSinkTask(Map.of(RedisSinkConfigDef.URI_CONFIG, getRedisServer().getRedisURI(),
-                RedisSinkConfigDef.TYPE_CONFIG, "STRING", RedisSinkConfigDef.KEYSPACE_CONFIG, "",
-                RedisSinkConfigDef.WAIT_REPLICAS_CONFIG, "1", RedisSinkConfigDef.WAIT_TIMEOUT_CONFIG, "10"));
-        SinkRecord record = new SinkRecord("topic", 0, Schema.STRING_SCHEMA, "key", Schema.STRING_SCHEMA, "value", 0);
-        Assertions.assertThrows(RetriableException.class, () -> task.put(List.of(record)));
-        Assertions.assertNull(redisConnection.sync().get(offsetKey("default", new TopicPartition("topic", 0))));
     }
 
     @Test

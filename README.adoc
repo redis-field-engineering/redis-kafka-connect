@@ -56,9 +56,9 @@ The same source and sink contracts run against every deployment profile:
 Fixtures assert the actual Enterprise database configuration and complete cluster slot
 coverage. Enterprise runs on one node and may advertise a proxy endpoint for multiple
 shards. OSS cluster servers share one test container; additional cases attach a replica
-and verify nontransactional/transactional pipelines, a successful `WAIT` on a non-seed
-primary, and keys-source operation with that replica offline. These fixtures do not
-qualify multi-host failover or Enterprise replication.
+and verify nontransactional pipelines, ASK redirects during slot migration, and keys-source
+operation with that replica offline. Standalone tests cover transactions and replication waits.
+These fixtures do not qualify multi-host failover or Enterprise replication.
 
 Redis 8 includes JSON, Search, and TimeSeries. The same source and sink contracts also run
 against the Redis Stack 7.2.0-v13 and Enterprise 7.4.6-102 fixtures used by version 1.1.0.

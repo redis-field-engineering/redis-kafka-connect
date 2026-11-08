@@ -28,7 +28,6 @@ import io.lettuce.core.RedisCommandTimeoutException;
 import io.lettuce.core.RedisConnectionException;
 import io.lettuce.core.RedisException;
 import io.lettuce.core.api.sync.RedisStringCommands;
-import io.lettuce.core.cluster.RedisClusterClient;
 import io.lettuce.core.codec.StringCodec;
 import io.lettuce.core.protocol.CommandType;
 import io.lettuce.core.protocol.ProtocolKeyword;
@@ -444,9 +443,6 @@ public class RedisSinkTask extends SinkTask {
     private ConnectException commandFailure(RedisCommandExecutionException e) {
         String message = e.getMessage();
         if (message != null && (message.startsWith("MOVED") || message.startsWith("ASK"))) {
-            if (client instanceof RedisClusterClient cluster) {
-                cluster.refreshPartitionsAsync();
-            }
             return new RetriableException("Redis cluster slot ownership changed", e);
         }
         if (message != null && (message.startsWith("READONLY") || message.startsWith("LOADING")
