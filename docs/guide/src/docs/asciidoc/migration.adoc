@@ -71,7 +71,10 @@ on Java 17, 21, and 25. Additional OSS cases cover nontransactional pipelines, A
 and an offline replica. Standalone cases cover transaction isolation and replication-wait failures. Enterprise
 replication and multi-host failover are outside this fixture matrix. The build targets Java 17 bytecode. `workerTest`
 qualifies the shaded distribution in Confluent Platform 8.3.2 on Java 21 against
-Redis Enterprise 8.2. These are tested combinations, not a separate support-policy promise.
+Redis Enterprise 8.2. `workerImageTest` repeats qualification using the unmodified
+Confluent image and its bundled Java runtime. Both check the running Connect process's
+Java executable and verify that base classes in the shaded artifact target Java 17 or earlier.
+These are tested combinations, not a separate support-policy promise.
 
 Validate a canary connector with representative data and failure/restart scenarios
 before replacing the wider deployment. Keep its connector name, sink namespace, stream

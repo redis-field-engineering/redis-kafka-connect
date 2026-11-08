@@ -131,20 +131,29 @@ tasks.named('build') {
     finalizedBy createConfluentArchive
 }
 
-// A separate task keeps the packaged Java 21 worker qualification out of each task-runtime matrix cell.
-tasks.register('workerTest', Test) {
-    description = 'Runs the packaged connector in Confluent Platform 8.3 on Java 21 against Redis Enterprise 8.'
-    group = 'verification'
-    testClassesDirs = sourceSets.integrationTest.output.classesDirs
-    classpath = sourceSets.integrationTest.runtimeClasspath
-    include '**/ConfluentWorkerIntegrationTests.class'
-    dependsOn tasks.named('shadowJar')
-    shouldRunAfter tasks.named('integrationTest')
-    systemProperty 'connector.plugin.jar', tasks.named('shadowJar').flatMap { it.archiveFile }.get().asFile.absolutePath
-    systemProperty 'connector.worker.dockerfile', rootProject.file('config/testing/worker.Dockerfile').absolutePath
-    systemProperty 'confluent.version', providers.gradleProperty('confluentVersion').orElse('8.3.2').get()
+// Keep packaged-worker qualification separate from the task-runtime matrix.
+['workerTest', 'workerImageTest'].each { taskName ->
+    tasks.register(taskName, Test) {
+        description = taskName == 'workerTest'
+                ? 'Runs the packaged connector in Confluent Platform on an explicit Java 21 runtime.'
+                : 'Runs the packaged connector in the unmodified Confluent Platform image with its bundled Java runtime.'
+        group = 'verification'
+        testClassesDirs = sourceSets.integrationTest.output.classesDirs
+        classpath = sourceSets.integrationTest.runtimeClasspath
+        include '**/ConfluentWorkerIntegrationTests.class'
+        dependsOn tasks.named('shadowJar')
+        shouldRunAfter tasks.named('integrationTest')
+        systemProperty 'connector.plugin.jar', tasks.named('shadowJar').flatMap { it.archiveFile }.get().asFile.absolutePath
+        systemProperty 'connector.worker.dockerfile', rootProject.file('config/testing/worker.Dockerfile').absolutePath
+        systemProperty 'connector.worker.native', Boolean.toString(taskName == 'workerImageTest')
+        systemProperty 'confluent.version', providers.gradleProperty('confluentVersion').orElse('8.3.2').get()
+    }
+}
+
+tasks.named('workerImageTest') {
+    mustRunAfter tasks.named('workerTest')
 }
 
 tasks.named('check') {
-    dependsOn tasks.named('workerTest')
+    dependsOn tasks.named('workerTest'), tasks.named('workerImageTest')
 }

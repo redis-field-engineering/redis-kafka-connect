@@ -33,6 +33,7 @@ import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.Struct;
+import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.sink.SinkRecord;
 import org.apache.kafka.connect.source.SourceRecord;
 import org.junit.jupiter.api.AfterAll;
@@ -195,6 +196,70 @@ class RedisClusterIntegrationTests {
                         "--protected-mode", "no", "--daemonize", "yes").getExitCode());
             }
         }
+    }
+
+    @Test
+    void changedPrimarySetFailsReaderAndRestartRebuildsSnapshotAndSubscriptions() throws Exception {
+        String key = "{a}:promoted";
+        int originalPrimary = client.getPartitions().getPartitionBySlot(SlotHash.getSlot(key)).getUri().getPort();
+        assertNotEquals(17003, originalPrimary);
+        RedisKeysSourceConfig config = new RedisKeysSourceConfig(Map.of("redis.uri", uri(), "redis.cluster", "true",
+                "redis.keys.pattern", "{a}:*", "redis.keys.timeout", "100"));
+        try {
+            awaitReplicaReady(17003);
+            // Notification configuration is node-local and is not copied from the primary.
+            assertEquals("OK", container.execInContainer("redis-cli", "-p", "17003", "config", "set",
+                    "notify-keyspace-events", "KEA").getStdout().trim());
+            try (RedisKeyReader reader = new RedisKeyReader(client, config)) {
+                reader.open();
+                assertEquals("OK", container.execInContainer("redis-cli", "-p", "17003", "cluster", "failover")
+                        .getStdout().trim());
+                awaitPrimaryOwner(key, 17003);
+                ConnectException error = assertThrows(ConnectException.class, reader::poll);
+                assertTrue(error.getMessage().contains("primaries changed"), error.getMessage());
+                connection.sync().set(key, "snapshot-after-promotion");
+            }
+            // Reopening uses the new primary set, scans its existing keys, and subscribes there.
+            try (RedisKeyReader restarted = new RedisKeyReader(client, config)) {
+                restarted.open();
+                List<KeySnapshot> records = new ArrayList<>();
+                await().atMost(Duration.ofSeconds(10)).until(() -> {
+                    records.addAll(restarted.poll());
+                    return records.contains(new KeySnapshot(key, -1L, "string", "snapshot-after-promotion"));
+                });
+                await().atMost(Duration.ofSeconds(10)).until(() -> restarted.poll().isEmpty());
+                records.clear();
+                connection.sync().set(key, "live-after-promotion");
+                await().atMost(Duration.ofSeconds(10)).until(() -> {
+                    records.addAll(restarted.poll());
+                    return records.contains(new KeySnapshot(key, -1L, "string", "live-after-promotion"));
+                });
+            }
+        } finally {
+            // Restore the replica layout used by the other tests, regardless of execution order.
+            client.reloadPartitions();
+            if (client.getPartitions().getPartitionBySlot(SlotHash.getSlot(key)).getUri().getPort() == 17003) {
+                awaitReplicaReady(originalPrimary);
+                // Restore deterministically without a second coordinated election racing the first one's gossip.
+                assertEquals("OK", container.execInContainer("redis-cli", "-p", Integer.toString(originalPrimary),
+                        "cluster", "failover", "takeover").getStdout().trim());
+                awaitPrimaryOwner(key, originalPrimary);
+            }
+            awaitReplicaReady(17003);
+        }
+    }
+
+    private void awaitReplicaReady(int port) {
+        await().atMost(Duration.ofSeconds(30)).until(() -> container.execInContainer("redis-cli", "-p", Integer.toString(port),
+                "info", "replication").getStdout().contains("master_link_status:up"));
+    }
+
+    private void awaitPrimaryOwner(String key, int port) {
+        await().atMost(Duration.ofSeconds(30)).until(() -> {
+            client.reloadPartitions();
+            return client.getPartitions().getPartitionBySlot(SlotHash.getSlot(key)).getUri().getPort() == port
+                    && client.getPartitions().stream().filter(node -> node.is(RedisClusterNode.NodeFlag.UPSTREAM)).count() == 3;
+        });
     }
 
     @Test

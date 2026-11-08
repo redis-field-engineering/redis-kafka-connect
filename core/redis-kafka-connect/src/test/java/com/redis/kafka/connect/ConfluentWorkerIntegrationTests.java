@@ -3,7 +3,11 @@ package com.redis.kafka.connect;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.redis.testcontainers.RedisServer;
+import io.lettuce.core.Consumer;
 import io.lettuce.core.KillArgs;
+import io.lettuce.core.XReadArgs;
+import io.lettuce.core.XReadArgs.StreamOffset;
+import java.io.DataInputStream;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -15,6 +19,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.jar.JarEntry;
+import java.util.jar.JarFile;
 import org.apache.kafka.clients.admin.Admin;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
@@ -36,6 +42,8 @@ import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.images.builder.ImageFromDockerfile;
 import org.testcontainers.kafka.ConfluentKafkaContainer;
 import org.testcontainers.utility.MountableFile;
+import org.testcontainers.utility.DockerImageName;
+import org.testcontainers.containers.Container.ExecResult;
 import static org.junit.jupiter.api.Assertions.*;
 
 /** Black-box qualification of the shaded distribution and real Connect callback/offset lifecycle. */
@@ -65,7 +73,11 @@ class ConfluentWorkerIntegrationTests extends AbstractRedisIntegrationTests {
         ImageFromDockerfile image = new ImageFromDockerfile()
                 .withFileFromPath("Dockerfile", Path.of(System.getProperty("connector.worker.dockerfile")))
                 .withBuildArg("CONFLUENT_VERSION", version);
-        worker = new GenericContainer<>(image).withNetwork(network).withExposedPorts(8083)
+        boolean nativeRuntime = Boolean.getBoolean("connector.worker.native");
+        worker = nativeRuntime
+                ? new GenericContainer<>(DockerImageName.parse("confluentinc/cp-kafka-connect:" + version))
+                : new GenericContainer<>(image);
+        worker.withNetwork(network).withExposedPorts(8083)
                 .withEnv("CONNECT_BOOTSTRAP_SERVERS", "broker:19092")
                 .withEnv("CONNECT_REST_ADVERTISED_HOST_NAME", "worker")
                 .withEnv("CONNECT_GROUP_ID", "redis-connector-tests")
@@ -89,8 +101,27 @@ class ConfluentWorkerIntegrationTests extends AbstractRedisIntegrationTests {
                 .waitingFor(Wait.forHttp("/connector-plugins").forPort(8083))
                 .withStartupTimeout(Duration.ofMinutes(3));
         worker.start();
-        String java = worker.execInContainer("java", "-version").getStderr();
-        assertTrue(java.contains("version \"21."), java);
+        // Check the executable of ConnectDistributed itself, rather than the shell's PATH.
+        ExecResult runtime = worker.execInContainer("sh", "-ec", """
+                for proc in /proc/[0-9]*; do
+                    case "$(readlink "$proc/exe" 2>/dev/null || true)" in
+                        */java)
+                            if tr '\\000' ' ' < "$proc/cmdline" | grep -q 'org.apache.kafka.connect.cli.ConnectDistributed'; then
+                                exec "$proc/exe" -version
+                            fi
+                            ;;
+                    esac
+                done
+                exit 1
+                """);
+        assertEquals(0, runtime.getExitCode(), runtime.getStderr());
+        String java = runtime.getStderr();
+        int javaFeature = Runtime.Version.parse(java.split("\"")[1]).feature();
+        assertTrue(javaFeature >= 17, java);
+        if (!nativeRuntime) {
+            assertEquals(21, javaFeature, java);
+        }
+        System.out.println("Confluent " + version + " Connect process runtime: " + java);
         JsonNode plugins = request("GET", "/connector-plugins", null);
         for (String connector : List.of("RedisSinkConnector", "RedisStreamSourceConnector", "RedisKeysSourceConnector")) {
             assertTrue(plugins.toString().contains("com.redis.kafka.connect." + connector), plugins.toString());
@@ -116,6 +147,23 @@ class ConfluentWorkerIntegrationTests extends AbstractRedisIntegrationTests {
             } finally {
                 if (network != null) {
                     network.close();
+                }
+            }
+        }
+    }
+
+    @Test
+    void packagedBaseClassesAreCompatibleWithJava17() throws Exception {
+        try (JarFile jar = new JarFile(System.getProperty("connector.plugin.jar"))) {
+            List<JarEntry> classes = jar.stream().filter(entry -> entry.getName().endsWith(".class")
+                    && !entry.getName().startsWith("META-INF/versions/")).toList();
+            assertFalse(classes.isEmpty(), "packaged connector must contain classes");
+            for (JarEntry entry : classes) {
+                try (DataInputStream bytecode = new DataInputStream(jar.getInputStream(entry))) {
+                    assertEquals(0xCAFEBABE, bytecode.readInt(), entry.getName());
+                    bytecode.readUnsignedShort(); // minor version
+                    int major = bytecode.readUnsignedShort();
+                    assertTrue(major <= 61, entry.getName() + " requires class version " + major + ", above Java 17");
                 }
             }
         }
@@ -178,8 +226,43 @@ class ConfluentWorkerIntegrationTests extends AbstractRedisIntegrationTests {
             List<ConsumerRecord<String, String>> records = receive(consumer, 6);
             assertTrue(records.stream().map(ConsumerRecord::key).toList().containsAll(ids));
             awaitUntil(() -> redisConnection.sync().xpending(name, "kafka-consumer-group").getCount() == 0);
+            // Connect defers task reconfiguration while paused. STOPPED removes both
+            // tasks before resuming with one, so the removed consumer cannot recover its own PEL.
+            request("PUT", "/connectors/" + name + "/stop", null);
+            Awaitility.await().atMost(Duration.ofSeconds(20)).until(() -> {
+                JsonNode status = request("GET", "/connectors/" + name + "/status", null);
+                return "STOPPED".equals(status.get("connector").get("state").asText())
+                        && status.get("tasks").isEmpty();
+            });
+            // Leave work owned by the consumer that tasks.max=1 will remove. No worker
+            // delivery callback exists for this entry, so an offset flush cannot acknowledge it.
+            String abandoned = redisConnection.sync().xadd(name, Map.of("value", "abandoned"));
+            assertEquals(List.of(abandoned), redisConnection.sync().xreadgroup(
+                    Consumer.from("kafka-consumer-group", "consumer-1"), XReadArgs.Builder.count(1),
+                    StreamOffset.lastConsumed(name)).stream().map(message -> message.getId()).toList());
+            assertEquals(1, redisConnection.sync().xpending(name, "kafka-consumer-group").getCount());
             config.put("tasks.max", "1");
-            putConnector(name, config, 1);
+            request("PUT", "/connectors/" + name + "/config", config);
+            Awaitility.await().atMost(Duration.ofSeconds(20)).until(() -> {
+                JsonNode status = request("GET", "/connectors/" + name + "/status", null);
+                return "STOPPED".equals(status.get("connector").get("state").asText())
+                        && status.get("tasks").isEmpty()
+                        && "1".equals(request("GET", "/connectors/" + name + "/config", null).get("tasks.max").asText());
+            });
+            request("PUT", "/connectors/" + name + "/resume", null);
+            running(name, 1);
+            List<ConsumerRecord<String, String>> reclaimed = new ArrayList<>();
+            Awaitility.await().atMost(Duration.ofSeconds(40)).until(() -> {
+                consumer.poll(Duration.ofMillis(200)).forEach(reclaimed::add);
+                for (ConsumerRecord<String, String> record : reclaimed) {
+                    if (abandoned.equals(record.key())) {
+                        assertEquals("abandoned", json.readTree(record.value()).get("body").get("value").asText());
+                        return true;
+                    }
+                }
+                return false;
+            });
+            awaitUntil(() -> redisConnection.sync().xpending(name, "kafka-consumer-group").getCount() == 0);
             String after = redisConnection.sync().xadd(name, Map.of("value", "after"));
             Awaitility.await().atMost(Duration.ofSeconds(30)).until(() -> {
                 for (ConsumerRecord<String, String> record : consumer.poll(Duration.ofMillis(200))) {
@@ -242,14 +325,25 @@ class ConfluentWorkerIntegrationTests extends AbstractRedisIntegrationTests {
         config.put("value.converter", "org.apache.kafka.connect.storage.StringConverter");
         putConnector(name, config, 1);
         KafkaProducer<String, String> producer = producer();
+        boolean redisStopped = false;
         try {
             send(producer, name, "before");
             Awaitility.await().atMost(Duration.ofSeconds(30)).until(() ->
                     "value".equals(redisConnection.sync().get(name + ":before")));
             awaitSinkOffset(name, 1);
             redisConnection.setTimeout(Duration.ofSeconds(1));
-            redis.getDockerClient().restartContainerCmd(redis.getContainerId()).withTimeout(10).exec();
+            redis.getDockerClient().stopContainerCmd(redis.getContainerId()).withTimeout(10).exec();
+            redisStopped = true;
+            int logStart = worker.getLogs().length();
             send(producer, name, "after");
+            Awaitility.await().atMost(Duration.ofSeconds(30)).until(() -> {
+                String logs = worker.getLogs().substring(logStart);
+                return logs.contains("Could not get connection to Redis")
+                        || logs.contains("Timeout while writing sink records")
+                        || logs.contains("Could not write sink records");
+            });
+            redis.getDockerClient().startContainerCmd(redis.getContainerId()).exec();
+            redisStopped = false;
             Awaitility.await().atMost(Duration.ofMinutes(2)).ignoreExceptions().until(() ->
                     "PONG".equals(redisConnection.sync().ping()));
             Awaitility.await().atMost(Duration.ofSeconds(45)).ignoreExceptions().until(() ->
@@ -257,6 +351,9 @@ class ConfluentWorkerIntegrationTests extends AbstractRedisIntegrationTests {
             running(name, 1);
             awaitSinkOffset(name, 2);
         } finally {
+            if (redisStopped) {
+                redis.getDockerClient().startContainerCmd(redis.getContainerId()).exec();
+            }
             producer.close(Duration.ofSeconds(5));
             request("DELETE", "/connectors/" + name, null);
             redisConnection.setTimeout(Duration.ofSeconds(60));
