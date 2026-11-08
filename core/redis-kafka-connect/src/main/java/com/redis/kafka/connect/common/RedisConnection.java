@@ -64,7 +64,7 @@ public final class RedisConnection<K, V> implements AutoCloseable {
         return connection;
     }
 
-    public String nodeIdForSlot(int slot) {
+    private String nodeIdForSlot(int slot) {
         if (connection instanceof StatefulRedisClusterConnection<?, ?> cluster) {
             RedisClusterNode node = cluster.getPartitions().getPartitionBySlot(slot);
             if (node == null) {

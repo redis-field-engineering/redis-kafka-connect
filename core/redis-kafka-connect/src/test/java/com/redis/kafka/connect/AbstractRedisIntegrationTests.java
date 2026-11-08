@@ -46,9 +46,6 @@ abstract class AbstractRedisIntegrationTests {
         Map<String, String> result = new LinkedHashMap<>(props);
         result.put("redis.uri", getRedisServer().getRedisURI());
         result.put("redis.cluster", Boolean.toString(getRedisServer().isRedisCluster()));
-        if (getRedisServer() instanceof RedisEnterprise8Container && !getRedisServer().isRedisCluster()) {
-            result.put("redis.multiexec.keyslot", "true");
-        }
         return result;
     }
 

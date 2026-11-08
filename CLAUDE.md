@@ -164,10 +164,11 @@ The project uses JReleaser for release management:
 ## Runtime ownership and compatibility
 
 Each task owns its Lettuce client and connections. The sink validates commands before
-sending a batch, awaits all pipeline results, and uses a physical primary connection
-for each cluster slot's transaction and WAIT. Standalone Redis retains one transaction per
-batch; cluster clients split by slot. Sharded Enterprise proxies use the explicit
-`redis.multiexec.keyslot=true` option to split transactions without changing standalone defaults.
+sending a batch and awaits all pipeline results. Cluster writes use Lettuce's cluster API
+for routing, pipelining, and redirects with automatic flushing enabled. Transactions and
+WAIT require `redis.cluster=false`; reject cluster configurations requesting either.
+Standalone Redis retains one transaction per batch. The connector does not split
+transactions by slot or issue replication waits per primary.
 
 Stream checkpoints use stream/group/consumer source partitions with the existing
 `offset` field. Legacy empty-partition checkpoints are read for group initialization;

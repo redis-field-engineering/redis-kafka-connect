@@ -40,18 +40,13 @@ public class RedisSinkConfigDef extends RedisConfigDef {
 
 	public static final String MULTIEXEC_DEFAULT = "false";
 
-	public static final String MULTIEXEC_DOC = "Whether to execute Redis commands in multi/exec transactions.";
-
-	public static final String MULTIEXEC_KEYSLOT_CONFIG = "redis.multiexec.keyslot";
-
-	private static final String MULTIEXEC_KEYSLOT_DOC = "Split transactions by hash slot for a sharded Redis Enterprise proxy. "
-			+ "Cluster clients always split by slot; standalone clients otherwise keep one transaction per batch.";
+	public static final String MULTIEXEC_DOC = "Whether to execute Redis commands in multi/exec transactions. Requires redis.cluster=false.";
 
 	public static final String WAIT_REPLICAS_CONFIG = "redis.wait.replicas";
 
 	public static final String WAIT_REPLICAS_DEFAULT = "0";
 
-	public static final String WAIT_REPLICAS_DOC = "Number of replicas to wait for. Use 0 to disable waiting for replicas.";
+	public static final String WAIT_REPLICAS_DOC = "Number of replicas to wait for. Use 0 to disable waiting for replicas. Requires redis.cluster=false.";
 
 	public static final String WAIT_TIMEOUT_CONFIG = "redis.wait.timeout";
 
@@ -96,7 +91,6 @@ public class RedisSinkConfigDef extends RedisConfigDef {
 		define(KEYSPACE_CONFIG, Type.STRING, KEYSPACE_DEFAULT, Importance.MEDIUM, KEYSPACE_DOC);
 		define(SEPARATOR_CONFIG, Type.STRING, SEPARATOR_DEFAULT, Importance.MEDIUM, SEPARATOR_DOC);
 		define(MULTIEXEC_CONFIG, Type.BOOLEAN, MULTIEXEC_DEFAULT, Importance.MEDIUM, MULTIEXEC_DOC);
-		define(MULTIEXEC_KEYSLOT_CONFIG, Type.BOOLEAN, false, Importance.MEDIUM, MULTIEXEC_KEYSLOT_DOC);
 		define(WAIT_REPLICAS_CONFIG, Type.INT, WAIT_REPLICAS_DEFAULT, Range.atLeast(0), Importance.MEDIUM, WAIT_REPLICAS_DOC);
 		define(WAIT_TIMEOUT_CONFIG, Type.LONG, WAIT_TIMEOUT_DEFAULT, Range.atLeast(0), Importance.MEDIUM, WAIT_TIMEOUT_DOC);
 		define(KEY_TTL_CONFIG, Type.LONG, KEY_TTL_CONFIG_DEFAULT, Range.atLeast(-1), Importance.MEDIUM, KEY_TTL_CONFIG_DOC);
@@ -108,6 +102,14 @@ public class RedisSinkConfigDef extends RedisConfigDef {
 		Map<String, ConfigValue> results = super.validateAll(props);
 		if (results.values().stream().map(ConfigValue::errorMessages).anyMatch(l -> !l.isEmpty())) {
 			return results;
+		}
+		if (Boolean.TRUE.equals(results.get(CLUSTER_CONFIG).value())) {
+			if (Boolean.TRUE.equals(results.get(MULTIEXEC_CONFIG).value())) {
+				results.get(MULTIEXEC_CONFIG).addErrorMessage("Transactions require redis.cluster=false");
+			}
+			if ((Integer) results.get(WAIT_REPLICAS_CONFIG).value() > 0) {
+				results.get(WAIT_REPLICAS_CONFIG).addErrorMessage("WAIT requires redis.cluster=false");
+			}
 		}
 		RedisType command = redisCommand(props);
 		String multiexec = props.getOrDefault(MULTIEXEC_CONFIG, MULTIEXEC_DEFAULT).trim();

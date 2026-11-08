@@ -6,8 +6,6 @@ import com.redis.kafka.connect.source.KeySnapshot;
 import com.redis.kafka.connect.source.RedisKeyReader;
 import com.redis.kafka.connect.source.RedisKeysSourceConfig;
 import com.redis.kafka.connect.source.RedisKeysSourceTask;
-import io.lettuce.core.RedisClient;
-import io.lettuce.core.api.StatefulRedisConnection;
 import io.lettuce.core.cluster.RedisClusterClient;
 import io.lettuce.core.cluster.SlotHash;
 import io.lettuce.core.cluster.api.StatefulRedisClusterConnection;
@@ -42,8 +40,6 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
 import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -107,13 +103,12 @@ class RedisClusterIntegrationTests {
         }
     }
 
-    @ParameterizedTest
-    @ValueSource(booleans = {false, true})
-    void sinkRoutesTransactionsAndTtlsAcrossSlots(boolean transaction) {
+    @Test
+    void sinkRoutesPipelineAndTtlsAcrossSlots() {
         RedisSinkTask sink = new RedisSinkTask();
         try {
             sink.start(Map.of("redis.uri", uri(), "redis.cluster", "true", "redis.type", "LIST",
-                    "redis.keyspace", "${topic}", "redis.multiexec", Boolean.toString(transaction), "redis.key.ttl", "3600"));
+                    "redis.keyspace", "${topic}", "redis.key.ttl", "3600"));
             List<SinkRecord> records = List.of(
                     new SinkRecord("list-a", 0, Schema.STRING_SCHEMA, "first", Schema.STRING_SCHEMA, "value", 0),
                     new SinkRecord("list-b", 0, Schema.STRING_SCHEMA, "other", Schema.STRING_SCHEMA, "value", 0),
@@ -133,26 +128,34 @@ class RedisClusterIntegrationTests {
     }
 
     @Test
-    void waitAcknowledgesWritesOnTheNonSeedPrimary() throws Exception {
-        await().atMost(Duration.ofSeconds(20)).until(() -> container.execInContainer("redis-cli", "-p", "17003",
-                "info", "replication").getStdout().contains("master_link_status:up"));
-        String key = "{a}:replicated";
-        assertNotEquals(17000, client.getPartitions().getPartitionBySlot(SlotHash.getSlot(key))
-                .getUri().getPort());
+    void sinkFollowsAskRedirectDuringSlotMigration() {
+        String key = "{migration}:sink";
+        int slot = SlotHash.getSlot(key);
+        String owner = client.getPartitions().getPartitionBySlot(slot).getNodeId();
+        String target = client.getPartitions().stream()
+                .filter(node -> node.is(RedisClusterNode.NodeFlag.UPSTREAM) && !node.getNodeId().equals(owner))
+                .findFirst().orElseThrow().getNodeId();
         RedisSinkTask sink = new RedisSinkTask();
         try {
+            connection.getConnection(target).sync().clusterSetSlotImporting(slot, owner);
+            connection.getConnection(owner).sync().clusterSetSlotMigrating(slot, target);
             sink.start(Map.of("redis.uri", uri(), "redis.cluster", "true", "redis.type", "STRING",
-                    "redis.keyspace", "", "redis.wait.replicas", "1", "redis.wait.timeout", "2000"));
-            sink.put(List.of(new SinkRecord("replicated", 0, Schema.STRING_SCHEMA, key,
-                    Schema.STRING_SCHEMA, "replicated-value", 0)));
-            assertEquals("replicated-value", connection.sync().get(key));
-            try (RedisClient replica = RedisClient.create("redis://" + container.getHost() + ":17003");
-                    StatefulRedisConnection<String, String> replicated = replica.connect()) {
-                replicated.sync().readOnly();
-                assertEquals("replicated-value", replicated.sync().get(key));
-            }
+                    "redis.keyspace", "", "redis.key.ttl", "3600"));
+            sink.put(List.of(new SinkRecord("migration", 0, Schema.STRING_SCHEMA, key,
+                    Schema.STRING_SCHEMA, "redirected", 0)));
+            connection.getConnection(target).sync().asking();
+            assertEquals("redirected", connection.getConnection(target).sync().get(key));
+            connection.getConnection(target).sync().asking();
+            assertTrue(connection.getConnection(target).sync().ttl(key) > 3500);
         } finally {
-            sink.stop();
+            try {
+                sink.stop();
+            } finally {
+                connection.getConnection(target).sync().asking();
+                connection.getConnection(target).sync().del(key);
+                connection.getConnection(owner).sync().clusterSetSlotStable(slot);
+                connection.getConnection(target).sync().clusterSetSlotStable(slot);
+            }
         }
     }
 

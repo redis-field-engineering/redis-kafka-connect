@@ -16,10 +16,12 @@
 package com.redis.kafka.connect.sink;
 
 import com.redis.kafka.connect.common.RedisConfig;
+import com.redis.kafka.connect.common.RedisConfigDef;
 import java.nio.charset.Charset;
 import java.time.Duration;
 import java.util.Map;
 import java.util.Objects;
+import org.apache.kafka.common.config.ConfigException;
 
 public class RedisSinkConfig extends RedisConfig {
 
@@ -48,6 +50,16 @@ public class RedisSinkConfig extends RedisConfig {
 		separator = getString(RedisSinkConfigDef.SEPARATOR_CONFIG).trim();
 		multiExec = Boolean.TRUE.equals(getBoolean(RedisSinkConfigDef.MULTIEXEC_CONFIG));
 		waitReplicas = getInt(RedisSinkConfigDef.WAIT_REPLICAS_CONFIG);
+		if (Boolean.TRUE.equals(getBoolean(RedisConfigDef.CLUSTER_CONFIG))) {
+			if (multiExec) {
+				throw new ConfigException(RedisSinkConfigDef.MULTIEXEC_CONFIG, true,
+						"Transactions require redis.cluster=false");
+			}
+			if (waitReplicas > 0) {
+				throw new ConfigException(RedisSinkConfigDef.WAIT_REPLICAS_CONFIG, waitReplicas,
+						"WAIT requires redis.cluster=false");
+			}
+		}
 		waitTimeout = Duration.ofMillis(getLong(RedisSinkConfigDef.WAIT_TIMEOUT_CONFIG));
 		keyTTL = getLong(RedisSinkConfigDef.KEY_TTL_CONFIG);
 		offsetNamespace = offsetNamespace(originals);
