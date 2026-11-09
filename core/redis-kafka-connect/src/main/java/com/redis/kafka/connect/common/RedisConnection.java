@@ -20,7 +20,12 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-/** Task-owned connection with a common command boundary for standalone and cluster clients. */
+/**
+ * Task-owned connection with a common command boundary for standalone and cluster clients.
+ *
+ * @param <K> decoded key type
+ * @param <V> decoded value type
+ */
 public final class RedisConnection<K, V> implements AutoCloseable {
     private final StatefulConnection<K, V> connection;
     private final Object sync;
@@ -41,6 +46,15 @@ public final class RedisConnection<K, V> implements AutoCloseable {
         this.owned = true;
     }
 
+    /**
+     * Opens a connection owned by the returned wrapper.
+     *
+     * @param <K> decoded key type
+     * @param <V> decoded value type
+     * @param client standalone or cluster client
+     * @param codec key and value codec
+     * @return an open connection; the caller must close it
+     */
     public static <K, V> RedisConnection<K, V> open(AbstractRedisClient client, RedisCodec<K, V> codec) {
         if (client instanceof RedisClusterClient cluster) {
             return new RedisConnection<>(cluster.connect(codec));
@@ -48,18 +62,42 @@ public final class RedisConnection<K, V> implements AutoCloseable {
         return new RedisConnection<>(((RedisClient) client).connect(codec), true);
     }
 
+    /**
+     * Returns the synchronous command interface requested by the caller.
+     *
+     * @param <T> command interface type
+     * @param commands command interface class supported by the underlying connection
+     * @return the typed command interface
+     */
     public <T> T sync(Class<T> commands) {
         return commands.cast(sync);
     }
 
+    /**
+     * Returns the asynchronous command interface requested by the caller.
+     *
+     * @param <T> command interface type
+     * @param commands command interface class supported by the underlying connection
+     * @return the typed command interface
+     */
     public <T> T async(Class<T> commands) {
         return commands.cast(async);
     }
 
+    /**
+     * Returns the asynchronous command interface shared by standalone and cluster connections.
+     *
+     * @return asynchronous commands
+     */
     public BaseRedisAsyncCommands<K, V> async() {
         return async;
     }
 
+    /**
+     * Exposes the underlying connection for connection-level operations.
+     *
+     * @return the underlying stateful connection
+     */
     public StatefulConnection<K, V> stateful() {
         return connection;
     }
@@ -75,6 +113,12 @@ public final class RedisConnection<K, V> implements AutoCloseable {
         return "standalone";
     }
 
+    /**
+     * Selects the connection for the primary owning a cluster slot.
+     *
+     * @param slot Redis Cluster hash slot
+     * @return a borrowed node connection, or this connection for standalone Redis
+     */
     @SuppressWarnings("unchecked")
     public RedisConnection<K, V> nodeForSlot(int slot) {
         if (connection instanceof StatefulRedisClusterConnection<?, ?>) {
@@ -85,7 +129,12 @@ public final class RedisConnection<K, V> implements AutoCloseable {
         return this;
     }
 
-    /** Wait for the entire pipeline and propagate command errors, including errors in EXEC results. */
+    /**
+     * Waits for the entire pipeline and propagates failures from command futures.
+     *
+     * @param timeout maximum time to wait for the batch
+     * @param futures command futures to await
+     */
     public static void awaitAll(Duration timeout, List<? extends RedisFuture<?>> futures) {
         CompletableFuture<?>[] all = futures.stream().map(RedisFuture::toCompletableFuture)
                 .toArray(CompletableFuture[]::new);

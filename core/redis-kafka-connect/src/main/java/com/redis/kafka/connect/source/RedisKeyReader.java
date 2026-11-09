@@ -62,6 +62,12 @@ public final class RedisKeyReader implements AutoCloseable {
     private Set<String> subscribedNodes = Set.of();
     private final String channelPrefix;
 
+    /**
+     * Creates a reader without opening Redis connections.
+     *
+     * @param client Redis client owned by the caller
+     * @param config key selection and polling settings
+     */
     public RedisKeyReader(AbstractRedisClient client, RedisKeysSourceConfig config) {
         this.client = client;
         this.config = config;
@@ -97,6 +103,9 @@ public final class RedisKeyReader implements AutoCloseable {
         };
     }
 
+    /**
+     * Opens data and notification connections and subscribes before the initial scan.
+     */
     public void open() {
         client.addListener(connectionListener);
         try {
@@ -130,6 +139,12 @@ public final class RedisKeyReader implements AutoCloseable {
 
     private record PendingKey(String key, boolean snapshot) {}
 
+    /**
+     * Reads a bounded batch of snapshot keys and queued keyspace changes.
+     *
+     * @return current key snapshots, possibly empty
+     * @throws InterruptedException if interrupted while waiting for notifications
+     */
     public List<KeySnapshot> poll() throws InterruptedException {
         if (closed) {
             return List.of();

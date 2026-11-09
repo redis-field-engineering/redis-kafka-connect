@@ -20,15 +20,24 @@ import java.util.Objects;
 
 import com.redis.kafka.connect.common.RedisConfig;
 
+/** Parses batch settings shared by Redis source tasks. */
 public class RedisSourceConfig extends RedisConfig {
 
+	/** Maximum number of records per source poll. */
 	protected final int batchSize;
 
+	/**
+	 * Parses and validates the connector configuration.
+	 *
+	 * @param def source configuration definition
+	 * @param originals connector properties
+	 */
 	protected RedisSourceConfig(RedisSourceConfigDef def, Map<?, ?> originals) {
 		super(def, originals);
 		this.batchSize = getInt(RedisSourceConfigDef.BATCH_SIZE_CONFIG);
 	}
 
+	/** {@return the maximum number of records per source poll} */
 	public int getBatchSize() {
 		return batchSize;
 	}

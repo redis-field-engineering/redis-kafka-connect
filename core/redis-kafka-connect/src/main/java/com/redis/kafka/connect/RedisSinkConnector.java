@@ -27,7 +27,12 @@ import com.redis.kafka.connect.common.ManifestVersionProvider;
 import com.redis.kafka.connect.sink.RedisSinkConfig;
 import com.redis.kafka.connect.sink.RedisSinkTask;
 
+/** Configures Kafka Connect tasks that write records to Redis. */
 public class RedisSinkConnector extends SinkConnector {
+
+	/** Creates a Redis sink connector. */
+	public RedisSinkConnector() {
+	}
 
     private Map<String, String> props;
 

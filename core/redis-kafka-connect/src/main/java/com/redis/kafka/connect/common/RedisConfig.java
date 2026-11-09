@@ -30,14 +30,22 @@ import java.util.Map;
 import org.apache.kafka.common.config.AbstractConfig;
 import org.apache.kafka.common.config.types.Password;
 
+/** Parses common Redis connection, authentication, and TLS settings. */
 public abstract class RedisConfig extends AbstractConfig {
 
     private static final char[] EMPTY_PASSWORD = new char[0];
 
+    /**
+     * Parses and validates the connector configuration.
+     *
+     * @param config configuration definition
+     * @param originals connector properties
+     */
     protected RedisConfig(RedisConfigDef config, Map<?, ?> originals) {
         super(config, originals);
     }
 
+    /** {@return the Redis URI with configured authentication, TLS, and command timeout} */
     public RedisURI uri() {
         RedisURI.Builder builder = redisURIBuilder();
         Boolean ssl = getBoolean(RedisConfigDef.TLS_CONFIG);
@@ -112,10 +120,12 @@ public abstract class RedisConfig extends AbstractConfig {
         return options.build();
     }
 
+    /** {@return a new standalone or cluster client; the caller must shut it down} */
     public AbstractRedisClient client() {
         return client(uri());
     }
 
+    /** {@return the maximum number of pooled Redis connections} */
     public int getPoolSize() {
         return getInt(RedisConfigDef.POOL_MAX_CONFIG);
     }

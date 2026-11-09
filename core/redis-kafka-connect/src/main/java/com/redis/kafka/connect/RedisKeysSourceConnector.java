@@ -20,7 +20,12 @@ import java.util.List;
 import java.util.Map;
 import org.apache.kafka.connect.connector.Task;
 
+/** Configures a single task for Redis key snapshots and keyspace updates. */
 public class RedisKeysSourceConnector extends AbstractRedisSourceConnector {
+
+    /** Creates a Redis keys source connector. */
+    public RedisKeysSourceConnector() {
+    }
 
     @Override
     public List<Map<String, String>> taskConfigs(int maxTasks) {

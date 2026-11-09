@@ -21,7 +21,12 @@ import java.util.Map;
 import org.apache.kafka.common.config.ConfigException;
 import org.apache.kafka.connect.connector.Task;
 
+/** Configures Redis stream tasks with distinct consumer names. */
 public class RedisStreamSourceConnector extends AbstractRedisSourceConnector {
+
+    /** Creates a Redis stream source connector. */
+    public RedisStreamSourceConnector() {
+    }
 
     private String consumerName;
 

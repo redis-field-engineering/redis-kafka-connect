@@ -20,12 +20,16 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Objects;
 
+/** Parses stream consumption settings and identifies the source offset partition. */
 public class RedisStreamSourceConfig extends RedisSourceConfig {
 
+    /** Delivery mode that acknowledges messages before Kafka publication. */
     public static final String STREAM_DELIVERY_AT_MOST_ONCE = "at-most-once";
 
+    /** Delivery mode that acknowledges messages after Kafka publication and offset commit. */
     public static final String STREAM_DELIVERY_AT_LEAST_ONCE = "at-least-once";
 
+    /** Configuration definition for this connector. */
     public static final RedisStreamSourceConfigDef CONFIG = new RedisStreamSourceConfigDef();
 
     private final String streamName;
@@ -44,6 +48,11 @@ public class RedisStreamSourceConfig extends RedisSourceConfig {
 
     private final Map<String, String> sourcePartition;
 
+    /**
+     * Parses and validates the connector configuration.
+     *
+     * @param originals connector properties
+     */
     public RedisStreamSourceConfig(Map<?, ?> originals) {
         super(new RedisStreamSourceConfigDef(), originals);
         this.topicName = getString(RedisStreamSourceConfigDef.TOPIC_CONFIG);
@@ -62,34 +71,42 @@ public class RedisStreamSourceConfig extends RedisSourceConfig {
         this.sourcePartition = Collections.unmodifiableMap(partition);
     }
 
+    /** {@return the immutable stream, group, and resolved consumer identity used for offsets} */
     public Map<String, String> sourcePartition() {
         return sourcePartition;
     }
 
+    /** {@return the blocking stream read timeout in milliseconds} */
     public Long getStreamBlock() {
         return streamBlock;
     }
 
+    /** {@return the Redis stream to consume} */
     public String getStreamName() {
         return streamName;
     }
 
+    /** {@return the initial stream message ID used when no checkpoint is available} */
     public String getStreamOffset() {
         return streamOffset;
     }
 
+    /** {@return the configured stream delivery guarantee} */
     public String getStreamDelivery() {
         return streamDelivery;
     }
 
+    /** {@return the Redis consumer group name} */
     public String getStreamConsumerGroup() {
         return streamConsumerGroup;
     }
 
+    /** {@return the consumer name template, which may contain the task placeholder} */
     public String getStreamConsumerName() {
         return streamConsumerName;
     }
 
+    /** {@return the destination Kafka topic name or template} */
     public String getTopicName() {
         return topicName;
     }

@@ -60,7 +60,12 @@ import org.apache.kafka.connect.storage.Converter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/** Writes Kafka Connect records to Redis and persists sink offsets. */
 public class RedisSinkTask extends SinkTask {
+
+    /** Creates a Redis sink task. */
+    public RedisSinkTask() {
+    }
 
     private static final Logger log = LoggerFactory.getLogger(RedisSinkTask.class);
 
