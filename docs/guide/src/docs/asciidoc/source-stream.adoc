@@ -43,7 +43,9 @@ redis.stream.delivery = at-most-once
 [[_source_stream_tasks]]
 == Tasks
 
-Reading from the stream is done through a consumer group so that multiple instances of the connector configured via the `tasks.max` can consume messages in a round-robin fashion.
+Tasks read through one Redis consumer group, which distributes stream entries among
+its consumers. This does not guarantee round-robin assignment. Use a distinct
+consumer name for each task, as described under Pending Messages and Checkpoints.
 
 [[_source_stream_redis_client]]
 include::{includedir}/_redis_client.adoc[leveloffset=+1]

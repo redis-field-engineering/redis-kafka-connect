@@ -13,5 +13,7 @@ This guide provides documentation and usage information across the following top
 * <<_sink,Sink Connector>>
 * <<_source_stream,Stream Source Connector>>
 * <<_source_keys,Keys Source Connector>>
+* <<_migration,Migration and rollout>>
+* <<_release_compatibility,Tested combinations>>
 * <<_resources,Resources>>
 
