@@ -135,7 +135,8 @@ tasks.register('createConfluentArchive', Zip) {
 }
 
 tasks.named('build') {
-    finalizedBy createConfluentArchive
+    // Worker checks consume this ZIP, so it must be built before verification.
+    dependsOn tasks.named('createConfluentArchive')
 }
 
 // Keep packaged-worker qualification separate from the task-runtime matrix.
