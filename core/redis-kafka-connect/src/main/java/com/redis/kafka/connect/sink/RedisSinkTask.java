@@ -54,8 +54,10 @@ import org.apache.kafka.connect.errors.DataException;
 import org.apache.kafka.connect.errors.RetriableException;
 import org.apache.kafka.connect.header.Header;
 import org.apache.kafka.connect.json.JsonConverter;
+import org.apache.kafka.connect.sink.ErrantRecordReporter;
 import org.apache.kafka.connect.sink.SinkRecord;
 import org.apache.kafka.connect.sink.SinkTask;
+import org.apache.kafka.connect.sink.SinkTaskContext;
 import org.apache.kafka.connect.storage.Converter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -82,6 +84,7 @@ public class RedisSinkTask extends SinkTask {
     private Converter jsonConverter;
     private RedisSinkWriter writer;
     private RedisClient statefulWriterClient;
+    private ErrantRecordReporter reporter;
 
     private static ObjectMapper objectMapper() {
         ObjectMapper mapper = new ObjectMapper();
@@ -107,6 +110,7 @@ public class RedisSinkTask extends SinkTask {
     @Override
     public void start(final Map<String, String> props) {
         config = new RedisSinkConfig(props);
+        reporter = errantRecordReporter(context);
         jsonConverter = new JsonConverter();
         jsonConverter.configure(Collections.singletonMap("schemas.enable", "false"), false);
         client = config.client();
@@ -122,6 +126,22 @@ public class RedisSinkTask extends SinkTask {
         } catch (Exception e) {
             stop();
             throw new ConnectException("Could not start Redis sink", e);
+        }
+    }
+
+    /**
+     * Returns the runtime's errant record reporter, or {@code null} when none is available: the
+     * task was not initialized with a context, or the Connect runtime predates the reporter API
+     * (earlier than 2.6).
+     */
+    static ErrantRecordReporter errantRecordReporter(SinkTaskContext context) {
+        if (context == null) {
+            return null;
+        }
+        try {
+            return context.errantRecordReporter();
+        } catch (NoSuchMethodError | NoClassDefFoundError e) {
+            return null;
         }
     }
 
@@ -195,10 +215,25 @@ public class RedisSinkTask extends SinkTask {
         return connection.sync(RedisStringCommands.class);
     }
 
+    /**
+     * Converts records into Redis commands before any command is sent. A record that cannot be
+     * converted is passed to the errant record reporter and skipped; under
+     * {@code errors.tolerance=none} the reporter throws, failing the batch before any write.
+     * Without a reporter the conversion error is rethrown.
+     */
     private List<RedisWrite> prepare(Collection<SinkRecord> records) {
         List<RedisWrite> writes = new ArrayList<>();
         for (SinkRecord record : records) {
-            RedisWrite write = command(record);
+            RedisWrite write;
+            try {
+                write = command(record);
+            } catch (DataException e) {
+                if (reporter == null) {
+                    throw e;
+                }
+                reporter.report(record, e);
+                continue;
+            }
             if (write != null) {
                 writes.add(write);
             }
@@ -450,8 +485,11 @@ public class RedisSinkTask extends SinkTask {
     @Override
     public void put(final Collection<SinkRecord> records) {
         log.debug("Processing {} records", records.size());
+        // Prepared outside the try so a reporter failure (tolerance exceeded) fails the task
+        // instead of being turned into a RetriableException below.
+        List<RedisWrite> writes = prepare(records);
         try {
-            writer.write(prepare(records));
+            writer.write(writes);
         } catch (DataException e) {
             throw e;
         } catch (RedisCommandExecutionException e) {
@@ -463,7 +501,7 @@ public class RedisSinkTask extends SinkTask {
         } catch (Exception e) {
             throw new RetriableException("Could not write sink records", e);
         }
-        log.info("Wrote {} records", records.size());
+        log.info("Wrote {} records", writes.size());
     }
 
     private ConnectException commandFailure(RedisCommandExecutionException e) {
