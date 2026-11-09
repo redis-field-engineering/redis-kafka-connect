@@ -39,6 +39,13 @@ Support terms remain those stated in the project's README and Redis support poli
 . Select the `Release` workflow on `master` and explicitly enter `1.2.0` for this release.
   The workflow rejects an empty/snapshot/prefixed version and any other branch.
 
+If Maven Central publication succeeded but GitHub publication failed, use the
+`github-only` workflow input to recover the same version. The normal build and
+artifact audit still run. Recovery requires the local shaded JAR to match Maven
+Central's published SHA-256 before disabling Maven deployment for that run;
+signing and GitHub publication remain enabled. Do not rerun a partial release
+with the default inputs, because Maven Central versions are immutable.
+
 == Artifact security gate
 
 After building and before JReleaser publishes artifacts, the workflow runs

@@ -20,6 +20,7 @@ project:
 
 release:
   github:
+    branch: master
     overwrite: true
     sign: true
     issues:
