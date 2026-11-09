@@ -20,10 +20,18 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 
+/** Parses key snapshot and keyspace notification settings. */
 public class RedisKeysSourceConfig extends RedisSourceConfig {
 
-    public enum ReaderMode { LIVE, LIVEONLY }
+    /** Selects whether to include an initial snapshot alongside live notifications. */
+    public enum ReaderMode {
+        /** Reads an initial snapshot and live updates. */
+        LIVE,
+        /** Reads only live updates. */
+        LIVEONLY
+    }
 
+    /** Configuration definition for this connector. */
     public static final RedisKeysSourceConfigDef CONFIG = new RedisKeysSourceConfigDef();
 
     private final String keyPattern;
@@ -34,6 +42,11 @@ public class RedisKeysSourceConfig extends RedisSourceConfig {
 
     private final ReaderMode mode;
 
+    /**
+     * Parses and validates the connector configuration.
+     *
+     * @param originals connector properties
+     */
     public RedisKeysSourceConfig(Map<?, ?> originals) {
         super(new RedisKeysSourceConfigDef(), originals);
         this.topicName = getString(RedisKeysSourceConfigDef.TOPIC_CONFIG);
@@ -42,18 +55,22 @@ public class RedisKeysSourceConfig extends RedisSourceConfig {
         this.mode = ReaderMode.valueOf(getString(RedisKeysSourceConfigDef.MODE_CONFIG).toUpperCase(Locale.ROOT));
     }
 
+    /** {@return the Redis glob pattern used to select keys} */
     public String getKeyPattern() {
         return keyPattern;
     }
 
+    /** {@return the destination Kafka topic name or template} */
     public String getTopicName() {
         return topicName;
     }
 
+    /** {@return the maximum idle wait per poll; zero selects the bounded default interval} */
     public Duration getIdleTimeout() {
         return idleTimeout;
     }
 
+    /** {@return whether to include an initial snapshot alongside live updates} */
     public ReaderMode getMode() {
         return mode;
     }

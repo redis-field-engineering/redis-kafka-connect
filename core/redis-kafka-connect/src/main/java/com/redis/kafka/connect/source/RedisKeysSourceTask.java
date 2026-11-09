@@ -10,7 +10,9 @@ import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.source.SourceRecord;
 import org.apache.kafka.connect.source.SourceTask;
 
+/** Publishes Redis key snapshots and keyspace updates as Kafka Connect records. */
 public class RedisKeysSourceTask extends SourceTask {
+    /** Kafka Connect schema for key values. */
     public static final Schema KEY_SCHEMA = Schema.STRING_SCHEMA;
 
     private final ToStructFunction converter = new ToStructFunction();
@@ -20,10 +22,16 @@ public class RedisKeysSourceTask extends SourceTask {
     private volatile boolean stopped = true;
     private String topic;
 
+    /** Creates a source task using the system clock. */
     public RedisKeysSourceTask() {
         this(Clock.systemDefaultZone());
     }
 
+    /**
+     * Creates a source task using the supplied clock.
+     *
+     * @param clock clock used to timestamp source records
+     */
     public RedisKeysSourceTask(Clock clock) {
         this.clock = clock;
     }
@@ -33,6 +41,7 @@ public class RedisKeysSourceTask extends SourceTask {
         return ManifestVersionProvider.getVersion();
     }
 
+    /** {@return the active key reader, or null when the task is stopped} */
     public RedisKeyReader getReader() {
         return reader;
     }

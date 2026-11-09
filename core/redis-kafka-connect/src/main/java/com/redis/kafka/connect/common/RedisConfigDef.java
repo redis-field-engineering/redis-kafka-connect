@@ -3,96 +3,120 @@ package com.redis.kafka.connect.common;
 import io.lettuce.core.RedisURI;
 import org.apache.kafka.common.config.ConfigDef;
 
+/** Defines the common Redis connection configuration options. */
 public abstract class RedisConfigDef extends ConfigDef {
 
+	/** Configuration key for {@code redis.cluster}. */
 	public static final String CLUSTER_CONFIG = "redis.cluster";
 
 	private static final boolean CLUSTER_DEFAULT = false;
 
 	private static final String CLUSTER_DOC = "Connect to a Redis Cluster database";
 
+	/** Configuration key for {@code redis.host}. */
 	public static final String HOST_CONFIG = "redis.host";
 
 	private static final String HOST_DEFAULT = "localhost";
 
 	private static final String HOST_DOC = "The Redis host to connect to";
 
+	/** Configuration key for {@code redis.port}. */
 	public static final String PORT_CONFIG = "redis.port";
 
 	private static final int PORT_DEFAULT = RedisURI.DEFAULT_REDIS_PORT;
 
 	private static final String PORT_DOC = "The Redis port to connect to";
 
+	/** Configuration key for {@code redis.uri}. */
 	public static final String URI_CONFIG = "redis.uri";
 
 	private static final String URI_DEFAULT = "";
 
 	private static final String URI_DOC = "URI of the Redis database to connect to, e.g. redis://redis-12000.redis.com:12000. For secure connections use rediss URI scheme, e.g. rediss://...";
 
+	/** Configuration key for {@code redis.username}. */
 	public static final String USERNAME_CONFIG = "redis.username";
 
 	private static final String USERNAME_DEFAULT = "";
 
 	private static final String USERNAME_DOC = "Username to use to connect to Redis";
 
+	/** Configuration key for {@code redis.password}. */
 	public static final String PASSWORD_CONFIG = "redis.password";
 
 	private static final String PASSWORD_DEFAULT = "";
 
 	private static final String PASSWORD_DOC = "Password to use to connect to Redis";
 
+	/** Configuration key for {@code redis.timeout}. */
 	public static final String TIMEOUT_CONFIG = "redis.timeout";
 
 	private static final long TIMEOUT_DEFAULT = RedisURI.DEFAULT_TIMEOUT;
 
 	private static final String TIMEOUT_DOC = "Redis command timeout in seconds";
 
+	/** Configuration key for {@code redis.pool}. */
 	public static final String POOL_MAX_CONFIG = "redis.pool";
 
 	private static final int POOL_MAX_DEFAULT = 8;
 
 	private static final String POOL_MAX_DOC = "Max pool connections";
 
+	/** Configuration key for {@code redis.tls}. */
 	public static final String TLS_CONFIG = "redis.tls";
 
 	private static final boolean TLS_DEFAULT = false;
 
 	private static final String TLS_DOC = "Establish a secure TLS connection";
 
+	/** Configuration key for {@code redis.insecure}. */
 	public static final String INSECURE_CONFIG = "redis.insecure";
 
 	private static final boolean INSECURE_DEFAULT = false;
 
 	private static final String INSECURE_DOC = "Allow insecure connections (e.g. invalid certificates) to Redis when using SSL";
 
+	/** Configuration key for {@code redis.key.file}. */
 	public static final String KEY_CONFIG = "redis.key.file";
 
+	/** Default value for {@link #KEY_CONFIG}. */
 	public static final String KEY_DEFAULT = "";
 
 	private static final String KEY_DOC = "PKCS#8 private key file to authenticate with (PEM format)";
 
+	/** Configuration key for {@code redis.key.cert}. */
 	public static final String KEY_CERT_CONFIG = "redis.key.cert";
 
+	/** Default value for {@link #KEY_CERT_CONFIG}. */
 	public static final String KEY_CERT_DEFAULT = "";
 
 	private static final String KEY_CERT_DOC = "X.509 certificate chain file to authenticate with (PEM format)";
 
+	/** Configuration key for {@code redis.key.password}. */
 	public static final String KEY_PASSWORD_CONFIG = "redis.key.password";
 
 	private static final String KEY_PASSWORD_DEFAULT = "";
 
 	private static final String KEY_PASSWORD_DOC = "Password of the private key file. Leave empty if key file is not password-protected";
 
+	/** Configuration key for {@code redis.cacert}. */
 	public static final String CACERT_CONFIG = "redis.cacert";
 
+	/** Default value for {@link #CACERT_CONFIG}. */
 	public static final String CACERT_DEFAULT = "";
 
 	private static final String CACERT_DOC = "X.509 CA certificate file to verify with";
 
+	/** Creates the configuration definition. */
 	protected RedisConfigDef() {
 		defineConfigs();
 	}
 
+	/**
+	 * Creates the configuration definition.
+	 *
+	 * @param base base configuration to copy
+	 */
 	protected RedisConfigDef(ConfigDef base) {
 		super(base);
 		defineConfigs();

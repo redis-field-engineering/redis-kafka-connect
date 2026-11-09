@@ -23,12 +23,30 @@ import java.util.Map;
 import java.util.Objects;
 import org.apache.kafka.common.config.ConfigException;
 
+/** Parses Redis sink settings and validates standalone-only operations. */
 public class RedisSinkConfig extends RedisConfig {
 
+	/** Redis data structures supported as sink destinations. */
 	public enum RedisType {
-		HASH, JSON, TIMESERIES, STRING, STREAM, LIST, SET, ZSET
+		/** Stores record fields in a hash. */
+		HASH,
+		/** Stores a JSON document. */
+		JSON,
+		/** Adds a time-series sample. */
+		TIMESERIES,
+		/** Stores a string value. */
+		STRING,
+		/** Appends an entry to a stream. */
+		STREAM,
+		/** Appends a value to a list. */
+		LIST,
+		/** Adds a member to a set. */
+		SET,
+		/** Adds a scored member to a sorted set. */
+		ZSET
 	}
 
+	/** Configuration definition for this connector. */
 	public static final RedisSinkConfigDef CONFIG = new RedisSinkConfigDef();
 
 	private final Charset charset;
@@ -41,6 +59,11 @@ public class RedisSinkConfig extends RedisConfig {
 	private final long keyTTL;
 	private final String offsetNamespace;
 
+	/**
+	 * Parses and validates the connector configuration.
+	 *
+	 * @param originals connector properties
+	 */
 	public RedisSinkConfig(Map<?, ?> originals) {
 		super(new RedisSinkConfigDef(), originals);
 		String charsetName = getString(RedisSinkConfigDef.CHARSET_CONFIG).trim();
@@ -77,38 +100,47 @@ public class RedisSinkConfig extends RedisConfig {
 		return "default";
 	}
 
+	/** {@return the character set used to encode Redis keys and values} */
 	public Charset getCharset() {
 		return charset;
 	}
 
+	/** {@return the destination Redis data structure} */
 	public RedisType getType() {
 		return type;
 	}
 
+	/** {@return the destination keyspace template, which may contain the topic placeholder} */
 	public String getKeyspace() {
 		return keyspace;
 	}
 
+	/** {@return the separator used in non-collection destination keys} */
 	public String getSeparator() {
 		return separator;
 	}
 
+	/** {@return whether writes use MULTI/EXEC transactions} */
 	public boolean isMultiExec() {
 		return multiExec;
 	}
 
+	/** {@return the number of replicas required by WAIT, or zero to disable waiting} */
 	public int getWaitReplicas() {
 		return waitReplicas;
 	}
 
+	/** {@return the timeout for replica acknowledgments} */
 	public Duration getWaitTimeout() {
 		return waitTimeout;
 	}
 
+	/** {@return the destination key lifetime in seconds, or -1 for no expiry} */
 	public long getKeyTTL() {
 		return keyTTL;
 	}
 
+	/** {@return the namespace used for sink offset keys in Redis} */
 	public String getOffsetNamespace() {
 		return offsetNamespace;
 	}

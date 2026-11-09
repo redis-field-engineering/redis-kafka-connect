@@ -15,6 +15,10 @@ import org.slf4j.LoggerFactory;
  */
 public class ManifestVersionProvider {
 
+	/** Creates a manifest version provider. */
+	public ManifestVersionProvider() {
+	}
+
 	private static final Logger log = LoggerFactory.getLogger(ManifestVersionProvider.class);
 
 	private static final String IMPLEMENTATION_TITLE = "Implementation-Title";
@@ -23,6 +27,11 @@ public class ManifestVersionProvider {
 	private static final String UNKNOWN_VERSION = "N/A";
 	private static final String MANIFEST = "META-INF/MANIFEST.MF";
 
+	/**
+	 * Reads the connector version from its manifest.
+	 *
+	 * @return implementation version, or {@code N/A} if no matching manifest can be read
+	 */
 	public static String getVersion() {
 		try {
 			Enumeration<URL> resources = ManifestVersionProvider.class.getClassLoader().getResources(MANIFEST);

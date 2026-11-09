@@ -22,7 +22,12 @@ import org.apache.kafka.connect.source.SourceConnector;
 
 import com.redis.kafka.connect.common.ManifestVersionProvider;
 
+/** Shares connector lifecycle and task configuration for Redis sources. */
 public abstract class AbstractRedisSourceConnector extends SourceConnector {
+
+    /** Creates a Redis source connector. */
+    public AbstractRedisSourceConnector() {
+    }
 
     private Map<String, String> props;
 
