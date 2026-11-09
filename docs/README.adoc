@@ -1,0 +1,30 @@
+= Building and Publishing the Guide
+
+The public guide is built from `guide/src/docs/asciidoc/index.adoc`.
+Its release version comes from `:project-version:` in the root `README.adoc`,
+independently of Gradle's development snapshot version.
+
+Install Ruby 3.4 or later and the pinned Asciidoctor gem, then run from the repository root:
+
+[source,console]
+----
+gem install asciidoctor --version 2.0.26 --no-document
+ruby docs/build.rb
+----
+
+Open `build/site/index.html` to review the guide. Asciidoctor warnings and errors
+fail the build. Images are copied into `build/site/images`.
+The guide build does not need a JDK, Gradle, Docker, or connector tests.
+The old `guide/guide.gradle` file is not part of the current Gradle settings.
+
+The `Documentation` workflow validates documentation PRs and uploads the generated
+guide as a Pages artifact. Only pushes to `master` or manual runs on `master`
+deploy the guide; PR builds do not publish.
+In repository Settings > Pages, set the publishing source to *GitHub Actions*.
+The workflow uses the `github-pages` environment and the built-in GitHub token;
+it does not require the release signing keys or `GIT_ACCESS_TOKEN`.
+
+Update the root README version when publishing documentation for a new release.
+Do not replace an already-released ZIP, source JAR, or Javadoc JAR to update the
+website. For example, PR #94's Java API comments landed after the 1.2.0 Maven
+artifacts were published; those artifacts retain their original documentation.

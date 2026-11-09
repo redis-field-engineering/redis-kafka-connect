@@ -1,6 +1,7 @@
 [[_release]]
 = Release Qualification and Publication
 
+[[_release_compatibility]]
 == Tested combinations
 
 The connector targets Java 17 bytecode. Unit and task integration suites run in CI on

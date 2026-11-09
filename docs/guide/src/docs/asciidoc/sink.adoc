@@ -110,18 +110,17 @@ value.converter = <Avro or JSON> <2>
 
 [[_sink_list]]
 === List
-Use the following properties to add Kafka record keys to a Redis list:
+Use the following properties to append Kafka record keys to a Redis list with `RPUSH`:
 
 [source,properties]
 ----
 redis.type     = LIST
-redis.keyspace = <list key> <2>
-key.converter  = <string or bytes> <3>
+redis.keyspace = <list key> <1>
+key.converter  = <string or bytes> <2>
 ----
 
-<1> `LPUSH` or `RPUSH`
-<2> List key
-<3> <<_sink_key_string,String>> or <<_sink_key_bytes,bytes>>: Kafka record keys to push to the list
+<1> List key
+<2> <<_sink_key_string,String>> or <<_sink_key_bytes,bytes>>: Kafka record keys to push to the list
 
 The Kafka record value can be any format.
 If a value is null then the member is removed from the list (instead of pushed to the list).

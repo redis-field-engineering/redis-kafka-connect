@@ -16,10 +16,14 @@ Redis Kafka Connector (Source and Sink) by Redis.
 == Documentation
 
 Documentation is available at link:{doc-url}[{doc-url}].
+See link:docs/README.adoc[Building and publishing the guide] for local preview and CI deployment.
 
 == Downloading
 
 The connector is published on https://www.confluent.io/hub/redis/redis-kafka-connect[Confluent Hub] and {project-url}/releases/latest[Github].
+For version {project-version}, use the signed ZIP from
+{project-url}/releases/tag/v{project-version}[the GitHub release].
+Confluent Hub publication is separate and may lag GitHub; verify the listing's version before installing.
 
 == Support
 

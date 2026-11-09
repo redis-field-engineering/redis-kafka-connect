@@ -18,26 +18,24 @@ The sandbox starts the following Docker services:
 * Apache Kafka
 * Kafka Connect with the {project-title} installed
 
-To start the sandbox run the following command:
+Clone the release and build the connector image locally so the sandbox does not
+depend on an unversioned, previously published Docker image:
+
+[source,console,subs="verbatim,attributes"]
+-----
+git clone --branch v{project-version} --single-branch https://github.com/{github-owner}/{github-repo}.git
+cd {project-name}
+docker compose up --build
+-----
+
+The Compose example retains legacy 7.7 broker/UI services. It is a demonstration,
+not the Confluent Platform 8.3.2 qualification environment described under
+<<_release_compatibility,Tested combinations>>.
+In a second terminal in the repository directory, inspect service status:
 
 [source,console]
 -----
-docker compose up
------
-
-After Docker downloads and starts the services you should see the following output:
-
-[source,console]
------
-[+] Running 8/0
- ✔ Container redis            Created
- ✔ Container zookeeper        Created
- ✔ Container broker           Created
- ✔ Container schema-registry  Created
- ✔ Container rest-proxy       Created
- ✔ Container connect          Created
- ✔ Container ksqldb-server    Created
- ✔ Container control-center   Created
+docker compose ps
 -----
 
 == Add Connectors

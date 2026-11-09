@@ -3,16 +3,99 @@
 
 Select one of the methods below to install {project-title}.
 
-== Download
+== Runtime and Compatibility
 
-Download the latest release archive: {link_releases}.
+The connector targets Java 17 bytecode. Your Kafka Connect worker must also support
+the Java runtime you select. Packaged connector tests qualify Confluent Platform
+8.3.2 on Java 21 and the stock image's bundled runtime against Redis Software 8.2.
+See <<_release_compatibility,Tested combinations>> for exact Redis versions,
+deployment modes, and validation limits. This is not blanket qualification of every
+Java, Confluent, or Redis 8.x combination.
+
+Before replacing an existing connector, read <<_migration,the migration guide>>.
+Keep connector names, Kafka offsets, Redis namespaces, stream groups, and consumer
+names stable during the upgrade. In particular, cluster transactions and WAIT
+are rejected, and keys-source notifications remain best effort.
+
+== Download Version {project-version}
+
+Download the signed Confluent ZIP from
+https://github.com/{github-owner}/{github-repo}/releases/tag/v{project-version}[GitHub Releases].
+The ZIP is the installable connector package; GitHub's generated source archives
+are source code, not Kafka Connect plugins.
+
+[source,console,subs="verbatim,attributes"]
+----
+curl --fail --location --remote-name https://github.com/{github-owner}/{github-repo}/releases/download/v{project-version}/redis-redis-kafka-connect-{project-version}.zip
+curl --fail --location --remote-name https://github.com/{github-owner}/{github-repo}/releases/download/v{project-version}/redis-redis-kafka-connect-{project-version}.zip.asc
+curl --fail --location --remote-name https://github.com/{github-owner}/{github-repo}/releases/download/v{project-version}/checksums_sha256.txt
+shasum --algorithm 256 --check --ignore-missing checksums_sha256.txt
+----
+
+Confirm that the ZIP reports `OK`. The checksum file also covers the optional SBOM
+and vulnerability report; `--ignore-missing` allows those files to be omitted.
+To authenticate the ZIP, use GnuPG and the release signing key with fingerprint
+`7010 95D5 7EFF D81B 5DB3 A3CC B482 7E18 BA6F 8ED7`:
+
+[source,console,subs="verbatim,attributes"]
+----
+gpg --keyserver hkps://keyserver.ubuntu.com --recv-keys 701095D57EFFD81B5DB3A3CCB4827E18BA6F8ED7
+gpg --verify redis-redis-kafka-connect-{project-version}.zip.asc redis-redis-kafka-connect-{project-version}.zip
+----
+
+The release also includes a CycloneDX SBOM and vulnerability scan report. The report
+records the scanner/database used; it reflects known advisories at scan time.
 
 == Confluent Hub
 
-1. Install the {link_cflt_hub_client}
-2. Install the {project-name} using the Confluent Hub Client
+The canonical listing is
+https://www.confluent.io/hub/redis/redis-kafka-connect[redis/redis-kafka-connect].
+`redis/redis-enterprise-kafka` is a deprecated predecessor.
+At the 1.2.0 GitHub release, the canonical Hub listing still carried 0.9.1.
+Until Hub offers the requested version, install the downloaded ZIP with the
+{link_cflt_hub_client}:
+
+[source,console,subs="verbatim,attributes"]
+----
+confluent-hub install --no-prompt ./redis-redis-kafka-connect-{project-version}.zip
+----
+
+The CLI must run on each worker host and use that worker's installation/configuration
+paths. Use `--component-dir` and `--worker-configs` if they cannot be discovered
+automatically. Install the same version on every worker that can run the connector.
 
 == Manually
 
-Follow the instructions in {link_manual_install}.
+If the Hub CLI is unavailable, extract the ZIP into a plugin directory on each
+worker. The example below uses `/opt/kafka/plugins`; choose a writable location
+appropriate for your deployment:
+
+[source,console,subs="verbatim,attributes"]
+----
+unzip redis-redis-kafka-connect-{project-version}.zip -d /opt/kafka/plugins
+----
+
+Add that parent directory to the worker's existing `plugin.path`. Preserve the
+other plugin directories and remove the old Redis connector version from the
+plugin search path. Stop the connector tasks for the change and restart workers
+after installation. See {link_manual_install} for platform-specific details.
+
+== Verify the Installation
+
+Query each worker's Kafka Connect REST endpoint (adjust the URL and authentication
+for your environment):
+
+[source,console]
+----
+curl --fail --silent http://localhost:8083/connector-plugins
+----
+
+Confirm version `{project-version}` for all three classes:
+
+* `com.redis.kafka.connect.RedisSinkConnector`
+* `com.redis.kafka.connect.RedisStreamSourceConnector`
+* `com.redis.kafka.connect.RedisKeysSourceConnector`
+
+Run a canary with representative records and check task status, destination data,
+source pending messages, and restart behavior before the wider rollout.
 
