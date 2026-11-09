@@ -7,6 +7,11 @@ on:
         description: 'Explicit stable release version without a v prefix (e.g., 1.2.0).'
         required: true
         type: string
+      github-only:
+        description: 'Recover GitHub publication after this version is already on Maven Central (verifies JAR checksum).'
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: write
@@ -36,7 +41,7 @@ jobs:
           PYTHON
       - uses: redis/github-workflows/.github/actions/checkout@main
       - name: Test release audit validation
-        run: python3 -m unittest discover -s config/testing -p test_audit_release.py
+        run: python3 -m unittest discover -s config/testing -p 'test_*.py'
 
   release:
     needs: validate
@@ -45,7 +50,11 @@ jobs:
       java-version: '27'
       version: ${{ inputs.version }}
       gradle-build-tasks: 'build publish'
-      pre-release-script: 'bash config/testing/audit-release.sh'
+      pre-release-script: |
+        bash config/testing/audit-release.sh
+        if [ '${{ inputs.github-only }}' = 'true' ]; then
+          python3 config/testing/prepare_github_release.py
+        fi
       clone-to-dist-repo: false
     secrets:
       git-access-token: ${{ secrets.GIT_ACCESS_TOKEN }}
