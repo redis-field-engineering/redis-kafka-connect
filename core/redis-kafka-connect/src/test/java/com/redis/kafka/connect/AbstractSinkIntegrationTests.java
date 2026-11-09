@@ -6,12 +6,16 @@ import com.redis.kafka.connect.sink.RedisSinkConfig.RedisType;
 import com.redis.kafka.connect.sink.RedisSinkConfigDef;
 import com.redis.kafka.connect.sink.RedisSinkTask;
 import com.redis.kafka.connect.common.RedisConnection;
+import io.lettuce.core.api.sync.RedisHashCommands;
 import io.lettuce.core.api.sync.RedisStringCommands;
 import io.lettuce.core.KeyValue;
+import io.lettuce.core.RedisCommandExecutionException;
 import io.lettuce.core.Range;
 import io.lettuce.core.ScoredValue;
 import io.lettuce.core.StreamMessage;
 import io.lettuce.core.codec.ByteArrayCodec;
+import java.math.BigDecimal;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -26,9 +30,11 @@ import java.util.stream.Collectors;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.record.TimestampType;
+import org.apache.kafka.connect.data.Decimal;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.SchemaAndValue;
 import org.apache.kafka.connect.data.SchemaBuilder;
+import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.errors.DataException;
 import org.apache.kafka.connect.errors.RetriableException;
@@ -36,10 +42,12 @@ import org.apache.kafka.connect.sink.SinkRecord;
 import org.apache.kafka.connect.sink.SinkTaskContext;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.Mockito.mock;
@@ -769,6 +777,327 @@ abstract class AbstractSinkIntegrationTests extends AbstractRedisIntegrationTest
             RedisStringCommands<byte[], byte[]> strings = binary.sync(RedisStringCommands.class);
             Assertions.assertArrayEquals("value".getBytes(StandardCharsets.UTF_8), strings.get(key));
         }
+    }
+
+    @Test
+    void hashFieldWritesOneFieldPerRecord() {
+        startHashFieldSinkTask("parents");
+        task.put(List.of(hashFieldRecord("p1", "c1", "{\"n\":1}", 0), hashFieldRecord("p1", "c2", "{\"n\":2}", 1),
+                hashFieldRecord("p2", "c1", "{\"n\":3}", 2)));
+        assertEquals(Map.of("c1", "{\"n\":1}", "c2", "{\"n\":2}"), redisConnection.sync().hgetall("parents:p1"));
+        assertEquals(Map.of("c1", "{\"n\":3}"), redisConnection.sync().hgetall("parents:p2"));
+    }
+
+    @Test
+    void hashFieldResolvesStructKeys() {
+        Schema parentSchema = SchemaBuilder.struct().field("id", Schema.STRING_SCHEMA).build();
+        Schema keySchema = SchemaBuilder.struct().field("parent", parentSchema).field("childId", Schema.INT64_SCHEMA).build();
+        Struct key = new Struct(keySchema).put("parent", new Struct(parentSchema).put("id", "p1")).put("childId", 42L);
+        startSinkTask(Map.of(RedisSinkConfigDef.URI_CONFIG, getRedisServer().getRedisURI(),
+                RedisSinkConfigDef.TYPE_CONFIG, "HASH_FIELD", RedisSinkConfigDef.KEYSPACE_CONFIG, "",
+                RedisSinkConfigDef.HASH_FIELD_HASH_CONFIG, "key.parent.id", RedisSinkConfigDef.HASH_FIELD_FIELD_CONFIG, "key.childId"));
+        task.put(List.of(new SinkRecord("topic", 0, keySchema, key, Schema.STRING_SCHEMA, "{\"n\":1}", 0)));
+        assertEquals(Map.of("42", "{\"n\":1}"), redisConnection.sync().hgetall("p1"));
+    }
+
+    @Test
+    void hashFieldStoresByteValuesUnchanged() {
+        startHashFieldSinkTask("parents");
+        // Schema Registry wire format: magic byte 0, a 4-byte schema id, then the Avro binary payload.
+        byte[] value = {0, 0, 0, 0, 7, 2, (byte) 0xC3, (byte) 0xFF};
+        task.put(List.of(new SinkRecord("topic", 0, null, Map.of("parentId", "p1", "childId", "c1"),
+                Schema.BYTES_SCHEMA, value, 0)));
+        try (RedisConnection<byte[], byte[]> binary = RedisConnection.open(redisClient, ByteArrayCodec.INSTANCE)) {
+            RedisHashCommands<byte[], byte[]> hashes = binary.sync(RedisHashCommands.class);
+            Assertions.assertArrayEquals(value, hashes.hget(bytes("parents:p1"), bytes("c1")));
+        }
+    }
+
+    // Connect BYTES values may be a ByteBuffer; only its remaining bytes are the value.
+    @Test
+    void hashFieldStoresByteBufferValuesUnchanged() {
+        startHashFieldSinkTask("parents");
+        ByteBuffer value = ByteBuffer.wrap(new byte[] {9, 0, 7, (byte) 0xFF});
+        value.position(1);
+        task.put(List.of(new SinkRecord("topic", 0, null, Map.of("parentId", "p1", "childId", "c1"),
+                Schema.BYTES_SCHEMA, value, 0)));
+        try (RedisConnection<byte[], byte[]> binary = RedisConnection.open(redisClient, ByteArrayCodec.INSTANCE)) {
+            RedisHashCommands<byte[], byte[]> hashes = binary.sync(RedisHashCommands.class);
+            Assertions.assertArrayEquals(new byte[] {0, 7, (byte) 0xFF}, hashes.hget(bytes("parents:p1"), bytes("c1")));
+        }
+    }
+
+    @Test
+    void hashFieldStoresStringValuesUnchanged() {
+        startHashFieldSinkTask("parents");
+        task.put(List.of(hashFieldRecord("p1", "c1", "plain text, not JSON", 0)));
+        assertEquals("plain text, not JSON", redisConnection.sync().hget("parents:p1", "c1"));
+    }
+
+    @Test
+    void hashFieldSerializesStructValuesAsJson() {
+        startHashFieldSinkTask("parents");
+        Schema valueSchema = SchemaBuilder.struct().field("name", Schema.STRING_SCHEMA).field("count", Schema.INT64_SCHEMA)
+                .field("note", Schema.OPTIONAL_STRING_SCHEMA).build();
+        Struct value = new Struct(valueSchema).put("name", "widget").put("count", 3L);
+        Schema keySchema = SchemaBuilder.struct().field("parentId", Schema.STRING_SCHEMA).field("childId", Schema.STRING_SCHEMA).build();
+        Struct key = new Struct(keySchema).put("parentId", "p1").put("childId", "c1");
+        task.put(List.of(new SinkRecord("topic", 0, keySchema, key, valueSchema, value, 0)));
+        assertEquals("{\"name\":\"widget\",\"count\":3,\"note\":null}", redisConnection.sync().hget("parents:p1", "c1"));
+    }
+
+    private static byte[] bytes(String value) {
+        return value.getBytes(StandardCharsets.UTF_8);
+    }
+
+    @Test
+    void hashFieldTombstoneRemovesOnlyItsField() {
+        startHashFieldSinkTask("parents");
+        task.put(List.of(hashFieldRecord("p1", "c1", "{\"n\":1}", 0), hashFieldRecord("p1", "c2", "{\"n\":2}", 1)));
+        task.put(List.of(hashFieldRecord("p1", "c1", null, 2)));
+        assertEquals(Map.of("c2", "{\"n\":2}"), redisConnection.sync().hgetall("parents:p1"));
+        task.put(List.of(hashFieldRecord("p1", "c2", null, 3)));
+        assertEquals(0, redisConnection.sync().exists("parents:p1"));
+    }
+
+    @Test
+    void hashFieldWritesAndTombstonesKeepInputOrder() {
+        startHashFieldSinkTask("parents");
+        task.put(List.of(hashFieldRecord("p1", "c1", "{\"v\":1}", 0), hashFieldRecord("p1", "c1", null, 1),
+                hashFieldRecord("p1", "c1", "{\"v\":2}", 2)));
+        assertEquals("{\"v\":2}", redisConnection.sync().hget("parents:p1", "c1"));
+        task.put(List.of(hashFieldRecord("p1", "c1", "{\"v\":3}", 3), hashFieldRecord("p1", "c1", null, 4)));
+        Assertions.assertFalse(redisConnection.sync().hexists("parents:p1", "c1"));
+    }
+
+    @Test
+    void hashFieldUnresolvableKeyRejectsBatchBeforeWrites() {
+        startHashFieldSinkTask("parents");
+        SinkRecord valid = hashFieldRecord("p1", "c1", "{\"n\":1}", 0);
+        SinkRecord missingChild = new SinkRecord("topic", 0, null, Map.of("parentId", "p1"), Schema.STRING_SCHEMA, "{\"n\":2}", 1);
+        DataException error = Assertions.assertThrows(DataException.class, () -> task.put(List.of(valid, missingChild)));
+        Assertions.assertTrue(error.getMessage().contains("key.childId"), error.getMessage());
+        assertEquals(0, redisConnection.sync().exists("parents:p1"));
+    }
+
+    @Test
+    void hashFieldKeyTtlExpiresTheWholeHash() {
+        startSinkTask(hashFieldProps("parents", RedisSinkConfigDef.KEY_TTL_CONFIG, "3600"));
+        task.put(List.of(hashFieldRecord("p1", "c1", "{\"n\":1}", 0)));
+        Assertions.assertTrue(redisConnection.sync().ttl("parents:p1") > 3500);
+        SinkRecord expiring = hashFieldRecord("p2", "c1", "{\"n\":2}", 1);
+        expiring.headers().addLong(RedisSinkConfigDef.KEY_TTL_CONFIG, 60);
+        task.put(List.of(expiring));
+        long ttl = redisConnection.sync().ttl("parents:p2");
+        Assertions.assertTrue(ttl > 0 && ttl <= 60, "the key TTL header overrides the configured key TTL: " + ttl);
+        if (hexpireAvailable()) {
+            assertEquals(-1L, redisConnection.sync().httl("parents:p1", "c1").get(0), "the field itself must not expire");
+        }
+    }
+
+    @Test
+    void hashFieldConfiguredTtlExpiresOnlyTheField() {
+        Assumptions.assumeTrue(hexpireAvailable(), "HEXPIRE not available");
+        startSinkTask(hashFieldProps("parents", HASH_FIELD_EXPIRE, "true", HASH_FIELD_TTL, "3600"));
+        task.put(List.of(hashFieldRecord("p1", "c1", "{\"n\":1}", 0)));
+        Assertions.assertTrue(redisConnection.sync().httl("parents:p1", "c1").get(0) > 3500);
+        assertEquals(-1, redisConnection.sync().ttl("parents:p1"), "the hash itself must not expire");
+    }
+
+    @Test
+    void hashFieldHeaderTtlAppliesOnlyToItsRecord() {
+        Assumptions.assumeTrue(hexpireAvailable(), "HEXPIRE not available");
+        startSinkTask(hashFieldProps("parents", HASH_FIELD_EXPIRE, "true"));
+        SinkRecord expiring = hashFieldRecord("p1", "c1", "{\"n\":1}", 0);
+        expiring.headers().addLong(HASH_FIELD_TTL, 3600);
+        task.put(List.of(expiring, hashFieldRecord("p1", "c2", "{\"n\":2}", 1)));
+        Assertions.assertTrue(redisConnection.sync().httl("parents:p1", "c1").get(0) > 3500);
+        assertEquals(-1L, redisConnection.sync().httl("parents:p1", "c2").get(0), "TTL must not carry over");
+        assertEquals(-1, redisConnection.sync().ttl("parents:p1"));
+    }
+
+    @Test
+    void hashFieldHeaderTtlOverridesConfiguredTtl() {
+        Assumptions.assumeTrue(hexpireAvailable(), "HEXPIRE not available");
+        startSinkTask(hashFieldProps("parents", HASH_FIELD_EXPIRE, "true", HASH_FIELD_TTL, "60"));
+        SinkRecord expiring = hashFieldRecord("p1", "c1", "{\"n\":1}", 0);
+        expiring.headers().addString(HASH_FIELD_TTL, "3600");
+        task.put(List.of(expiring, hashFieldRecord("p1", "c2", "{\"n\":2}", 1)));
+        Assertions.assertTrue(redisConnection.sync().httl("parents:p1", "c1").get(0) > 3500);
+        long configured = redisConnection.sync().httl("parents:p1", "c2").get(0);
+        Assertions.assertTrue(configured > 0 && configured <= 60, "records without the header use the configured TTL");
+    }
+
+    @Test
+    void hashFieldKeyAndFieldTtlsCombine() {
+        Assumptions.assumeTrue(hexpireAvailable(), "HEXPIRE not available");
+        startSinkTask(hashFieldProps("parents", RedisSinkConfigDef.KEY_TTL_CONFIG, "3600", HASH_FIELD_EXPIRE, "true",
+                HASH_FIELD_TTL, "60"));
+        task.put(List.of(hashFieldRecord("p1", "c1", "{\"n\":1}", 0)));
+        Assertions.assertTrue(redisConnection.sync().ttl("parents:p1") > 3500);
+        long field = redisConnection.sync().httl("parents:p1", "c1").get(0);
+        Assertions.assertTrue(field > 0 && field <= 60, "field TTL: " + field);
+    }
+
+    @Test
+    void hashFieldOverwriteWithoutTtlClearsTheFieldTtl() {
+        Assumptions.assumeTrue(hexpireAvailable(), "HEXPIRE not available");
+        startSinkTask(hashFieldProps("parents", HASH_FIELD_EXPIRE, "true"));
+        SinkRecord expiring = hashFieldRecord("p1", "c1", "{\"v\":1}", 0);
+        expiring.headers().addLong(HASH_FIELD_TTL, 3600);
+        SinkRecord persistent = hashFieldRecord("p1", "c1", "{\"v\":2}", 1);
+        // The later record has no TTL, so overwriting the field must not keep the earlier record's TTL.
+        task.put(List.of(expiring, persistent));
+        assertEquals("{\"v\":2}", redisConnection.sync().hget("parents:p1", "c1"));
+        assertEquals(-1L, redisConnection.sync().httl("parents:p1", "c1").get(0));
+        // The reverse order ends with the TTL from the last record.
+        task.put(List.of(persistent, expiring));
+        Assertions.assertTrue(redisConnection.sync().httl("parents:p1", "c1").get(0) > 3500);
+    }
+
+    @Test
+    void hashFieldHeaderTtlIgnoredWhileExpireDisabled() {
+        // No HEXPIRE assumption: with field expiry disabled, the header is ignored on every server.
+        startHashFieldSinkTask("parents");
+        SinkRecord expiring = hashFieldRecord("p1", "c1", "{\"n\":1}", 0);
+        expiring.headers().addLong(HASH_FIELD_TTL, 3600);
+        task.put(List.of(expiring));
+        assertEquals("{\"n\":1}", redisConnection.sync().hget("parents:p1", "c1"));
+        assertEquals(-1, redisConnection.sync().ttl("parents:p1"));
+        if (hexpireAvailable()) {
+            assertEquals(-1L, redisConnection.sync().httl("parents:p1", "c1").get(0));
+        }
+    }
+
+    @Test
+    void hashFieldInvalidHeaderTtlRejectsBatch() {
+        Assumptions.assumeTrue(hexpireAvailable(), "HEXPIRE not available");
+        startSinkTask(hashFieldProps("parents", HASH_FIELD_EXPIRE, "true"));
+        SinkRecord invalid = hashFieldRecord("p1", "c1", "{\"n\":1}", 0);
+        invalid.headers().addString(HASH_FIELD_TTL, "soon");
+        DataException error = Assertions.assertThrows(DataException.class, () -> task.put(List.of(invalid)));
+        Assertions.assertTrue(error.getMessage().contains("Invalid " + HASH_FIELD_TTL + " header"), error.getMessage());
+        assertEquals(0, redisConnection.sync().exists("parents:p1"));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"0", "-1", "-5"})
+    void hashFieldHeaderTtlOfZeroOrBelowMeansNoExpiry(String ttl) {
+        Assumptions.assumeTrue(hexpireAvailable(), "HEXPIRE not available");
+        startSinkTask(hashFieldProps("parents", HASH_FIELD_EXPIRE, "true", HASH_FIELD_TTL, "60"));
+        SinkRecord persistent = hashFieldRecord("p1", "c1", "{\"n\":1}", 0);
+        persistent.headers().addString(HASH_FIELD_TTL, ttl);
+        task.put(List.of(persistent));
+        assertEquals(-1L, redisConnection.sync().httl("parents:p1", "c1").get(0));
+    }
+
+    @Test
+    void hashFieldHeaderTtlAboveMaximumRejectsBatch() {
+        Assumptions.assumeTrue(hexpireAvailable(), "HEXPIRE not available");
+        startSinkTask(hashFieldProps("parents", HASH_FIELD_EXPIRE, "true"));
+        SinkRecord invalid = hashFieldRecord("p1", "c1", "{\"n\":1}", 0);
+        invalid.headers().addLong(HASH_FIELD_TTL, RedisSinkConfigDef.HASH_FIELD_EXPIRE_TTL_MAX + 1);
+        DataException error = Assertions.assertThrows(DataException.class, () -> task.put(List.of(invalid)));
+        Assertions.assertTrue(error.getMessage().contains("above " + RedisSinkConfigDef.HASH_FIELD_EXPIRE_TTL_MAX),
+                error.getMessage());
+        assertEquals(0, redisConnection.sync().exists("parents:p1"));
+    }
+
+    @Test
+    void hashFieldHeaderTtlAcceptsBytes() {
+        Assumptions.assumeTrue(hexpireAvailable(), "HEXPIRE not available");
+        startSinkTask(hashFieldProps("parents", HASH_FIELD_EXPIRE, "true"));
+        SinkRecord expiring = hashFieldRecord("p1", "c1", "{\"n\":1}", 0);
+        expiring.headers().addBytes(HASH_FIELD_TTL, bytes("3600"));
+        task.put(List.of(expiring));
+        Assertions.assertTrue(redisConnection.sync().httl("parents:p1", "c1").get(0) > 3500);
+    }
+
+    @Test
+    void hashFieldDefaultKeyspaceIsTheTopic() {
+        Map<String, String> props = hashFieldProps("");
+        props.remove(RedisSinkConfigDef.KEYSPACE_CONFIG);
+        startSinkTask(props);
+        task.put(List.of(hashFieldRecord("p1", "c1", "{\"n\":1}", 0)));
+        assertEquals(Map.of("c1", "{\"n\":1}"), redisConnection.sync().hgetall("topic:p1"));
+    }
+
+    // On a cluster the hashes hash to different slots, so one batch spans several nodes.
+    @Test
+    void hashFieldBatchAcrossHashesAppliesBothTtls() {
+        Assumptions.assumeTrue(hexpireAvailable(), "HEXPIRE not available");
+        startSinkTask(hashFieldProps("parents", RedisSinkConfigDef.KEY_TTL_CONFIG, "3600", HASH_FIELD_EXPIRE, "true",
+                HASH_FIELD_TTL, "60"));
+        List<SinkRecord> records = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            records.add(hashFieldRecord("p" + i, "c1", "{\"n\":" + i + "}", i));
+        }
+        task.put(records);
+        for (int i = 0; i < 10; i++) {
+            String hash = "parents:p" + i;
+            assertEquals("{\"n\":" + i + "}", redisConnection.sync().hget(hash, "c1"));
+            Assertions.assertTrue(redisConnection.sync().ttl(hash) > 3500, hash);
+            long field = redisConnection.sync().httl(hash, "c1").get(0);
+            Assertions.assertTrue(field > 0 && field <= 60, hash + " field TTL: " + field);
+        }
+    }
+
+    // An Avro decimal key field resolves to the same hash whatever its scale.
+    @Test
+    void hashFieldResolvesDecimalKeysCanonically() {
+        startHashFieldSinkTask("parents");
+        Schema keySchema = SchemaBuilder.struct().field("parentId", Decimal.schema(3))
+                .field("childId", Schema.STRING_SCHEMA).build();
+        Struct key = new Struct(keySchema).put("parentId", new BigDecimal("12.500")).put("childId", "c1");
+        task.put(List.of(new SinkRecord("topic", 0, keySchema, key, Schema.STRING_SCHEMA, "{\"n\":1}", 0)));
+        assertEquals("{\"n\":1}", redisConnection.sync().hget("parents:12.5", "c1"));
+    }
+
+    @Test
+    void hashFieldExpireWithoutHexpireFailsStart() {
+        Assumptions.assumeFalse(hexpireAvailable(), "HEXPIRE available");
+        ConnectException error = Assertions.assertThrows(ConnectException.class,
+                () -> startSinkTask(hashFieldProps("parents", HASH_FIELD_EXPIRE, "true")));
+        Assertions.assertTrue(error.getMessage().contains("requires a Redis server that supports HEXPIRE"),
+                error.getMessage());
+    }
+
+    private static final String HASH_FIELD_EXPIRE = RedisSinkConfigDef.HASH_FIELD_EXPIRE_ENABLED_CONFIG;
+
+    private static final String HASH_FIELD_TTL = RedisSinkConfigDef.HASH_FIELD_EXPIRE_TTL_CONFIG;
+
+    // Whether the server under test supports hash field expiration (HEXPIRE).
+    private boolean hexpireAvailable() {
+        try {
+            redisConnection.sync().hexpire("hexpire-check", 1, "field");
+            return true;
+        } catch (RedisCommandExecutionException e) {
+            if (String.valueOf(e.getMessage()).startsWith("ERR unknown command")) {
+                return false;
+            }
+            throw e;
+        }
+    }
+
+    // HASH_FIELD sink properties plus extra name/value pairs.
+    private Map<String, String> hashFieldProps(String keyspace, String... extra) {
+        Map<String, String> props = new LinkedHashMap<>(Map.of(RedisSinkConfigDef.URI_CONFIG, getRedisServer().getRedisURI(),
+                RedisSinkConfigDef.TYPE_CONFIG, "HASH_FIELD", RedisSinkConfigDef.KEYSPACE_CONFIG, keyspace,
+                RedisSinkConfigDef.HASH_FIELD_HASH_CONFIG, "key.parentId", RedisSinkConfigDef.HASH_FIELD_FIELD_CONFIG, "key.childId"));
+        for (int i = 0; i < extra.length; i += 2) {
+            props.put(extra[i], extra[i + 1]);
+        }
+        return props;
+    }
+
+    private void startHashFieldSinkTask(String keyspace) {
+        startSinkTask(hashFieldProps(keyspace));
+    }
+
+    // A schemaless Map key, as produced by JsonConverter with schemas.enable=false.
+    private static SinkRecord hashFieldRecord(String parentId, String childId, String json, long offset) {
+        return new SinkRecord("topic", 0, null, Map.of("parentId", parentId, "childId", childId),
+                Schema.OPTIONAL_STRING_SCHEMA, json, offset);
     }
 
     @ParameterizedTest

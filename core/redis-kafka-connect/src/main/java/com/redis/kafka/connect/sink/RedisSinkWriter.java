@@ -6,6 +6,7 @@ import io.lettuce.core.RedisCommandExecutionException;
 import io.lettuce.core.RedisConnectionException;
 import io.lettuce.core.RedisFuture;
 import io.lettuce.core.TransactionResult;
+import io.lettuce.core.api.async.RedisHashAsyncCommands;
 import io.lettuce.core.api.async.RedisKeyAsyncCommands;
 import io.lettuce.core.api.async.RedisTransactionalAsyncCommands;
 import io.lettuce.core.api.sync.BaseRedisCommands;
@@ -77,10 +78,14 @@ final class RedisSinkWriter implements AutoCloseable {
         List<RedisFuture<?>> futures = new ArrayList<>();
         // Lettuce routes and flushes async commands, including lazily opened cluster connections.
         RedisKeyAsyncCommands<byte[], byte[]> keys = connection.async(RedisKeyAsyncCommands.class);
+        RedisHashAsyncCommands<byte[], byte[]> hashes = connection.async(RedisHashAsyncCommands.class);
         for (RedisWrite write : writes) {
             futures.add(write.enqueue(connection));
             if (write.ttl() > 0) {
                 futures.add(keys.expire(write.key(), write.ttl()));
+            }
+            if (write.hashFieldTtl() > 0 && write.hashField() != null) {
+                futures.add(hashes.hexpire(write.key(), write.hashFieldTtl(), write.hashField()));
             }
         }
         if (transaction) {

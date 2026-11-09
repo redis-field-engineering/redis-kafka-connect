@@ -35,6 +35,7 @@ The {name} supports the following Redis data-structure types as targets:
 * <<_sink_string,string>>
 * <<_sink_json,JSON>>
 * <<_sink_hash,Hash>>
+* <<_sink_hash_field,Hash Field>>
 * <<_sink_stream,stream>>
 * <<_sink_list,list>>
 * <<_sink_set,set>>
@@ -52,6 +53,8 @@ Leave the keyspace empty ( `redis.keyspace =` ) if you don't want any key prefix
 
 For `stream`, `list`, `set`, `zset`, and `timeseries` the Redis key is just the keyspace.
 For example with `redis.keyspace = set:${topic}` and topic `orders` the Redis key is `set:orders`.
+
+For `hash_field`, the value selected by `redis.hashfield.hash` from the Kafka message key is appended to the keyspace instead (see <<_sink_hash_field,Hash Field>>).
 
 [[_sink_string]]
 === String
@@ -174,6 +177,51 @@ A key of `0` requests the Redis server's current timestamp, preserving the previ
 
 The Kafka record value must be a number (e.g. `float64`) as it is used as the sample value.
 
+[[_sink_hash_field]]
+=== Hash Field
+Use the following properties to write each Kafka record as one field of a shared Redis hash.
+This suits topics that carry changes to individual items of a group, keyed by a structured key that names both the group and the item:
+
+[source,properties]
+----
+redis.type            = HASH_FIELD
+redis.keyspace        = parents <1>
+redis.hashfield.hash  = key.parentId <2>
+redis.hashfield.field = key.childId <3>
+key.converter         = <Avro, JSON Schema, Protobuf, or schemaless JSON> <4>
+----
+<1> Prefix of the hash name (optional, default: `${topic}`). Leave it empty to name the hash by the key value alone.
+<2> Field of the record key that names the destination hash, written as `key.<field>` or `key.<field>.<nested>`.
+The hash is named `<redis.keyspace><redis.separator><value>`, for example `parents:p1`.
+<3> Field of the record key that names the field within the hash, using the same syntax. The value is used as is, with no prefix.
+<4> The record key must be a Struct or a map.
+
+For a record with the key `{"parentId": "p1", "childId": "c1"}`:
+
+* a record value runs `HSET parents:p1 c1 <value>`
+* a null value (tombstone) runs `HDEL parents:p1 c1`, removing only that field
+* a <<_sink_ttl,TTL>> expires the whole hash, and an optional <<_sink_hash_field_expiry,field TTL>> expires only that field
+
+Readers can then use `HGETALL parents:p1` for every item of `p1` and `HGET parents:p1 c1` for one item.
+
+Only the record key needs to be structured. The record value is stored as follows:
+
+* bytes (<<_sink_value_bytes,ByteArrayConverter>>) and strings (<<_sink_value_string,StringConverter>>) are stored unchanged.
+For example, the byte array converter keeps a Schema Registry–encoded Avro value in its original wire format.
+* any other value, such as a Struct or map read with <<_sink_value_avro,Avro>> or <<_sink_value_json,JSON>>, is stored as a JSON document.
+
+Record keys do not need a schema registry. JSON keys work with the schemaless JSON converter:
+
+[source,properties]
+----
+key.converter                = org.apache.kafka.connect.json.JsonConverter
+key.converter.schemas.enable = false
+----
+
+The referenced key fields can be strings, booleans, numbers or bytes.
+Decimal fields are written in plain notation without trailing zeros, so `12.500` and `12.5` name the same hash.
+
+A record whose key does not contain the configured fields is invalid record data: the batch fails before any command is sent.
 
 [[_sink_data_formats]]
 == Data Formats
@@ -189,6 +237,7 @@ The {name} expects Kafka record keys in a specific format depending on the confi
 |Target|Record Key|Assigned To
 |Stream|Any|None
 |Hash|String|Key
+|Hash Field|Struct or map|Hash name and field
 |String|<<_sink_key_string,String>> or <<_sink_key_bytes,bytes>>|Key
 |List|<<_sink_key_string,String>> or <<_sink_key_bytes,bytes>>|Member
 |Set|<<_sink_key_string,String>> or <<_sink_key_bytes,bytes>>|Member
@@ -226,6 +275,7 @@ If your data in Kafka is not in the format expected for a given data structure, 
 |Target|Record Value|Assigned To
 |Stream|<<_sink_value_avro,Avro>> or <<_sink_value_json,JSON>>|Message body
 |Hash|<<_sink_value_avro,Avro>> or <<_sink_value_json,JSON>>|Fields
+|Hash Field|Any: <<_sink_value_string,String>> and <<_sink_value_bytes,bytes>> are stored unchanged; <<_sink_value_avro,Avro>> and <<_sink_value_json,JSON>> are stored as a JSON document|Field value
 |String|<<_sink_value_string,String>> or <<_sink_value_bytes,bytes>>|Value
 |List|Any|Removal if null
 |Set|Any|Removal if null
@@ -299,8 +349,48 @@ record.headers().add("redis.key.ttl", "1800".getBytes()); // 30 minutes
 * Per-message TTL headers take precedence over global configuration
 * TTL applies to all Redis data types
 * For collection types (STREAM, LIST, SET, ZSET, TIMESERIES), TTL is applied to the collection key
+* For HASH_FIELD, TTL is applied to the hash key, so it expires every field of the hash. To expire individual fields, see <<_sink_hash_field_expiry,Hash Field Expiry>>.
 * Invalid TTL values are logged and ignored
 * TTL value of -1 (default) means no expiration
+
+[[_sink_hash_field_expiry]]
+=== Hash Field Expiry
+
+With `redis.type=HASH_FIELD`, each field can also expire on its own, using the Redis `HEXPIRE` command:
+
+[source,properties]
+----
+redis.hashfield.hexpire.enabled = true <1>
+redis.hashfield.hexpire.ttl     = 3600 <2>
+----
+<1> Enables field expiry (optional, default: `false`).
+<2> TTL in seconds for the record's field (optional, default: -1 for no expiration). Requires `redis.hashfield.hexpire.enabled=true`.
+
+Include a `redis.hashfield.hexpire.ttl` header in your Kafka messages to set the field TTL for individual records:
+
+[source,java]
+----
+ProducerRecord<String, String> record = new ProducerRecord<>("topic", key, value);
+record.headers().add("redis.hashfield.hexpire.ttl", "1800".getBytes()); // 30 minutes
+----
+
+* The header takes precedence over the configured field TTL.
+With field expiry enabled and no configured field TTL, only records with the header expire.
+* A header value of 0 or below means no expiry for that record, even when a field TTL is configured.
+* If a record has several headers with this name, the last one wins.
+* The header value can be a string, a number or bytes; bytes are read as text in the configured charset.
+* The field TTL can be at most 4611686018427387 seconds, in the configuration and in the header.
+* `redis.key.ttl` and the field TTL can be combined.
+The key TTL expires the whole hash and the field TTL expires only the record's field; both are reset on every write.
+* Each write replaces the field and clears its previous TTL, so a record without a field TTL leaves its field without expiration.
+* A tombstone removes the field and sets no TTL.
+* Field expiry requires a Redis server that supports `HEXPIRE`, for example Redis 7.4 or later.
+When it is enabled, the task checks at startup by calling `HEXPIRE` on the key `__redis-kafka-connect-hexpire-probe`, which does not exist, so nothing is written.
+If the server does not support `HEXPIRE`, the task fails to start with an error saying so.
+If the check fails for another reason, such as missing permissions, the task fails to start with the server's error.
+The connector's user needs permission to run `HEXPIRE` on the destination keys and on that key.
+* While field expiry is disabled, `redis.hashfield.hexpire.ttl` headers are ignored, so turning it off stops field expiry without rewriting the topic.
+* While field expiry is enabled, a header value that is not a number or is above the maximum makes the record invalid: the batch fails before any command is sent.
 
 [[_sink_config]]
 == Configuration
@@ -310,7 +400,7 @@ record.headers().add("redis.key.ttl", "1800".getBytes()); // 30 minutes
 connector.class  = com.redis.kafka.connect.RedisSinkConnector
 topics           = <Kafka topic> <1>
 redis.uri        = <Redis URI> <2>
-redis.type       = <HASH|SET|JSON|STREAM|LIST|SET|ZSET|TIMESERIES> <3>
+redis.type       = <HASH|HASH_FIELD|SET|JSON|STREAM|LIST|SET|ZSET|TIMESERIES> <3>
 redis.key.ttl    = <TTL in seconds> <4>
 redis.offset.namespace = <Offset namespace> <5>
 key.converter    = <Key converter> <6>
