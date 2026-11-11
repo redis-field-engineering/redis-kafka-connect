@@ -1,7 +1,7 @@
 [versions]
 # Build plugins
 axion-release = "1.21.4"
-ben-manes-versions = "0.66.0"
+ben-manes-versions = "0.67.0"
 shadow = "9.6.1"
 
 # Runtime and test dependencies
