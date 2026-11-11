@@ -1,16 +1,16 @@
 [versions]
 # Build plugins
 axion-release = "1.21.4"
-ben-manes-versions = "0.66.0"
+ben-manes-versions = "0.67.0"
 shadow = "9.6.1"
 
 # Runtime and test dependencies
 lettuce = "7.9.0.RELEASE"
-netty = "4.2.19.Final"
+netty = "4.2.20.Final"
 jackson = "2.23.0"
 commons-pool = "2.13.1"
 slf4j = "2.0.20"
-kafka = "4.3.1"
+kafka = "4.4.0"
 awaitility = "4.3.0"
 assertj = "3.27.7"
 mockito = "5.24.0"
