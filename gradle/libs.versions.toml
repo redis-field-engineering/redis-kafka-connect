@@ -7,7 +7,7 @@ shadow = "9.6.1"
 # Runtime and test dependencies
 lettuce = "7.9.0.RELEASE"
 netty = "4.2.20.Final"
-jackson = "2.22.4"
+jackson = "2.23.0"
 commons-pool = "2.13.1"
 slf4j = "2.0.20"
 kafka = "4.4.0"
