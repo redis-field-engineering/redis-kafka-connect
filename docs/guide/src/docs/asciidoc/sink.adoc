@@ -327,10 +327,11 @@ value.converter  = <Value converter> <7>
 == Batching, Transactions, and Retries
 
 Commands affecting the same key retain input order, including tombstones and TTL updates.
-The task waits for every command result before accepting the batch. Invalid record data
-fails before any commands in that batch are sent. Server errors and partial failures can
-still occur after some commands have executed; replay can duplicate list entries, stream
-messages, or other non-idempotent operations. Delivery remains at least once.
+The task waits for every command result before accepting the batch. Invalid record data is
+detected before any commands in that batch are sent (see <<_sink_invalid_records>>). Server
+errors and partial failures can still occur after some commands have executed; replay can
+duplicate list entries, stream messages, or other non-idempotent operations. Delivery remains
+at least once.
 
 `redis.multiexec=true` keeps one transaction per batch with `redis.cluster=false`, preserving
 atomic execution across its keys on standalone Redis. `redis.wait.replicas` waits for
@@ -341,3 +342,26 @@ Lettuce's asynchronous routing, pipelining, and redirect handling without per-sl
 or per-primary replication waits. Sharded Enterprise proxies must support the requested
 transaction themselves; the connector does not split transactions across shards.
 Offset keys are persisted after successful writes and keep their existing namespace and JSON format.
+
+[[_sink_invalid_records]]
+=== Invalid Records
+
+A record that cannot be converted into a Redis command, such as one with a null key, an invalid
+JSON document, or a non-numeric TimeSeries timestamp, is passed to Kafka Connect's errant record
+reporter before any command in its batch is sent. The standard `errors.*` connector properties
+decide what happens next:
+
+* `errors.tolerance=none` (default): the task fails and nothing from the batch is written.
+* `errors.tolerance=all`: the record is skipped, and sent to the dead letter queue when
+`errors.deadletterqueue.topic.name` is set. The rest of the batch is written in order.
+
+[source,properties]
+----
+errors.tolerance                                = all
+errors.deadletterqueue.topic.name               = redis-sink-dlq
+errors.deadletterqueue.context.headers.enable   = true
+----
+
+If the Connect runtime provides no errant record reporter, an invalid record fails the task.
+Errors returned by Redis while executing commands are not reported this way; they keep the
+retry and failure behavior described above.
