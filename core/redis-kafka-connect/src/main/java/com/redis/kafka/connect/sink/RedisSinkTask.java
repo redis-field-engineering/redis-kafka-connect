@@ -28,6 +28,7 @@ import io.lettuce.core.RedisCommandTimeoutException;
 import io.lettuce.core.RedisConnectionException;
 import io.lettuce.core.RedisException;
 import io.lettuce.core.RedisClient;
+import io.lettuce.core.api.sync.RedisHashCommands;
 import io.lettuce.core.api.sync.RedisStringCommands;
 import io.lettuce.core.codec.StringCodec;
 import io.lettuce.core.protocol.CommandType;
@@ -73,6 +74,8 @@ public class RedisSinkTask extends SinkTask {
 
     private static final String LEGACY_OFFSET_KEY_FORMAT = "com.redis.kafka.connect.sink.offset.%s.%s";
 
+    private static final String HASH_FIELD_EXPIRE_REQUIREMENT =
+            "requires a Redis server that supports HEXPIRE (for example Redis 7.4 or later)";
     private static final ObjectMapper objectMapper = objectMapper();
 
     private RedisSinkConfig config;
@@ -110,6 +113,7 @@ public class RedisSinkTask extends SinkTask {
         jsonConverter = new JsonConverter();
         jsonConverter.configure(Collections.singletonMap("schemas.enable", "false"), false);
         client = config.client();
+        boolean hashFieldExpireAvailable = true;
         try {
             connection = RedisConnection.open(client, StringCodec.UTF8);
             if (config.isMultiExec() || config.getWaitReplicas() > 0) {
@@ -119,9 +123,31 @@ public class RedisSinkTask extends SinkTask {
                 statefulWriterClient.setOptions(statefulWriterClient.getOptions().mutate().autoReconnect(false).build());
             }
             writer = new RedisSinkWriter(statefulWriterClient == null ? client : statefulWriterClient, config);
+            if (config.isHashFieldExpireEnabled()) {
+                hashFieldExpireAvailable = probeHashFieldExpire();
+            }
         } catch (Exception e) {
             stop();
             throw new ConnectException("Could not start Redis sink", e);
+        }
+        if (!hashFieldExpireAvailable) {
+            stop();
+            throw new ConnectException(RedisSinkConfigDef.HASH_FIELD_EXPIRE_ENABLED_CONFIG + "=true "
+                    + HASH_FIELD_EXPIRE_REQUIREMENT);
+        }
+    }
+
+    // HEXPIRE on a missing key writes nothing; a server without the command replies "unknown command".
+    private boolean probeHashFieldExpire() {
+        try {
+            connection.sync(RedisHashCommands.class).hexpire("__redis-kafka-connect-hexpire-probe", 1, "probe");
+            return true;
+        } catch (RedisCommandExecutionException e) {
+            if (String.valueOf(e.getMessage()).startsWith("ERR unknown command")) {
+                return false;
+            }
+            // Other errors, such as ACL denials, fail startup.
+            throw e;
         }
     }
 
@@ -209,11 +235,16 @@ public class RedisSinkTask extends SinkTask {
     private RedisWrite command(SinkRecord record) {
         byte[] key = switch (config.getType()) {
             case STREAM, LIST, SET, ZSET, TIMESERIES -> collectionKey(record);
+            case HASH_FIELD -> hashFieldKey(record);
             default -> key(record);
         };
         if (record.value() == null) {
             return switch (config.getType()) {
                 case HASH, JSON, STRING -> write(CommandType.DEL, key, List.of(), RedisWrite.Reply.INTEGER, -1);
+                case HASH_FIELD -> {
+                    byte[] field = hashField(record);
+                    yield write(CommandType.HDEL, key, List.of(field), RedisWrite.Reply.INTEGER, -1, field, -1);
+                }
                 case LIST -> write(CommandType.LREM, key, List.of(number(0), member(record)), RedisWrite.Reply.INTEGER, -1);
                 case SET -> write(CommandType.SREM, key, List.of(member(record)), RedisWrite.Reply.INTEGER, -1);
                 case ZSET -> write(CommandType.ZREM, key, List.of(member(record)), RedisWrite.Reply.INTEGER, -1);
@@ -225,6 +256,11 @@ public class RedisSinkTask extends SinkTask {
             case STRING -> write(CommandType.SET, key, List.of(value(record)), RedisWrite.Reply.STATUS, ttl);
             case JSON -> write(CommandType.JSON_SET, key, List.of(number("$"), jsonValue(record)), RedisWrite.Reply.STATUS, ttl);
             case HASH -> write(CommandType.HSET, key, fields(record), RedisWrite.Reply.INTEGER, ttl);
+            case HASH_FIELD -> {
+                byte[] field = hashField(record);
+                yield write(CommandType.HSET, key, List.of(field, hashFieldValue(record)), RedisWrite.Reply.INTEGER, ttl,
+                        field, hashFieldTtl(record));
+            }
             case STREAM -> {
                 List<byte[]> args = new ArrayList<>();
                 args.add(number("*"));
@@ -239,7 +275,12 @@ public class RedisSinkTask extends SinkTask {
     }
 
     private RedisWrite write(ProtocolKeyword command, byte[] key, List<byte[]> args, RedisWrite.Reply reply, long ttl) {
-        return new RedisWrite(command, key, List.copyOf(args), reply, ttl);
+        return write(command, key, args, reply, ttl, null, -1);
+    }
+
+    private RedisWrite write(ProtocolKeyword command, byte[] key, List<byte[]> args, RedisWrite.Reply reply, long ttl,
+            byte[] hashField, long hashFieldTtl) {
+        return new RedisWrite(command, key, List.copyOf(args), reply, ttl, hashField, hashFieldTtl);
     }
 
     private byte[] number(Object value) {
@@ -280,6 +321,36 @@ public class RedisSinkTask extends SinkTask {
             }
         }
         return config.getKeyTTL();
+    }
+
+    // With field expiry disabled, headers are ignored. Otherwise the last header overrides the configured TTL;
+    // 0 or below means no expiry, and an unusable header fails the record.
+    private long hashFieldTtl(SinkRecord record) {
+        if (!config.isHashFieldExpireEnabled()) {
+            return -1;
+        }
+        Header header = record.headers().lastWithName(RedisSinkConfigDef.HASH_FIELD_EXPIRE_TTL_CONFIG);
+        if (header == null) {
+            return config.getHashFieldTTL();
+        }
+        Object value = header.value();
+        String text = value instanceof byte[] bytes ? new String(bytes, config.getCharset()) : String.valueOf(value);
+        long ttl;
+        try {
+            ttl = Long.parseLong(text.trim());
+        } catch (NumberFormatException e) {
+            throw invalidHashFieldTtl(record, "not a number", e);
+        }
+        if (ttl > RedisSinkConfigDef.HASH_FIELD_EXPIRE_TTL_MAX) {
+            throw invalidHashFieldTtl(record, "above " + RedisSinkConfigDef.HASH_FIELD_EXPIRE_TTL_MAX, null);
+        }
+        return ttl;
+    }
+
+    private DataException invalidHashFieldTtl(SinkRecord record, String reason, Exception cause) {
+        return new DataException("Invalid " + RedisSinkConfigDef.HASH_FIELD_EXPIRE_TTL_CONFIG + " header (" + reason
+                + ") for topic " + record.topic() + " partition " + record.kafkaPartition() + " offset "
+                + record.kafkaOffset(), cause);
     }
 
     private byte[] timestamp(SinkRecord record) {
@@ -336,10 +407,17 @@ public class RedisSinkTask extends SinkTask {
         if (config.getKeyspace().isEmpty()) {
             return bytes("key", sinkRecord.key());
         }
-        String keyspace = keyspace(sinkRecord);
-        byte[] prefix = (keyspace + config.getSeparator()).getBytes(config.getCharset());
         byte[] suffix = sinkRecord.key() instanceof byte[] binary ? binary
                 : String.valueOf(sinkRecord.key()).getBytes(config.getCharset());
+        return namespacedKey(sinkRecord, suffix);
+    }
+
+    // <keyspace><separator><suffix>, or the suffix alone when the keyspace is empty.
+    private byte[] namespacedKey(SinkRecord sinkRecord, byte[] suffix) {
+        if (config.getKeyspace().isEmpty()) {
+            return suffix;
+        }
+        byte[] prefix = (keyspace(sinkRecord) + config.getSeparator()).getBytes(config.getCharset());
         byte[] key = Arrays.copyOf(prefix, prefix.length + suffix.length);
         System.arraycopy(suffix, 0, key, prefix.length, suffix.length);
         return key;
@@ -367,6 +445,27 @@ public class RedisSinkTask extends SinkTask {
 
     private byte[] collectionKey(SinkRecord sinkRecord) {
         return keyspace(sinkRecord).getBytes(config.getCharset());
+    }
+
+    private byte[] hashFieldKey(SinkRecord sinkRecord) {
+        return namespacedKey(sinkRecord, config.getHashPath().resolve(sinkRecord.key(), config.getCharset()));
+    }
+
+    private byte[] hashField(SinkRecord sinkRecord) {
+        return config.getFieldPath().resolve(sinkRecord.key(), config.getCharset());
+    }
+
+    // Bytes are stored as is, strings are encoded in the charset, and anything else becomes JSON.
+    private byte[] hashFieldValue(SinkRecord sinkRecord) {
+        Object value = sinkRecord.value();
+        byte[] binary = BinaryValue.toBytes(value);
+        if (binary != null) {
+            return binary;
+        }
+        if (value instanceof String text) {
+            return text.getBytes(config.getCharset());
+        }
+        return jsonConverter.fromConnectData(sinkRecord.topic(), sinkRecord.valueSchema(), value);
     }
 
     @SuppressWarnings("unchecked")
