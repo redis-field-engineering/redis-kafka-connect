@@ -32,6 +32,7 @@ import org.apache.kafka.connect.data.SchemaBuilder;
 import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.errors.DataException;
 import org.apache.kafka.connect.errors.RetriableException;
+import org.apache.kafka.connect.sink.ErrantRecordReporter;
 import org.apache.kafka.connect.sink.SinkRecord;
 import org.apache.kafka.connect.sink.SinkTaskContext;
 import org.junit.jupiter.api.AfterEach;
@@ -41,7 +42,10 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyMap;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -723,6 +727,43 @@ abstract class AbstractSinkIntegrationTests extends AbstractRedisIntegrationTest
         SinkRecord invalid = new SinkRecord("topic", 0, Schema.STRING_SCHEMA, "invalid", Schema.INT32_SCHEMA, 42, 1);
         Assertions.assertThrows(DataException.class, () -> task.put(List.of(valid, invalid)));
         assertEquals(0, redisConnection.sync().exists("valid"));
+    }
+
+    @Test
+    void invalidRecordIsReportedAndBatchContinues() {
+        ErrantRecordReporter reporter = mock(ErrantRecordReporter.class);
+        startReportingSinkTask(reporter);
+        SinkRecord first = new SinkRecord("topic", 0, Schema.STRING_SCHEMA, "reported-first", Schema.STRING_SCHEMA, "value", 0);
+        SinkRecord invalid = new SinkRecord("topic", 0, Schema.STRING_SCHEMA, "reported-invalid", Schema.INT32_SCHEMA, 42, 1);
+        SinkRecord last = new SinkRecord("topic", 0, Schema.STRING_SCHEMA, "reported-last", Schema.STRING_SCHEMA, "value", 2);
+        task.put(List.of(first, invalid, last));
+        verify(reporter).report(eq(invalid), isA(DataException.class));
+        assertEquals("value", redisConnection.sync().get("reported-first"));
+        assertEquals("value", redisConnection.sync().get("reported-last"));
+        assertEquals(0, redisConnection.sync().exists("reported-invalid"));
+    }
+
+    @Test
+    void reporterFailureWritesNothing() {
+        ErrantRecordReporter reporter = mock(ErrantRecordReporter.class);
+        // Connect's reporter throws when errors.tolerance=none.
+        when(reporter.report(any(), any())).thenThrow(new ConnectException("Tolerance exceeded in error handler"));
+        startReportingSinkTask(reporter);
+        SinkRecord first = new SinkRecord("topic", 0, Schema.STRING_SCHEMA, "unreported-first", Schema.STRING_SCHEMA, "value", 0);
+        SinkRecord invalid = new SinkRecord("topic", 0, Schema.STRING_SCHEMA, "unreported-invalid", Schema.INT32_SCHEMA, 42, 1);
+        SinkRecord last = new SinkRecord("topic", 0, Schema.STRING_SCHEMA, "unreported-last", Schema.STRING_SCHEMA, "value", 2);
+        ConnectException error = Assertions.assertThrows(ConnectException.class, () -> task.put(List.of(first, invalid, last)));
+        Assertions.assertFalse(error instanceof RetriableException);
+        assertEquals(0, redisConnection.sync().exists("unreported-first"));
+        assertEquals(0, redisConnection.sync().exists("unreported-last"));
+    }
+
+    private void startReportingSinkTask(ErrantRecordReporter reporter) {
+        SinkTaskContext context = mock(SinkTaskContext.class);
+        when(context.errantRecordReporter()).thenReturn(reporter);
+        task.initialize(context);
+        startSinkTask(Map.of(RedisSinkConfigDef.URI_CONFIG, getRedisServer().getRedisURI(),
+                RedisSinkConfigDef.TYPE_CONFIG, "STRING", RedisSinkConfigDef.KEYSPACE_CONFIG, ""));
     }
 
     @Test

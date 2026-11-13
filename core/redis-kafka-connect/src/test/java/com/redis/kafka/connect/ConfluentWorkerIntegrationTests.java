@@ -12,6 +12,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -508,6 +509,43 @@ class ConfluentWorkerIntegrationTests extends AbstractRedisIntegrationTests {
             producer.close(Duration.ofSeconds(5));
             request("DELETE", "/connectors/" + name, null);
             redisConnection.setTimeout(Duration.ofSeconds(60));
+        }
+    }
+
+    @Test
+    void sinkSendsInvalidRecordsToDeadLetterQueue() throws Exception {
+        String name = "worker-dlq";
+        String dlq = name + "-dlq";
+        createTopic(name);
+        Map<String, String> config = base("RedisSinkConnector");
+        config.put("topics", name);
+        config.put("redis.type", "STRING");
+        config.put("redis.keyspace", name);
+        config.put("value.converter", "org.apache.kafka.connect.storage.StringConverter");
+        config.put("errors.tolerance", "all");
+        config.put("errors.deadletterqueue.topic.name", dlq);
+        config.put("errors.deadletterqueue.topic.replication.factor", "1");
+        config.put("errors.deadletterqueue.context.headers.enable", "true");
+        putConnector(name, config, 1);
+        KafkaProducer<String, String> producer = producer();
+        try (KafkaConsumer<String, String> dlqConsumer = consumer(dlq)) {
+            send(producer, name, "good1");
+            // A null key cannot be converted into a Redis key.
+            producer.send(new ProducerRecord<>(name, null, "invalid")).get(35, TimeUnit.SECONDS);
+            send(producer, name, "good2");
+            Awaitility.await().atMost(Duration.ofSeconds(30)).until(() ->
+                    "value".equals(redisConnection.sync().get(name + ":good1"))
+                            && "value".equals(redisConnection.sync().get(name + ":good2")));
+            ConsumerRecord<String, String> reported = receive(dlqConsumer, 1).get(0);
+            assertNull(reported.key());
+            assertEquals("invalid", reported.value());
+            assertEquals("org.apache.kafka.connect.errors.DataException", new String(
+                    reported.headers().lastHeader("__connect.errors.exception.class.name").value(), StandardCharsets.UTF_8));
+            running(name, 1);
+            awaitSinkOffset(name, 3);
+        } finally {
+            producer.close(Duration.ofSeconds(5));
+            request("DELETE", "/connectors/" + name, null);
         }
     }
 
