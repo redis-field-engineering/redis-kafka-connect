@@ -1,0 +1,68 @@
+# Fork-only release for SmartThingsOSS. Push a tag such as 1.2.0-st.1 (no "v"
+# prefix, so it never collides with upstream's v* tags or Axion's version
+# scheme). The connector is built, tested, and attached to a GitHub Release.
+name: SmartThings Release
+
+on:
+  push:
+    tags:
+      - '*-st.*'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Release ${{ github.ref_name }}
+    if: github.repository == 'SmartThingsOSS/redis-kafka-connect'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Validate tag
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          if ! [[ "$TAG" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)-st\.(0|[1-9][0-9]*)$ ]]; then
+            echo "::error::Tag '$TAG' must look like 1.2.0-st.1"
+            exit 1
+          fi
+      - uses: actions/setup-java@v6.2.0
+        with:
+          distribution: temurin
+          java-version: |
+            21
+            27
+      - uses: gradle/actions/setup-gradle@v6.4.1
+      # Axion derives the version from v* tags. A local, never-pushed tag on
+      # HEAD makes it report exactly the release version (no -SNAPSHOT).
+      - name: Set version for Axion
+        run: git tag "v${GITHUB_REF_NAME}"
+      - name: Build, test, and package
+        run: |
+          ./gradlew build integrationTest workerTest -PtestJavaVersion=21 \
+            redis-kafka-connect:createConfluentArchive
+      - name: Check archive version
+        id: archive
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          zip="core/redis-kafka-connect/build/confluent/redis-redis-kafka-connect-${TAG}.zip"
+          test -f "$zip" || { echo "::error::Expected $zip"; ls core/redis-kafka-connect/build/confluent; exit 1; }
+          echo "path=$zip" >> "$GITHUB_OUTPUT"
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: gh release create "$TAG" "${{ steps.archive.outputs.path }}" --title "$TAG" --generate-notes --verify-tag
+      - name: Upload test reports
+        if: failure()
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: release-test-reports
+          path: '**/build/reports/tests/'

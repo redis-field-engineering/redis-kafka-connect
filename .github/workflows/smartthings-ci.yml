@@ -1,0 +1,101 @@
+# Fork-only CI for SmartThingsOSS. Upstream never edits this file, so merges
+# from upstream cannot conflict, and the repository guard keeps it inert
+# anywhere else. Pull requests build and test only; pushes to master and
+# manual runs also publish the Confluent archive as a workflow artifact.
+name: SmartThings CI
+
+on:
+  push:
+    branches:
+      - master
+    paths-ignore:
+      - 'docs/**'
+      - '*.adoc'
+      - '*.md'
+  pull_request:
+    paths-ignore:
+      - 'docs/**'
+      - '*.adoc'
+      - '*.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  test:
+    name: Build and test
+    if: github.repository == 'SmartThingsOSS/redis-kafka-connect'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v6.2.0
+        with:
+          distribution: temurin
+          java-version: '27'
+      - uses: gradle/actions/setup-gradle@v6.4.1
+      - name: Build, unit and integration tests
+        run: ./gradlew build integrationTest
+      - name: Upload test reports
+        if: failure()
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: test-reports
+          path: '**/build/reports/tests/'
+
+  worker:
+    name: Confluent Platform worker test
+    if: github.repository == 'SmartThingsOSS/redis-kafka-connect'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v6.2.0
+        with:
+          distribution: temurin
+          java-version: |
+            21
+            27
+      - uses: gradle/actions/setup-gradle@v6.4.1
+      - name: Run packaged connector in Confluent Platform
+        run: ./gradlew workerTest workerImageTest -PtestJavaVersion=21
+      - name: Upload test reports
+        if: failure()
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: worker-test-reports
+          path: '**/build/reports/tests/'
+
+  package:
+    name: Publish connector archive
+    needs: [test, worker]
+    if: github.repository == 'SmartThingsOSS/redis-kafka-connect' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v6.2.0
+        with:
+          distribution: temurin
+          java-version: '27'
+      - uses: gradle/actions/setup-gradle@v6.4.1
+      - name: Create Confluent archive
+        id: archive
+        run: |
+          ./gradlew redis-kafka-connect:createConfluentArchive
+          zip=$(ls core/redis-kafka-connect/build/confluent/*.zip)
+          echo "path=$zip" >> "$GITHUB_OUTPUT"
+          echo "name=$(basename "$zip" .zip)" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v7.0.2
+        with:
+          name: ${{ steps.archive.outputs.name }}
+          path: ${{ steps.archive.outputs.path }}
+          if-no-files-found: error
