@@ -13,6 +13,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import static org.junit.jupiter.api.Assertions.*;
@@ -63,6 +64,53 @@ class RedisSinkWriterTest {
             }
         }
         verify(replacement).close();
+    }
+
+    @Test
+    void keyAndFieldTtlsAreSentIndependently() throws Exception {
+        RedisClient client = mock(RedisClient.class);
+        StatefulRedisConnection<byte[], byte[]> connection = mock(StatefulRedisConnection.class);
+        RedisAsyncCommands<byte[], byte[]> commands = mock(RedisAsyncCommands.class);
+        when(client.connect(ByteArrayCodec.INSTANCE)).thenReturn(connection);
+        when(connection.sync()).thenReturn(mock(RedisCommands.class));
+        when(connection.async()).thenReturn(commands);
+        RedisFuture<Long> reply = future(CompletableFuture.completedFuture(1L));
+        RedisFuture<List<Long>> fieldReply = future(CompletableFuture.completedFuture(List.of(1L)));
+        RedisFuture<Boolean> keyReply = future(CompletableFuture.completedFuture(true));
+        when(commands.<Long>dispatch(any(), any(), any())).thenReturn(reply);
+        when(commands.expire(any(byte[].class), anyLong())).thenReturn(keyReply);
+        when(commands.hexpire(any(byte[].class), anyLong(), any(byte[][].class))).thenReturn(fieldReply);
+        byte[] fieldOnly = bytes("parents:p1");
+        byte[] keyOnly = bytes("parents:p2");
+        byte[] both = bytes("parents:p3");
+        byte[] field = bytes("c1");
+        byte[] string = bytes("string");
+        RedisSinkConfig config = new RedisSinkConfig(Map.of("redis.type", "HASH_FIELD", "redis.pool", "1",
+                "redis.hashfield.hash", "key.parentId", "redis.hashfield.field", "key.childId"));
+        try (RedisSinkWriter writer = new RedisSinkWriter(client, config)) {
+            writer.write(List.of(
+                    hset(fieldOnly, field, -1, 60),
+                    hset(keyOnly, field, 3600, -1),
+                    hset(both, field, 3600, 60),
+                    new RedisWrite(CommandType.SET, string, List.of(bytes("v")), RedisWrite.Reply.STATUS, 30),
+                    new RedisWrite(CommandType.HDEL, fieldOnly, List.of(field), RedisWrite.Reply.INTEGER, -1, field, -1)));
+        }
+        verify(commands).hexpire(fieldOnly, 60L, field);
+        verify(commands).hexpire(both, 60L, field);
+        verify(commands, times(2)).hexpire(any(byte[].class), anyLong(), any(byte[][].class));
+        verify(commands).expire(keyOnly, 3600L);
+        verify(commands).expire(both, 3600L);
+        verify(commands).expire(string, 30L);
+        verify(commands, times(3)).expire(any(byte[].class), anyLong());
+    }
+
+    private static RedisWrite hset(byte[] hash, byte[] field, long ttl, long hashFieldTtl) {
+        return new RedisWrite(CommandType.HSET, hash, List.of(field, bytes("{}")), RedisWrite.Reply.INTEGER, ttl,
+                field, hashFieldTtl);
+    }
+
+    private static byte[] bytes(String value) {
+        return value.getBytes(StandardCharsets.UTF_8);
     }
 
     private RedisWrite write(String member) {

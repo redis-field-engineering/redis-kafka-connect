@@ -43,7 +43,9 @@ public class RedisSinkConfig extends RedisConfig {
 		/** Adds a member to a set. */
 		SET,
 		/** Adds a scored member to a sorted set. */
-		ZSET
+		ZSET,
+		/** Stores each record as one field of a hash named by the record key. */
+		HASH_FIELD
 	}
 
 	/** Configuration definition for this connector. */
@@ -58,6 +60,10 @@ public class RedisSinkConfig extends RedisConfig {
 	private final Duration waitTimeout;
 	private final long keyTTL;
 	private final String offsetNamespace;
+	private final KeyPath hashPath;
+	private final KeyPath fieldPath;
+	private final boolean hashFieldExpireEnabled;
+	private final long hashFieldTTL;
 
 	/**
 	 * Parses and validates the connector configuration.
@@ -86,6 +92,20 @@ public class RedisSinkConfig extends RedisConfig {
 		waitTimeout = Duration.ofMillis(getLong(RedisSinkConfigDef.WAIT_TIMEOUT_CONFIG));
 		keyTTL = getLong(RedisSinkConfigDef.KEY_TTL_CONFIG);
 		offsetNamespace = offsetNamespace(originals);
+		String hashReference = getString(RedisSinkConfigDef.HASH_FIELD_HASH_CONFIG);
+		String fieldReference = getString(RedisSinkConfigDef.HASH_FIELD_FIELD_CONFIG);
+		RedisSinkConfigDef.hashFieldErrors(type, hashReference, fieldReference).entrySet().stream().findFirst()
+				.ifPresent(error -> {
+					throw new ConfigException(error.getKey(), getString(error.getKey()), error.getValue());
+				});
+		hashFieldExpireEnabled = Boolean.TRUE.equals(getBoolean(RedisSinkConfigDef.HASH_FIELD_EXPIRE_ENABLED_CONFIG));
+		hashFieldTTL = getLong(RedisSinkConfigDef.HASH_FIELD_EXPIRE_TTL_CONFIG);
+		RedisSinkConfigDef.hashFieldExpireErrors(type, hashFieldExpireEnabled, hashFieldTTL).entrySet().stream().findFirst()
+				.ifPresent(error -> {
+					throw new ConfigException(error.getKey(), originals().get(error.getKey()), error.getValue());
+				});
+		hashPath = type == RedisType.HASH_FIELD ? KeyPath.parse(hashReference.trim()) : null;
+		fieldPath = type == RedisType.HASH_FIELD ? KeyPath.parse(fieldReference.trim()) : null;
 	}
 
 	private String offsetNamespace(Map<?, ?> originals) {
@@ -145,13 +165,37 @@ public class RedisSinkConfig extends RedisConfig {
 		return offsetNamespace;
 	}
 
+	/** {@return the record key reference that names the hash, or null unless the type is HASH_FIELD} */
+	KeyPath getHashPath() {
+		return hashPath;
+	}
+
+	/** {@return the record key reference that names the field within the hash, or null unless the type is HASH_FIELD} */
+	KeyPath getFieldPath() {
+		return fieldPath;
+	}
+
+	/** {@return whether HASH_FIELD fields can expire with HEXPIRE} */
+	public boolean isHashFieldExpireEnabled() {
+		return hashFieldExpireEnabled;
+	}
+
+	/** {@return the hash field lifetime in seconds for HASH_FIELD; 0 or below means no expiry} */
+	public long getHashFieldTTL() {
+		return hashFieldTTL;
+	}
+
+	private static String reference(KeyPath path) {
+		return path == null ? null : path.toString();
+	}
+
 	@Override
 	public int hashCode() {
 		final int prime = 31;
 		int result = super.hashCode();
 		result = prime * result
 				+ Objects.hash(charset, keyspace, separator, multiExec, type, waitReplicas, waitTimeout, keyTTL,
-						offsetNamespace);
+						offsetNamespace, reference(hashPath), reference(fieldPath), hashFieldExpireEnabled, hashFieldTTL);
 		return result;
 	}
 
@@ -166,8 +210,11 @@ public class RedisSinkConfig extends RedisConfig {
 		RedisSinkConfig other = (RedisSinkConfig) obj;
 		return Objects.equals(charset, other.charset) && Objects.equals(keyspace, other.keyspace)
 				&& Objects.equals(separator, other.separator) && multiExec == other.multiExec && type == other.type
-				&& waitReplicas == other.waitReplicas && waitTimeout == other.waitTimeout && keyTTL == other.keyTTL
-				&& Objects.equals(offsetNamespace, other.offsetNamespace);
+				&& waitReplicas == other.waitReplicas && Objects.equals(waitTimeout, other.waitTimeout) && keyTTL == other.keyTTL
+				&& Objects.equals(offsetNamespace, other.offsetNamespace)
+				&& Objects.equals(reference(hashPath), reference(other.hashPath))
+				&& Objects.equals(reference(fieldPath), reference(other.fieldPath))
+				&& hashFieldExpireEnabled == other.hashFieldExpireEnabled && hashFieldTTL == other.hashFieldTTL;
 	}
 
 }
