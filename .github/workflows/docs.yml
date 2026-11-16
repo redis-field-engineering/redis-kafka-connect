@@ -1,0 +1,55 @@
+name: Documentation
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'docs/**'
+      - 'README.adoc'
+      - '.github/workflows/docs.yml'
+  pull_request:
+    paths:
+      - 'docs/**'
+      - 'README.adoc'
+      - '.github/workflows/docs.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: redis/github-workflows/.github/actions/checkout@main
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.4'
+      - name: Install Asciidoctor
+        run: gem install asciidoctor --version 2.0.26 --no-document
+      - name: Build guide (warnings fail the build)
+        run: ruby docs/build.rb
+      - name: Upload guide
+        uses: redis/github-workflows/.github/actions/upload-pages-artifact@main
+        with:
+          path: build/site
+
+  deploy:
+    if: github.ref == 'refs/heads/master' && github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    concurrency:
+      group: github-pages
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: redis/github-workflows/.github/actions/configure-pages@main
+      - uses: redis/github-workflows/.github/actions/deploy-pages@main
+        id: deployment

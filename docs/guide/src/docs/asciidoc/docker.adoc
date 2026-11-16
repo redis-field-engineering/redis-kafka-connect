@@ -3,12 +3,13 @@
 
 The project {project-scm}[repository] contains a script that runs all the steps shown in the <<_quickstart,Quick Start>>.
 
-Clone the {project-scm}[{project-name}] repository and execute `run.sh` in `docker` directory:
+Clone the release, build the connector image, and execute `run.sh` in the repository root:
 
 [source,console,subs="attributes"]
 ----
-git clone {project-scm}
+git clone --branch v{project-version} --single-branch {project-scm}
 cd {project-name}
+docker compose build connect
 ./run.sh
 ----
 

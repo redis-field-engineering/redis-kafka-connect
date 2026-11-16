@@ -6,11 +6,13 @@ on:
       - master
     paths-ignore:
       - 'docs/**'
+      - '.github/workflows/docs.yml'
       - '*.adoc'
       - '*.md'
   pull_request:
     paths-ignore:
       - 'docs/**'
+      - '.github/workflows/docs.yml'
       - '*.adoc'
       - '*.md'
   workflow_dispatch:
