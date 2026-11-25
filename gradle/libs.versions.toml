@@ -1,6 +1,6 @@
 [versions]
 # Build plugins
-axion-release = "1.21.4"
+axion-release = "1.21.5"
 ben-manes-versions = "0.67.0"
 shadow = "9.6.1"
 
